@@ -3,6 +3,7 @@ import antiSlop from "ultracite/oxlint/anti-slop";
 import core from "ultracite/oxlint/core";
 import { jsPluginSettings, selectJsPlugins } from "ultracite/oxlint/js-plugins";
 import react from "ultracite/oxlint/react";
+import tanstack from "ultracite/oxlint/tanstack";
 import { defineConfig } from "vite-plus";
 
 const reactDoctor = selectJsPlugins(["react-doctor"]);
@@ -21,7 +22,7 @@ export default defineConfig({
     proseWrap: "preserve",
   },
   lint: {
-    extends: [core, react, reactDoctor, antiSlop],
+    extends: [core, react, reactDoctor, antiSlop, tanstack],
     ignorePatterns: [...(core.ignorePatterns ?? []), ".agents/**"],
     jsPlugins: [
       ...(reactDoctor.jsPlugins ?? []),

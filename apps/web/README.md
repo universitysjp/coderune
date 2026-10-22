@@ -1,32 +1,45 @@
-# React + TypeScript + Vite
+# Context Bridge website
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Research project site for Context Bridge, built with React, TanStack Router, Tailwind CSS v4, Base UI, and Phosphor icons.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 with the React Compiler
+- TanStack Router (file-based routes, no TanStack Start)
+- Tailwind CSS v4 via `@tailwindcss/vite`
+- shadcn/ui components backed by Base UI
+- Phosphor icons
+- Shared design tokens from `@context-bridge/tokens`
+- TypeScript 7, Vite+, Oxlint, Oxfmt
 
-## React Compiler
+## Commands
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+bun run dev
+bun run build
+bun run check-types
+bun run lint
+bun run fix
+bun run preview
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Run commands from `apps/web`.
+
+## Routes
+
+- `/` overview and verification demo
+- `/research` problem, research questions, objectives
+- `/design` architecture, data boundary, module scope
+- `/evaluation` three-condition study plan
+- `/team` team, institution, milestones
+
+Routes live in `src/routes`. The router plugin generates `src/routeTree.gen.ts`.
+
+## Design tokens
+
+`@context-bridge/tokens` provides the Paper Mono variable font and the light cream, ink, and blue palette in OKLCH. The package exposes:
+
+- `@context-bridge/tokens` for `tokens.css`
+- `@context-bridge/tokens/PaperMono-Variable.woff2` for the font
+
+Semantic names follow shadcn conventions (`--background`, `--foreground`, `--primary`, `--accent`, and so on) and are mapped into Tailwind through `@theme inline` in `src/index.css`.
