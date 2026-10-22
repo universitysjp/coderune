@@ -1,6 +1,6 @@
 # Data collection and storage interview
 
-Status: interview in progress. Record accepted answers here as the design develops.
+Status: interview round complete; scope confirmed by the developer on 2026-10-22, including Q24–Q25. This document defines the first collection and storage increment. Implementation progress is tracked separately in [the WBS](wbs/work-breakdown-structure.md) and [its progress tracker](wbs/wbs-progress.md).
 
 ## Accepted decisions
 
@@ -10,6 +10,7 @@ Status: interview in progress. Record accepted answers here as the design develo
 - Initially target native desktop on macOS Apple Silicon and Windows x64. GPUIX terminal mode is available on macOS/Linux in compatible terminals; it does not provide a Windows terminal interface.
 - One developer profile is reused across projects. Each project has its own goals, rules, and collection permissions.
 - Developer onboarding is mandatory before starting project work. Completing and confirming the profile establishes the starting information needed by later learning and gamification features; those features are not implemented in this increment.
+- Completing onboarding requires a display name or pseudonym, self-reported experience stage, an initial skills statement, and at least one learning goal. New developers can explicitly state that they are new to coding. A CV and prior employment are not required.
 - Connect the developer's existing coding agents, targeting Codex, Claude Code, OpenCode, and Antigravity. The selected agent handles its own model providers and authentication. Context Bridge owns the developer/project context and integration, rather than managing model accounts or agent sign-in.
 - Implement the first increment in TypeScript with Bun and SQLite.
 - Do not use PostgreSQL/pgvector. Prefer local AST and graph tooling with embedded storage for later code structure retrieval.
@@ -26,6 +27,7 @@ Status: interview in progress. Record accepted answers here as the design develo
 - Store data in one per-user SQLite database in the user's application data directory, outside project repositories.
 - Keep versioned context captures containing approved text, paths, hashes, timestamps, and Git state. Preserve older captures and reuse unchanged content.
 - Use `packages/core` for domain models and application operations, `packages/collectors` for filesystem and Git collection, and `packages/storage` for SQLite schema, migrations, and persistence. Both GPUIX launch modes use the same application operations and persistence boundary.
+- Use `packages/agents` for connections to Codex, Claude Code, OpenCode, and Antigravity. Use their documented ACP or native interfaces and expose each adapter's actual capabilities. This increment uses agents only for reviewed CV/SRS draft jobs; full interactive coding sessions follow later.
 - Inferred skill assessment follows in a later increment. CV import is now included in this increment.
 - Assumption verification and developer learning belong to later increments.
 - The optional Eve/learning subagent is outside the implementation scope.
@@ -38,26 +40,23 @@ The official [terminal documentation](https://github.com/remorses/gpuix/blob/a53
 
 Use one GPUIX app with shared core, collectors, and storage packages. Native desktop targets are macOS Apple Silicon and Windows x64. Include terminal launch support where GPUIX supports it; terminal-specific document selection behavior needs checking during implementation. Browser/WASM serving is a separate capability and is not part of the agreed first increment. A future browser app would need a service boundary for Bun filesystem/SQLite operations; those modules cannot be imported directly into browser code. See the official [starter server](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/example-app/web.ts) and [file-picker documentation](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/README.md#file-picker).
 
-The current working tree also contains a developer-created web scaffold and tooling changes. Preserve them while reconciling the final app directory and WBS; this interview has not implemented or installed the GPUIX application.
+The existing `apps/web` scaffold and developer tooling are preserved. The planned GPUIX application is `apps/app`; the web scaffold does not establish a browser filesystem/SQLite implementation for this increment.
 
 ## Graph tooling recommendation
 
 The selected target for the future graph adapter is `colbymchenry/codegraph`, using its local SQLite graph and FTS5 search. Its current driver targets Node, so direct Bun SDK compatibility is not assumed. Keep graph integration in the later increment and review its process boundary and egress controls then. The application's SQLite store remains responsible for developer profiles, project context, and collected evidence. See [the source comparison](graph-tool-comparison.md) for the alternatives and the distinction between extracted and inferred graph relationships.
 
-## Decisions still to resolve
+## Interview outcome
 
-- Minimum information needed to complete mandatory developer onboarding, including a path for new developers without a CV or prior experience.
-- The coding-agent connection protocol, supported capabilities, and adapter coverage for the first increment.
-- Whether the first agent integration is limited to reviewed document-import drafts or also includes interactive project coding sessions now. The original increment was collection and storage.
-- Final shared-understanding confirmation before updating the implementation WBS.
+The developer confirmed mandatory onboarding and the external-agent module in Q24–Q25. The current increment is collection, review, storage, and agent-assisted document import. The existing WBS is updated to reflect this shared understanding.
 
-The developer accepted the previous round's remaining defaults with corrections to model access and mandatory onboarding. Retention, collection/recovery, and data-management defaults below are therefore accepted. The future graph adapter's exact integration contract remains a later-increment decision.
+Retention, collection/recovery, and data-management defaults below are accepted. Adapter compatibility and platform behavior remain implementation work to demonstrate, rather than claims of completed support. The future graph adapter's exact integration contract, full coding sessions, passive activity collection, verification, and gamification are later-increment decisions.
 
 ## Developer onboarding
 
-The onboarding step is required before starting any project, including an existing repository. A completed reusable profile satisfies the gate for subsequent projects; its precise completion criteria still need confirmation. Manual entry and reviewed CV import are both supported, so an agent connection is not required to complete onboarding.
+The onboarding step is required before starting any project, including an existing repository. A completed reusable profile satisfies the gate for subsequent projects. Manual entry and reviewed CV import are both supported, so an agent connection is not required to complete onboarding.
 
-### Proposed completion criteria
+### Confirmed completion criteria
 
 - Require a display name or pseudonym, self-reported experience stage, an initial skills statement, and at least one learning goal. An explicit new-to-coding/no-skills-yet response is valid; do not require invented experience.
 - Provide CV-style sections for education, employment and project experience, certifications, links, and learning preferences. These supporting fields and the CV document itself remain optional.
@@ -100,13 +99,30 @@ Checked against primary documentation on 2026-10-22. These are documented capabi
 
 Claude's native CLI and SDK paths must remain distinct. Its [CLI reference](https://code.claude.com/docs/en/cli-reference) documents that `--bare` excludes OAuth/keychain/subscription login; ordinary CLI configuration is the relevant candidate for a user-owned installation. The [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview#get-started) separately constrains third-party sign-in offerings. Context Bridge will not offer its own agent login or assume a third-party bridge inherits Zed's authentication arrangements.
 
-### Proposed integration structure and increment boundary
+### Confirmed integration structure and increment boundary
 
 - Add `packages/agents` as the boundary for talking to external coding tools. Keep agent-specific commands, wire messages, capability checks, timeouts, cancellation, and errors inside it. The core requests a document draft and receives a validated draft or an actionable error.
 - Use ACP for compatible agent sessions and native adapters where a tool has a different documented protocol. Avoid implementing a new agent loop or provider authentication system.
 - Keep onboarding, document extraction, repository collection, and SQLite persistence usable without an agent. A connected agent is needed only when the developer requests agent-assisted interpretation.
-- Propose limiting this increment's agent work to explicit CV/SRS draft jobs: supplied text, progress/cancel, schema validation, and human review. Interactive project coding sessions follow later, along with gamification and verification.
+- Limit this increment's agent work to explicit CV/SRS draft jobs: supplied text, progress/cancel, schema validation, and human review. Interactive project coding sessions follow later, along with gamification and verification.
 - Import jobs must not receive permission to modify project files merely because a coding tool supports it. Verify each adapter's tool restrictions and working-directory isolation. Restricting client callbacks alone is insufficient for an agent with its own tools. Unsupported capabilities must be visible, with manual entry available.
+
+## Implementation structure
+
+These are planned responsibilities, not a statement that the packages are implemented.
+
+| Location | Responsibility |
+| --- | --- |
+| `apps/app` | GPUIX React application, native/terminal launch modes, forms, navigation, progress, and application composition. |
+| `packages/core` | Profile/project models, onboarding completion rules, import draft schemas, capture operations, and interfaces for external effects. |
+| `packages/collectors` | Local repository/Git capture and selected-document text extraction, scope enforcement, limits, hashes, and source metadata. |
+| `packages/storage` | Bun SQLite initialization outside repositories, migrations, transactional persistence, versions, history, retention, and consistent reads for export. |
+| `packages/agents` | Existing-tool detection/selection, documented protocol adapters, capabilities, draft jobs, progress/cancellation, and actionable errors. |
+| Existing `apps/web` and `packages/tokens` | Preserve the developer's scaffold and design assets; reuse suitable assets without assuming web components run in GPUIX. |
+
+The core defines the interfaces used by its operations. Collectors, storage, and agents implement them and can depend on core types; the core does not import those implementations. The GPUIX app composes the implementations. Agent wire formats and database rows do not become UI form contracts.
+
+The TypeScript/Bun implementation covers this increment without a Python backend. Supporting Python repositories means reading their permitted files; it does not require executing Python or installing an embedding service.
 
 ## Confirmed operating defaults
 
@@ -135,6 +151,9 @@ Claude's native CLI and SDK paths must remain distinct. Its [CLI reference](http
 - Profile/project edits affect future captures; preserve the context associated with earlier captures.
 - Report an unchanged refresh without duplicating an identical capture; retain changed captures as new versions.
 - The increment is complete when onboarding, capture, save, reopening, inspection, changed/unchanged refresh, export, and deletion work together for TypeScript and Python projects.
+- Project work remains gated while onboarding is incomplete, including after reopening or deleting the profile. An explicit new-to-coding baseline can complete onboarding without a CV or agent connection.
+- Selected PDF/DOCX/Markdown/TXT imports produce reviewable text and structured drafts where the connected adapter supports them. Missing sign-in, unavailable tools, invalid output, cancellation, and import errors preserve saved data and permit manual entry.
+- Native launch targets and supported terminal launch modes are reported accurately; an unverified or unsupported adapter/platform capability is not presented as working.
 
 ### WBS ownership when the round closes
 

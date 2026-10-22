@@ -1,90 +1,115 @@
 mindmap
   root((Context Bridge WBS))
-    P1 Research and design - all
-      P1.1 Problem, questions, objectives
-      P1.2 Literature review and gap matrix
-      P1.3 Requirements and privacy constraints
-      P1.4 Architecture, module boundaries, ADRs
-      P1.5 Project plan, schedule, risk register
-      P1.6 Progress reporting and review cadence
-    P2 Project foundations - all ✓
-      P2.1 Bun and Turborepo workspace
-      P2.2 TypeScript, lint, format, test commands
-      P2.3 CI and pre-commit checks
-      P2.4 Domain glossary and ADR process
-      P2.5 Package structure and module boundaries
-    P3 Developer and project context - all ✓
-      P3.1 Developer profile schema
-      P3.2 Developer profile entry and validation
-      P3.3 Self-reported skill scale
-      P3.4 Project context schema
-      P3.5 Project goals, rules, acceptance criteria entry
-      P3.6 Required and optional onboarding fields
-      P3.7 Collection permissions and exclusions
-      P3.8 Review before save
-    P4 Repository capture - all ✓
-      P4.1 Repository selection and scope
-      P4.2 Git state capture
-      P4.3 Dependency manifests
-      P4.4 Project configuration
-      P4.5 AGENTS.md, README, selected docs
-      P4.6 Permitted TypeScript and Python source/test files
-      P4.7 File metadata and hashing
-      P4.8 Capture manifest and provenance
-      P4.9 Initial capture operation
-      P4.10 Manual refresh and duplicate detection
-      P4.11 Capture summary and inspection
-    P5 Local storage - all ✓
-      P5.1 SQLite schema for profile, project, capture
-      P5.2 Migrations and schema versioning
-      P5.3 Repositories, DAOs, transactions
-      P5.4 Snapshot and history model
-      P5.5 Update and duplicate policy
-      P5.6 Deletion and retention
-      P5.7 Sensitive content and redaction handling
-      P5.8 Backup and export
-      P5.9 Database tests and fixtures
-    P6 CLI and UX - all ✓
-      P6.1 OpenTUI application shell
-      P6.2 Navigation and screen flow
-      P6.3 Forms and validation feedback
-      P6.4 Progress, cancellation, timeouts
-      P6.5 Failure recovery and retry
-      P6.6 Inspect and save flow
-      P6.7 End-to-end acceptance tests
-    P7 AST and code graph - all
-      P7.1 Tree-sitter parsing for TypeScript and Python
-      P7.2 Symbols, imports, references extraction
-      P7.3 Local graph schema and queries
-      P7.4 Incremental index refresh
-      P7.5 Evidence retrieval API
-      P7.6 Graph quality and performance tests
-      P7.7 Graph inspection UI
-    P8 Assumption verification - all
-      P8.1 Assumption and claim schema
-      P8.2 Assumption extraction from AI diffs
-      P8.3 Claim-to-evidence matching
-      P8.4 Verdict engine Verified/Contradicted/Unresolved/Stale
-      P8.5 Constraint, build, and test checks
-      P8.6 Confidence and provenance
-      P8.7 Verification review UI
-      P8.8 Verification acceptance tests
-    P9 Human-AI alignment and learning - all
-      P9.1 Skill profile and knowledge-gap model
-      P9.2 Concept extraction from diffs
-      P9.3 Learning trigger policy
-      P9.4 Gamified quiz generation
-      P9.5 Skill evidence and mastery update
-      P9.6 Learning dashboard and session UI
-      P9.7 Optional isolated learning subagent
-      P9.8 Learning evaluation hooks
-      P9.9 Learning content quality review
-    P10 Evaluation and dissemination - all
-      P10.1 Study protocol, consent, ethics
-      P10.2 Metrics and instruments
-      P10.3 Pilot with 2-3 developers
-      P10.4 Three-group study with 15-20 participants
-      P10.5 Quantitative and qualitative analysis
-      P10.6 Thesis and report
-      P10.7 Demo and final presentation
-      P10.8 Artifact packaging and reproducibility
+    P1 Research and design ✓
+      P1.1 Confirm problem statement, research questions, and objectives - RR
+      P1.2 Complete literature review and gap matrix - RR
+      P1.3 Increment requirements and sharing rules - PT ✓
+      P1.4 Increment architecture and module interfaces - PT ✓
+      P1.5 Maintain project plan, schedule, and risk register - RR
+      P1.6 Run progress reporting and review cadence - RR
+    P2 Project foundations ✓
+      P2.1 Bun and Turborepo workspace - PT ✓
+      P2.2 TypeScript, lint, format, test commands - PT ✓
+      P2.3 Add CI and pre-commit checks - NK
+      P2.4 Domain glossary and ADR process - PT ✓
+      P2.5 Core, collectors, storage, agents, GPUIX app - PT ✓
+    P3 Developer and project context ✓
+      P3.1 Profile and initial baseline models - PT ✓
+      P3.2 Developer profile entry and validation - PT ✓
+      P3.3 Self-reported skill scale - PT ✓
+      P3.4 Project context and provenance models - PT ✓
+      P3.5 Manual project goals and business knowledge - PT ✓
+      P3.6 Required baseline and new-developer path - PT ✓
+      P3.7 Collection permissions and exclusions - PT ✓
+      P3.8 Review before save - PT ✓
+      P3.9 Required onboarding gate and resume - PT ✓
+      P3.10 Local PDF, DOCX, Markdown, TXT extraction - PT ✓
+      P3.11 CV draft mapping and review - PT ✓
+      P3.12 Optional SRS import and source review - PT ✓
+      P3.13 Import limits, errors, provenance, fallback - PT ✓
+      P3.14 Reuse and edit profile/project configuration - PT ✓
+    P4 Repository capture ✓
+      P4.1 Repository selection and scope - PT ✓
+      P4.2 Git state capture - PT ✓
+      P4.3 Dependency manifests - PT ✓
+      P4.4 Project configuration - PT ✓
+      P4.5 AGENTS.md, README, selected docs - PT ✓
+      P4.6 Permitted TypeScript and Python source/test files - PT ✓
+      P4.7 File metadata and hashing - PT ✓
+      P4.8 Capture manifest and provenance - PT ✓
+      P4.9 Initial capture operation - PT ✓
+      P4.10 Manual refresh and duplicate detection - PT ✓
+      P4.11 Capture summary and inspection - PT ✓
+      P4.12 Limits, skip reasons, changed-source preview - PT ✓
+      P4.13 Later opt-in passive activity collection - NK
+    P5 Local storage ✓
+      P5.1 SQLite profiles, projects, captures, imports - NK ✓
+      P5.2 Migrations and schema versioning - NK ✓
+      P5.3 Persistence operations and transactions - NK ✓
+      P5.4 Snapshot and history model - NK ✓
+      P5.5 Update and duplicate policy - PT ✓
+      P5.6 Deletion and retention - NK ✓
+      P5.7 Sensitive-content selection and retention policy - PT ✓
+      P5.8 JSON export operation - PT ✓
+      P5.9 Add database tests and fixtures - NK
+      P5.10 Approved document text and source references - NK ✓
+      P5.11 Onboarding state and baseline/profile versions - NK ✓
+      P5.12 Per-user database and consistent reads - NK ✓
+    P6 GPUIX application and user experience ✓
+      P6.1 GPUIX React and Bun shell - PT ✓
+      P6.2 Navigation and screen flow - PT ✓
+      P6.3 Forms and validation feedback - PT ✓
+      P6.4 Progress, cancellation, timeouts - PT ✓
+      P6.5 Failure recovery and retry - PT ✓
+      P6.6 Inspect, save, edit, history - PT ✓
+      P6.7 Add end-to-end acceptance tests - RR
+      P6.8 File selection and typed paths - PT ✓
+      P6.9 Desktop and supported terminal launch modes - PT ✓
+      P6.10 Export and confirmed deletion controls - PT ✓
+    P7 AST and code graph
+      P7.1 Later codegraph TypeScript/Python parsing - RR
+      P7.2 Extract symbols, imports, and references - RR
+      P7.3 Derived graph queries and capture provenance - NK
+      P7.4 Implement incremental index refresh - NK
+      P7.5 Implement evidence retrieval API - NK
+      P7.6 Add graph quality and performance tests - RR
+      P7.7 Build graph inspection UI - PT
+    P8 Assumption verification
+      P8.1 Define assumption and claim schema - RR
+      P8.2 Extract assumptions from AI-generated diffs - RR
+      P8.3 Match claims to workspace evidence - RR
+      P8.4 Implement verdict engine - NK
+      P8.5 Add constraint, build, and test checks - NK
+      P8.6 Record confidence and provenance - RR
+      P8.7 Build verification review UI - PT
+      P8.8 Add verification acceptance tests - RR
+    P9 Human-AI alignment and learning
+      P9.1 Define skill profile and knowledge-gap model - RR
+      P9.2 Extract concepts from generated diffs - RR
+      P9.3 Define learning trigger policy - RR
+      P9.4 Implement gamified quiz generation - RR
+      P9.5 Implement skill evidence and mastery update - NK
+      P9.6 Build learning dashboard and session UI - PT
+      P9.7 Optional Eve subagent - excluded - RR
+      P9.8 Add learning evaluation hooks - NK
+      P9.9 Review learning content quality - RR
+    P10 Evaluation and dissemination
+      P10.1 Write study protocol, consent, and ethics materials - RR
+      P10.2 Define metrics and instruments - RR
+      P10.3 Run pilot with 2-3 developers - NK
+      P10.4 Counterbalanced three-condition study - All
+      P10.5 Analyse quantitative and qualitative data - RR
+      P10.6 Write thesis and report - All
+      P10.7 Prepare demo and final presentation - PT
+      P10.8 Package artifacts for reproducibility - NK
+    P11 External coding-agent integration ✓
+      P11.1 Draft interface, capabilities, validation, errors - PT ✓
+      P11.2 Existing tool selection and setup feedback - PT ✓
+      P11.3 Codex App Server draft adapter - PT ✓
+      P11.4 Claude Code CLI draft adapter - PT ✓
+      P11.5 OpenCode ACP draft adapter - PT ✓
+      P11.6 Antigravity CLI draft adapter - PT ✓
+      P11.7 Tool restrictions, progress, timeout, cancel - PT ✓
+      P11.8 Shared-text preview and invalid-output recovery - PT ✓
+      P11.9 Later interactive coding and approvals - PT
+      P11.10 Later interoperability evaluation - RR

@@ -24,6 +24,7 @@ const pngSvg = svg
   .replaceAll(/var\((?<name>--[\w-]+),(?<value>[^)]+)\)/gu, "$<value>");
 
 const png = new Resvg(pngSvg, {
+  background: "#ffffff",
   fitTo: { mode: "width", value: 1800 },
 })
   .render()
