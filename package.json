@@ -13,9 +13,11 @@
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "typecheck": "bun check"
+    "typecheck": "bun check",
+    "wbs:render": "bun scripts/render-wbs.ts"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "latest",
     "turbo": "^2.11.10"
   },
