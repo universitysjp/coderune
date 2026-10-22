@@ -3,7 +3,7 @@ import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import { render } from "pele";
 
-const docsDir = path.join(import.meta.dir, "..", "docs");
+const docsDir = path.join(import.meta.dir, "..", "docs/wbs");
 const sourcePath = path.join(docsDir, "work-breakdown-structure.mmd");
 const svgPath = path.join(docsDir, "work-breakdown-structure.svg");
 const pngPath = path.join(docsDir, "work-breakdown-structure.png");

@@ -142,7 +142,7 @@ Preserve the existing draft's task coverage and all three team members. Apply th
 
 ## Work breakdown structure instructions
 
-Use the developer's starting [WBS](work-breakdown-structure.md) and edit it as the design develops after this interview round. Keep the WBS in `docs` and render its diagram with Pele. Preserve existing work while updating the agreed scope. Use these three team members, as named on the final slide of [the proposal](presentation.pdf):
+Use the developer's starting [WBS](wbs/work-breakdown-structure.md) and edit it as the design develops after this interview round. Keep the WBS in `docs/wbs` and render its diagram with Pele. Preserve existing work while updating the agreed scope. Use these three team members, as named on the final slide of [the proposal](presentation.pdf):
 
 - Pruthivi Thejan
 - Nuwan Konara
