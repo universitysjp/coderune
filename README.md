@@ -21,4 +21,4 @@ Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/s
 and recorded in `skills-lock.json`.
 
 Issues and specs will use [GitHub Issues](https://github.com/universitysjp/context-bridge/issues).
-The proposed skills configuration is in [docs/skills-setup-draft.md](docs/skills-setup-draft.md).
+Skills conventions are documented in [docs/agents/](docs/agents/).

@@ -117,3 +117,17 @@ bun --hot ./index.ts
 ```
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+
+## Agent skills
+
+### Issue tracker
+
+Track issues and specs in `universitysjp/context-bridge` using GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five standard triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use a single project glossary and ADR directory. See `docs/agents/domain.md`.
