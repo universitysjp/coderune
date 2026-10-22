@@ -6,47 +6,146 @@ Status: interview in progress. Record accepted answers here as the design develo
 
 - The first increment collects the developer profile, project context, and selected repository context.
 - The first milestone allows the developer to collect, inspect, and save that context locally.
-- The interface is a CLI built with OpenTUI from the OpenCode team.
+- Use GPUIX React with Bun for the interactive application, replacing the earlier OpenTUI choice. Keep desktop and terminal launch modes in the same application where the runtime supports them.
+- Initially target native desktop on macOS Apple Silicon and Windows x64. GPUIX terminal mode is available on macOS/Linux in compatible terminals; it does not provide a Windows terminal interface.
 - One developer profile is reused across projects. Each project has its own goals, rules, and collection permissions.
+- Developer onboarding is mandatory before starting project work. Completing and confirming the profile establishes the starting information needed by later learning and gamification features; those features are not implemented in this increment.
+- Connect the developer's existing coding agents, targeting Codex, Claude Code, OpenCode, and Antigravity. The selected agent handles its own model providers and authentication. Context Bridge owns the developer/project context and integration, rather than managing model accounts or agent sign-in.
 - Implement the first increment in TypeScript with Bun and SQLite.
 - Do not use PostgreSQL/pgvector. Prefer local AST and graph tooling with embedded storage for later code structure retrieval.
 - Collect repository context on explicit request, with an initial capture and a manual refresh operation.
 - The initial repository capture covers Git state, dependency manifests, project configuration, AGENTS.md, README, selected documentation, and permitted source and test files.
 - Support TypeScript and Python repositories through file-based capture initially. AST and code graph extraction follow in a later increment.
-- Enter developer profiles and project context manually initially. Capture experience, self-reported skills and levels, learning preferences, project goals, rules, and acceptance criteria.
-- CV import and inferred skill assessment follow in later increments.
+- Developer onboarding collects CV-style details and supports both manual entry and import from a developer-selected local CV in the first increment.
+- When a project is not already configured, collect its SRS if available, its business logic, and the project knowledge held by the developer.
+- Reuse saved project configuration on subsequent use, with editing and refresh available.
+- Explicitly selected CV and SRS documents are separate imports from automatic repository traversal. Accept text-based PDF, DOCX, Markdown, and plain text initially; scanned-document OCR follows later.
+- Extract document text locally, then request structured CV/SRS drafts through a selected coding-agent integration. The developer reviews, corrects, and confirms the draft before saving. Manual onboarding remains available without a connected agent.
+- Preview the collection file list before saving and let the developer narrow the scope for each project.
+- Respect ignore rules and exclude environment files, private keys, dependency directories, generated output, binaries, and paths outside the selected repository.
+- Store data in one per-user SQLite database in the user's application data directory, outside project repositories.
+- Keep versioned context captures containing approved text, paths, hashes, timestamps, and Git state. Preserve older captures and reuse unchanged content.
+- Use `packages/core` for domain models and application operations, `packages/collectors` for filesystem and Git collection, and `packages/storage` for SQLite schema, migrations, and persistence. Both GPUIX launch modes use the same application operations and persistence boundary.
+- Inferred skill assessment follows in a later increment. CV import is now included in this increment.
 - Assumption verification and developer learning belong to later increments.
 - The optional Eve/learning subagent is outside the implementation scope.
 
+## GPUIX interface decision
+
+The developer accepted GPUIX for a desktop-first React/TypeScript application running with Bun, and identified its recently added terminal renderer. The earlier OpenTUI plan is superseded.
+
+The official [terminal documentation](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/README.md#run-in-a-terminal) provides `GPUIX_TERMINAL=1 bun app.tsx` or `render(<App />, { terminal: true })`. It renders the same React tree through the kitty graphics protocol. Supported terminal environments are kitty/Ghostty on macOS/Linux; Windows and tmux are unsupported. This mode needs a compatible graphical terminal, rather than providing a conventional character-cell TUI or a noninteractive command API.
+
+Use one GPUIX app with shared core, collectors, and storage packages. Native desktop targets are macOS Apple Silicon and Windows x64. Include terminal launch support where GPUIX supports it; terminal-specific document selection behavior needs checking during implementation. Browser/WASM serving is a separate capability and is not part of the agreed first increment. A future browser app would need a service boundary for Bun filesystem/SQLite operations; those modules cannot be imported directly into browser code. See the official [starter server](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/example-app/web.ts) and [file-picker documentation](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/README.md#file-picker).
+
+The current working tree also contains a developer-created web scaffold and tooling changes. Preserve them while reconciling the final app directory and WBS; this interview has not implemented or installed the GPUIX application.
+
 ## Graph tooling recommendation
 
-The leading future graph adapter is `colbymchenry/codegraph`, using its local
-SQLite graph and FTS5 search. Its current driver targets Node, so direct Bun SDK
-compatibility is not assumed. Keep graph integration in the later increment and
-review its process boundary and egress controls then. The application's SQLite
-store remains responsible for developer profiles, project context, and collected
-evidence. See [the source comparison](graph-tool-comparison.md) for the alternatives
-and the distinction between extracted and inferred graph relationships.
+The selected target for the future graph adapter is `colbymchenry/codegraph`, using its local SQLite graph and FTS5 search. Its current driver targets Node, so direct Bun SDK compatibility is not assumed. Keep graph integration in the later increment and review its process boundary and egress controls then. The application's SQLite store remains responsible for developer profiles, project context, and collected evidence. See [the source comparison](graph-tool-comparison.md) for the alternatives and the distinction between extracted and inferred graph relationships.
 
 ## Decisions still to resolve
 
-- Module boundaries and the future graph adapter's exact integration contract.
-- Required versus optional onboarding fields and the self-reported skill scale.
-- Collection permissions, exclusions, and handling of sensitive content.
-- Storage location, updates, history, deletion, and duplicate captures.
-- OpenTUI renderer, navigation, cancellation, and failure recovery.
-- Acceptance criteria for the first increment.
+- Minimum information needed to complete mandatory developer onboarding, including a path for new developers without a CV or prior experience.
+- The coding-agent connection protocol, supported capabilities, and adapter coverage for the first increment.
+- Whether the first agent integration is limited to reviewed document-import drafts or also includes interactive project coding sessions now. The original increment was collection and storage.
+- Final shared-understanding confirmation before updating the implementation WBS.
+
+The developer accepted the previous round's remaining defaults with corrections to model access and mandatory onboarding. Retention, collection/recovery, and data-management defaults below are therefore accepted. The future graph adapter's exact integration contract remains a later-increment decision.
+
+## Developer onboarding
+
+The onboarding step is required before starting any project, including an existing repository. A completed reusable profile satisfies the gate for subsequent projects; its precise completion criteria still need confirmation. Manual entry and reviewed CV import are both supported, so an agent connection is not required to complete onboarding.
+
+### Proposed completion criteria
+
+- Require a display name or pseudonym, self-reported experience stage, an initial skills statement, and at least one learning goal. An explicit new-to-coding/no-skills-yet response is valid; do not require invented experience.
+- Provide CV-style sections for education, employment and project experience, certifications, links, and learning preferences. These supporting fields and the CV document itself remain optional.
+- Imported CV fields count only after review and confirmation. Ask for required information that is missing from the CV, including learning goals.
+- Persist onboarding completion only with the confirmed profile, preserve its starting version, and require completion again if the profile is deleted. Incomplete onboarding can be resumed after reopening.
+
+### Other accepted onboarding defaults
+
+- Preserve missing or ambiguous imported information as unresolved rather than inventing values.
+- On first opening an unconfigured project, offer an SRS import if one is available and guided entry of business logic, project purpose, constraints, decisions, and other knowledge held by the developer.
+- A project without an SRS can be configured through developer-provided information.
+- Require a project name, readable root folder, and at least one goal. Permit business rules, constraints, decisions, and supporting documents to be completed later.
+- Keep document-derived information distinguishable from developer statements.
+- Rate a self-reported skill as beginner, intermediate, or advanced. An omitted rating remains unrated.
+
+## External coding-agent decision
+
+- Replace the proposed direct OpenAI-compatible endpoint with connections to the developer's existing coding tools, following the external-agent approach used by Zed.
+- Leave sign-in, tokens, model selection, and provider configuration with the coding agent. Context Bridge should report a missing installation or required sign-in and direct the developer to the selected tool's own setup flow. Do not read or copy its credential files into application records or exports.
+- Show the selected agent and the document text/context to be shared before an import run. Local extraction and local storage do not imply that the selected agent performs inference locally.
+- Validate agent-generated fields against the import draft schema, preserve source references, and require review before saving them as confirmed profile/project information. Schema-valid output can still contain incorrect claims.
+- Do not silently change to another agent, provider, or model when a connection fails. Keep manual entry available.
+
+The compatibility target includes Codex, Claude Code, OpenCode, and Antigravity. This is an extensible integration target; listing a tool does not yet claim an implemented or verified adapter. Broad provider coverage comes through the providers supported by each developer-selected agent.
+
+Official [Codex App Server documentation](https://learn.chatgpt.com/docs/app-server) describes a stdio integration with thread/turn lifecycle, streamed events, cancellation, permission requests, and per-turn structured-output schemas. Codex can own its authentication lifecycle. This is a usable integration surface to assess alongside Zed's agent protocol, rather than treating a coding agent as a generic model HTTP endpoint.
+
+### Verified integration surfaces
+
+Checked against primary documentation on 2026-10-22. These are documented capabilities, not completed compatibility checks for this application.
+
+| Coding tool | Documented connection | Implication for this project |
+| --- | --- | --- |
+| Codex | [App Server](https://learn.chatgpt.com/docs/app-server), including stdio, streamed turns, cancellation, approvals, and per-turn output schemas. | Can support a native adapter while Codex retains its own configuration and sign-in. |
+| Claude Code | Installed CLI [print/headless mode](https://code.claude.com/docs/en/headless), with JSON/streaming output and `--json-schema`. | A native CLI adapter can request import drafts using the user's tool configuration. Do not assume an SDK-based bridge has the same authentication behavior. |
+| OpenCode | Native [`opencode acp`](https://docs.opencode.ai/docs/acp/) over stdio. | An ACP client can connect to OpenCode while its rules, providers, MCP configuration, and permissions remain with the agent. |
+| Antigravity | Official [`agy` headless CLI](https://antigravity.google/docs/cli/headless/), with schema output, JSON/NDJSON, and multi-turn streams. | Use its documented CLI surface; no official ACP mode was located. A CLI connection does not establish attachment to an already-running IDE conversation. |
+
+[Zed's external-agent boundary](https://zed.dev/docs/ai/external-agents#configuration-boundaries) is the integration reference. ACP currently documents [v1 as the stable protocol](https://agentclientprotocol.com/protocol/v1/initialization) and provides a [TypeScript SDK](https://agentclientprotocol.com/libraries/typescript). Rich interactive hosting needs streamed session updates, cancellation, and visible permission requests. ACP itself does not sandbox an agent or guarantee schema-enforced output; capabilities and execution restrictions need checking per adapter.
+
+Claude's native CLI and SDK paths must remain distinct. Its [CLI reference](https://code.claude.com/docs/en/cli-reference) documents that `--bare` excludes OAuth/keychain/subscription login; ordinary CLI configuration is the relevant candidate for a user-owned installation. The [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview#get-started) separately constrains third-party sign-in offerings. Context Bridge will not offer its own agent login or assume a third-party bridge inherits Zed's authentication arrangements.
+
+### Proposed integration structure and increment boundary
+
+- Add `packages/agents` as the boundary for talking to external coding tools. Keep agent-specific commands, wire messages, capability checks, timeouts, cancellation, and errors inside it. The core requests a document draft and receives a validated draft or an actionable error.
+- Use ACP for compatible agent sessions and native adapters where a tool has a different documented protocol. Avoid implementing a new agent loop or provider authentication system.
+- Keep onboarding, document extraction, repository collection, and SQLite persistence usable without an agent. A connected agent is needed only when the developer requests agent-assisted interpretation.
+- Propose limiting this increment's agent work to explicit CV/SRS draft jobs: supplied text, progress/cancel, schema validation, and human review. Interactive project coding sessions follow later, along with gamification and verification.
+- Import jobs must not receive permission to modify project files merely because a coding tool supports it. Verify each adapter's tool restrictions and working-directory isolation. Restricting client callbacks alone is insufficient for an agent with its own tools. Unsupported capabilities must be visible, with manual entry available.
+
+## Confirmed operating defaults
+
+### Imported document retention
+
+- Retain confirmed structured fields, the developer-approved extracted text, and source metadata such as document name, path, hash, and import time. Keep page or section references when the extractor provides them.
+- Do not copy the original PDF/DOCX into application storage by default. Retained approved text keeps the source evidence available if the original moves or is removed.
+- Use a configurable 20 MiB limit per imported document. Explain unsupported, unreadable, oversized, or image-only documents and offer manual entry.
+- If the agent cannot accept the selected input size, request a smaller selection rather than silently dropping text.
+
+### Capture and recovery
+
+- Guide the developer through profile, project, scope, scan, preview, and save. Allow back navigation and cancellation.
+- Save forms only when explicitly confirmed; save each context capture in one database transaction.
+- Retain previously saved records when a capture is cancelled or fails. Show errors with a retry action.
+- Capture text with configurable defaults of 1 MiB per file and 20 MiB per capture. List skipped files and their reasons.
+- Record Git metadata when available. A readable project folder can still be captured without Git metadata.
+- Never execute project scripts or contact external services during repository scanning or local document text extraction. Agent-assisted interpretation is a separate explicitly requested operation with previewed input.
+- Bind saving to the reviewed capture. If source content changes during review, require a fresh preview before saving.
+- The separate imported-document size limit is defined above; repository capture limits do not silently apply to a selected CV/SRS document.
+
+### Data management and acceptance
+
+- Support inspection and editing of developer/project records, capture history, JSON export, and confirmed deletion of saved project/capture data.
+- Deleting a project removes its saved context and captures, while preserving the reusable developer profile and other projects. Provide a separate confirmed action for deleting all application data.
+- Profile/project edits affect future captures; preserve the context associated with earlier captures.
+- Report an unchanged refresh without duplicating an identical capture; retain changed captures as new versions.
+- The increment is complete when onboarding, capture, save, reopening, inspection, changed/unchanged refresh, export, and deletion work together for TypeScript and Python projects.
+
+### WBS ownership when the round closes
+
+Preserve the existing draft's task coverage and all three team members. Apply the developer's explicit instruction to this session's implementation tasks: Pruthivi owns UI/collection/integration and Nuwan owns the database layer. Keep Raviru's research, evaluation, and later verification work visible. Broader assignments outside this session need not change solely to match the session's implementation ownership.
 
 ## Work breakdown structure instructions
 
-Create the WBS in `docs` using Pele after the interview is complete and the design is confirmed.
-Draft created early per request: [work-breakdown-structure.md](work-breakdown-structure.md).
-Use these three team members, as named on the final slide of [the proposal](presentation.pdf):
+Use the developer's starting [WBS](work-breakdown-structure.md) and edit it as the design develops after this interview round. Keep the WBS in `docs` and render its diagram with Pele. Preserve existing work while updating the agreed scope. Use these three team members, as named on the final slide of [the proposal](presentation.pdf):
 
 - Pruthivi Thejan
 - Nuwan Konara
 - Raviru Rathnaweera
 
-Mark tasks selected for this session with a tick and track completion separately.
-Assign this session's implementation tasks to Pruthivi Thejan, with the database
-layer tasks assigned to Nuwan Konara. Include all three team members in the project WBS.
+Mark tasks selected for this session with a tick and track completion separately. Assign this session's implementation tasks to Pruthivi Thejan, with the database layer tasks assigned to Nuwan Konara. Include all three team members in the project WBS.

@@ -1,31 +1,39 @@
 {
   "name": "context-bridge",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
+  "type": "module",
+  "module": "index.ts",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "check": "vp check",
     "check-types": "turbo run check-types",
+    "dev": "turbo run dev",
+    "fix": "vp check --fix",
+    "lint": "turbo run lint",
+    "prepare": "vp config --no-agent",
     "test": "turbo run test",
     "typecheck": "bun check",
     "wbs:render": "bun scripts/render-wbs.ts"
   },
+  "dependencies": {},
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "latest",
-    "turbo": "^2.11.10"
+    "oxlint-plugin-react-doctor": "^0.9.18",
+    "pele": "^1.8.0",
+    "turbo": "^2.11.10",
+    "ultracite": "^8.0.1",
+    "vite-plus": "1.1.0"
   },
   "peerDependencies": {
     "typescript": "^7"
   },
-  "dependencies": {
-    "pele": "^1.8.0"
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.1.0"
   },
   "devEngines": {
     "packageManager": {
