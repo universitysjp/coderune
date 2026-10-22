@@ -4,6 +4,14 @@ globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
+Instructions in this document appear without a order so read and cache them on your temp. One thing not to do is erase work while you are working. 
+
+# Preserve user changes
+
+- Do not overwrite, restore, reset, or discard user-authored changes.
+- Before editing a file, inspect its current contents and working-tree diff. Use narrow patches that preserve unrelated edits.
+- Recheck the working tree before each write. Treat newly appearing changes as active user work and preserve them; if an edit conflicts, stop and ask how to proceed.
+
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
