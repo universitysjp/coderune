@@ -1,0 +1,15 @@
+{
+  "name": "@context-bridge/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Paper Mono typeface and OKLCH color tokens for Context Bridge.",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": "./src/tokens.css",
+    "./tokens.css": "./src/tokens.css",
+    "./fonts/paper-mono-variable.woff2": "./fonts/PaperMono-Variable.woff2"
+  }
+}
