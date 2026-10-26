@@ -1,0 +1,3 @@
+Alex Chen
+Skills: TypeScript, SQL
+Goal: learn testing
