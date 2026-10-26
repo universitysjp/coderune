@@ -11,7 +11,7 @@ Status: interview round complete; scope confirmed by the developer on 2026-10-22
 - One developer profile is reused across projects. Each project has its own goals, rules, and collection permissions.
 - Developer onboarding is mandatory before starting project work. Completing and confirming the profile establishes the starting information needed by later learning and gamification features; those features are not implemented in this increment.
 - Completing onboarding requires a display name or pseudonym, self-reported experience stage, an initial skills statement, and at least one learning goal. New developers can explicitly state that they are new to coding. A CV and prior employment are not required.
-- Connect the developer's existing coding agents, targeting Codex, Claude Code, OpenCode, and Antigravity. The selected agent handles its own model providers and authentication. Context Bridge owns the developer/project context and integration, rather than managing model accounts or agent sign-in.
+- Connect the developer's existing coding agents, targeting Codex, Claude Code, OpenCode, and Antigravity. The selected agent handles its own model providers and authentication. Coderune owns the developer/project context and integration, rather than managing model accounts or agent sign-in.
 - Implement the first increment in TypeScript with Bun and SQLite.
 - Do not use PostgreSQL/pgvector. Prefer local AST and graph tooling with embedded storage for later code structure retrieval.
 - Collect repository context on explicit request, with an initial capture and a manual refresh operation.
@@ -75,7 +75,7 @@ The onboarding step is required before starting any project, including an existi
 ## External coding-agent decision
 
 - Replace the proposed direct OpenAI-compatible endpoint with connections to the developer's existing coding tools, following the external-agent approach used by Zed.
-- Leave sign-in, tokens, model selection, and provider configuration with the coding agent. Context Bridge should report a missing installation or required sign-in and direct the developer to the selected tool's own setup flow. Do not read or copy its credential files into application records or exports.
+- Leave sign-in, tokens, model selection, and provider configuration with the coding agent. Coderune should report a missing installation or required sign-in and direct the developer to the selected tool's own setup flow. Do not read or copy its credential files into application records or exports.
 - Show the selected agent and the document text/context to be shared before an import run. Local extraction and local storage do not imply that the selected agent performs inference locally.
 - Validate agent-generated fields against the import draft schema, preserve source references, and require review before saving them as confirmed profile/project information. Schema-valid output can still contain incorrect claims.
 - Do not silently change to another agent, provider, or model when a connection fails. Keep manual entry available.
@@ -97,7 +97,7 @@ Checked against primary documentation on 2026-10-22. These are documented capabi
 
 [Zed's external-agent boundary](https://zed.dev/docs/ai/external-agents#configuration-boundaries) is the integration reference. ACP currently documents [v1 as the stable protocol](https://agentclientprotocol.com/protocol/v1/initialization) and provides a [TypeScript SDK](https://agentclientprotocol.com/libraries/typescript). Rich interactive hosting needs streamed session updates, cancellation, and visible permission requests. ACP itself does not sandbox an agent or guarantee schema-enforced output; capabilities and execution restrictions need checking per adapter.
 
-Claude's native CLI and SDK paths must remain distinct. Its [CLI reference](https://code.claude.com/docs/en/cli-reference) documents that `--bare` excludes OAuth/keychain/subscription login; ordinary CLI configuration is the relevant candidate for a user-owned installation. The [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview#get-started) separately constrains third-party sign-in offerings. Context Bridge will not offer its own agent login or assume a third-party bridge inherits Zed's authentication arrangements.
+Claude's native CLI and SDK paths must remain distinct. Its [CLI reference](https://code.claude.com/docs/en/cli-reference) documents that `--bare` excludes OAuth/keychain/subscription login; ordinary CLI configuration is the relevant candidate for a user-owned installation. The [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview#get-started) separately constrains third-party sign-in offerings. Coderune will not offer its own agent login or assume a third-party bridge inherits Zed's authentication arrangements.
 
 ### Confirmed integration structure and increment boundary
 

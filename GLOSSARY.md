@@ -1,4 +1,4 @@
-# Context Bridge
+# Coderune
 
 Shared vocabulary for collecting developer and project context for AI coding assistants.
 

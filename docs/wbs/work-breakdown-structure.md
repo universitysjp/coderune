@@ -37,7 +37,7 @@ into SVG, then `@resvg/resvg-js` converts it to PNG.
 - [work-breakdown-structure.svg](work-breakdown-structure.svg)
 - [work-breakdown-structure.png](work-breakdown-structure.png)
 
-![Context Bridge work breakdown structure](work-breakdown-structure.png)
+![Coderune work breakdown structure](work-breakdown-structure.png)
 
 Run `bun run wbs:render` after editing the Mermaid source.
 

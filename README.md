@@ -1,4 +1,4 @@
-# Context Bridge
+# Coderune
 
 Research into local shared context and assumption verification for AI coding assistants.
 
@@ -20,5 +20,5 @@ bun install
 Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/skills`
 and recorded in `skills-lock.json`.
 
-Issues and specs will use [GitHub Issues](https://github.com/universitysjp/context-bridge/issues).
+Issues and specs will use [GitHub Issues](https://github.com/universitysjp/coderune/issues).
 Skills conventions are documented in [docs/agents/](docs/agents/).

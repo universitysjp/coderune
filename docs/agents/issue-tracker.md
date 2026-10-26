@@ -1,7 +1,7 @@
 # Issue tracker: GitHub
 
-Issues and specs live in `universitysjp/context-bridge` on GitHub. Use the `gh` CLI.
-Run commands in this checkout, or pass `--repo universitysjp/context-bridge` explicitly.
+Issues and specs live in `universitysjp/coderune` on GitHub. Use the `gh` CLI.
+Run commands in this checkout, or pass `--repo universitysjp/coderune` explicitly.
 
 ## Conventions
 
