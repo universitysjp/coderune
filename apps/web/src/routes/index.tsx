@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { SectionHeading } from "@/components/section-heading";
+import { ContentSection } from "@/components/content-section";
 import { SiteLogo } from "@/components/site-logo";
 import { VerificationDemo } from "@/components/verification-demo";
 import { site } from "@/lib/site";
@@ -30,31 +30,31 @@ const snapshot = [
 
 const comparison = [
   {
-    bridge: "Checked against sources",
+    coderune: "Checked against sources",
     checklist: "Stated only",
     feature: "Grounds output in workspace evidence",
     plain: "Model priors",
   },
   {
-    bridge: "Verified · Contradicted · Unresolved",
+    coderune: "Verified · Contradicted · Unresolved",
     checklist: "Manual judgement",
     feature: "Shows a verdict",
     plain: "None",
   },
   {
-    bridge: "Path, hash, timestamp",
+    coderune: "Path, hash, timestamp",
     checklist: "Sometimes",
     feature: "Keeps evidence traceable",
     plain: "Rarely",
   },
   {
-    bridge: "Progressive disclosure",
+    coderune: "Progressive disclosure",
     checklist: "Not addressed",
     feature: "Protects attention",
     plain: "Not addressed",
   },
   {
-    bridge: "Local-first",
+    coderune: "Local-first",
     checklist: "Varies by tool",
     feature: "Runs against local data",
     plain: "Varies by tool",
@@ -112,12 +112,11 @@ const HomePage = () => (
       </h1>
     </section>
 
-    <section aria-labelledby="how-it-works" id="how-it-works">
-      <SectionHeading title="How it works" />
-      <p className="mt-4 max-w-[40rem]">
-        An assistant states what it assumed. Context Bridge compares those
-        claims with the evidence the developer allowed it to collect, then shows
-        a verdict and the source behind it.
+    <ContentSection id="how-it-works" title="How it works">
+      <p className="max-w-[40rem]">
+        An assistant states what it assumed. Coderune compares those claims with
+        the evidence the developer allowed it to collect, then shows a verdict
+        and the source behind it.
       </p>
 
       <VerificationDemo />
@@ -175,11 +174,10 @@ const HomePage = () => (
           </ol>
         </div>
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="why-context-bridge" id="why-context-bridge">
-      <SectionHeading title="Why Context Bridge?" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="why-coderune" title="Why Coderune?">
+      <p className="max-w-[40rem]">
         Listing assumptions is useful. Checking them is different. This study
         tests whether grounding them in workspace evidence improves reliability
         without adding cognitive load.
@@ -192,7 +190,7 @@ const HomePage = () => (
               <th scope="col">Capability</th>
               <th scope="col">Plain assistant</th>
               <th scope="col">Assumption list</th>
-              <th scope="col">Context Bridge</th>
+              <th scope="col">Coderune</th>
             </tr>
           </thead>
           <tbody>
@@ -211,17 +209,16 @@ const HomePage = () => (
                 >
                   {row.checklist}
                 </td>
-                <td data-label="Context Bridge">{row.bridge}</td>
+                <td data-label="Coderune">{row.coderune}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="current-scope" id="current-scope">
-      <SectionHeading title="Current scope" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="current-scope" title="Current scope">
+      <p className="max-w-[40rem]">
         The current increment covers onboarding, local context capture, storage,
         and reviewed document imports. Verification and learning follow in later
         increments.
@@ -239,10 +236,9 @@ const HomePage = () => (
           Read the design
         </Link>
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="explore" id="explore">
-      <SectionHeading title="Explore" />
+    <ContentSection id="explore" title="Explore">
       <nav aria-label="Project pages" className="guide-links">
         {explore.map((item) => (
           <Link className="guide-link-card" key={item.to} to={item.to}>
@@ -251,13 +247,11 @@ const HomePage = () => (
           </Link>
         ))}
       </nav>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="research-in-progress" id="research-in-progress">
-      <SectionHeading title="Research in progress" />
-      <p className="mt-4 max-w-[40rem]">
-        Context Bridge is a final-year research project at the {site.university}
-        . The{" "}
+    <ContentSection id="research-in-progress" title="Research in progress">
+      <p className="max-w-[40rem]">
+        Coderune is a final-year research project at the {site.university}. The{" "}
         <a
           className="underline underline-offset-4"
           href={site.proposalUrl}
@@ -277,7 +271,7 @@ const HomePage = () => (
         </a>{" "}
         tracks the implementation.
       </p>
-    </section>
+    </ContentSection>
   </div>
 );
 

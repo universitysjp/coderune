@@ -1,3 +1,5 @@
+@import "@fontsource-variable/geist";
+
 @font-face {
   font-family: "Paper Mono";
   src: url("../fonts/PaperMono-Variable.woff2") format("woff2-variations");
@@ -9,8 +11,8 @@
 :root {
   /* Typeface */
   --font-family-base:
-    "Paper Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", monospace;
+    "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-family-mono:
     "Paper Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;

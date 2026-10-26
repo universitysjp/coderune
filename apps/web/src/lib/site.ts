@@ -3,12 +3,12 @@ export const site = {
   description:
     "A privacy-preserving shared-context layer that verifies AI coding assumptions against local workspace evidence.",
   group: "Group 23",
-  name: "Context Bridge",
+  name: "Coderune",
   presentationUrl:
-    "https://github.com/universitysjp/context-bridge/blob/main/docs/presentation.pdf",
+    "https://github.com/universitysjp/coderune/blob/main/docs/presentation.pdf",
   proposalUrl:
-    "https://github.com/universitysjp/context-bridge/blob/main/docs/proposal_group_23.pdf",
-  repositoryUrl: "https://github.com/universitysjp/context-bridge",
+    "https://github.com/universitysjp/coderune/blob/main/docs/proposal_group_23.pdf",
+  repositoryUrl: "https://github.com/universitysjp/coderune",
   university: "University of Sri Jayewardenepura",
 } as const;
 
@@ -23,7 +23,7 @@ export const navItems = [
 export const pageSections = {
   "/": [
     { id: "how-it-works", label: "How it works" },
-    { id: "why-context-bridge", label: "Why Context Bridge?" },
+    { id: "why-coderune", label: "Why Coderune?" },
     { id: "current-scope", label: "Current scope" },
     { id: "explore", label: "Explore" },
     { id: "research-in-progress", label: "Research in progress" },

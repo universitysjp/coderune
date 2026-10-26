@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { ContentSection } from "@/components/content-section";
 import { PageHeader } from "@/components/page-header";
-import { SectionHeading } from "@/components/section-heading";
 
 const principles = [
   {
@@ -77,7 +77,7 @@ const modules = [
   },
   {
     location: "packages/tokens",
-    responsibility: "Paper Mono typeface and OKLCH design tokens.",
+    responsibility: "Geist typefaces and OKLCH design tokens.",
   },
 ] as const;
 
@@ -93,7 +93,7 @@ const DesignPage = () => (
         </Link>
         <a
           className="underline underline-offset-4"
-          href="https://github.com/universitysjp/context-bridge/blob/main/docs/data-collection-design.md"
+          href="https://github.com/universitysjp/coderune/blob/main/docs/data-collection-design.md"
           rel="noreferrer"
           target="_blank"
         >
@@ -102,9 +102,8 @@ const DesignPage = () => (
       </div>
     </PageHeader>
 
-    <section aria-labelledby="principles" id="principles">
-      <SectionHeading title="Principles" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="principles" title="Principles">
+      <p className="max-w-[40rem]">
         Four constraints decide where data lives, what counts as evidence, and
         how much the interface shows at once.
       </p>
@@ -121,11 +120,10 @@ const DesignPage = () => (
           </div>
         ))}
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="architecture" id="architecture">
-      <SectionHeading title="Architecture" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="architecture" title="Architecture">
+      <p className="max-w-[40rem]">
         The flow starts before a coding agent runs and continues after generated
         code arrives.
       </p>
@@ -167,11 +165,10 @@ const DesignPage = () => (
           </ol>
         </div>
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="data-boundary" id="data-boundary">
-      <SectionHeading title="Data boundary" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="data-boundary" title="Data boundary">
+      <p className="max-w-[40rem]">
         The boundary is explicit so a local capture does not imply that the
         selected coding agent performs inference locally.
       </p>
@@ -200,7 +197,7 @@ const DesignPage = () => (
             </li>
             <li>
               Provider authentication and model choice, which stay with the
-              agent rather than Context Bridge.
+              agent rather than Coderune.
             </li>
           </ul>
         </div>
@@ -210,11 +207,10 @@ const DesignPage = () => (
         and initiate no external calls. Agent-assisted interpretation is a
         separate, explicitly requested operation.
       </p>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="current-increment" id="current-increment">
-      <SectionHeading title="Current increment" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="current-increment" title="Current increment">
+      <p className="max-w-[40rem]">
         This site does not present later-increment work as complete. The first
         increment is local onboarding, capture, storage, and reviewed document
         import.
@@ -252,11 +248,10 @@ const DesignPage = () => (
           </ul>
         </div>
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="module-scope" id="module-scope">
-      <SectionHeading title="Module scope" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="module-scope" title="Module scope">
+      <p className="max-w-[40rem]">
         Planned responsibilities, not a claim that every module is implemented.
       </p>
       <section aria-label="Package responsibilities" className="table-wrap">
@@ -287,7 +282,7 @@ const DesignPage = () => (
           Continue to the evaluation plan
         </Link>
       </p>
-    </section>
+    </ContentSection>
   </div>
 );
 

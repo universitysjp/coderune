@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { ContentSection } from "@/components/content-section";
 import { PageHeader } from "@/components/page-header";
-import { SectionHeading } from "@/components/section-heading";
 
 const method = [
   {
@@ -86,9 +86,8 @@ const EvaluationPage = () => (
       </Link>
     </PageHeader>
 
-    <section aria-labelledby="method" id="method">
-      <SectionHeading title="Method" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="method" title="Method">
+      <p className="max-w-[40rem]">
         Design Science Research connects the identified problem to an artefact
         and an empirical evaluation.
       </p>
@@ -130,11 +129,10 @@ const EvaluationPage = () => (
           </ol>
         </div>
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="conditions" id="conditions">
-      <SectionHeading title="Conditions" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="conditions" title="Conditions">
+      <p className="max-w-[40rem]">
         Each condition adds one layer of support so the study can separate the
         effect of listing assumptions from the effect of verifying them.
       </p>
@@ -161,11 +159,10 @@ const EvaluationPage = () => (
           </div>
         ))}
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="measures" id="measures">
-      <SectionHeading title="Measures" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="measures" title="Measures">
+      <p className="max-w-[40rem]">
         The study combines a controlled task with quantitative and qualitative
         measures. The pilot runs with 2–3 developers; the main study targets
         15–20 participants.
@@ -222,7 +219,7 @@ const EvaluationPage = () => (
         </Link>
         .
       </p>
-    </section>
+    </ContentSection>
   </div>
 );
 

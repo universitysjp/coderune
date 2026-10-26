@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { ContentSection } from "@/components/content-section";
 import { PageHeader } from "@/components/page-header";
-import { SectionHeading } from "@/components/section-heading";
 import { site, team } from "@/lib/site";
 
 const milestones = [
@@ -43,7 +43,7 @@ const milestones = [
 const TeamPage = () => (
   <div>
     <PageHeader
-      description="Context Bridge is a final-year research project at the University of Sri Jayewardenepura. The team combines application engineering, local storage, and research evaluation."
+      description="Coderune is a final-year research project at the University of Sri Jayewardenepura. The team combines application engineering, local storage, and research evaluation."
       title="Group 23, building a shared-context layer."
     >
       <div className="flex flex-wrap gap-4 text-sm">
@@ -66,9 +66,8 @@ const TeamPage = () => (
       </div>
     </PageHeader>
 
-    <section aria-labelledby="team" id="team">
-      <SectionHeading title="Team" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="team" title="Team">
+      <p className="max-w-[40rem]">
         Three responsibilities: application engineering, local storage and
         capture, and research evaluation.
       </p>
@@ -131,11 +130,10 @@ const TeamPage = () => (
         The public documents describe the research plan. Implementation evidence
         and completion are tracked in the repository.
       </p>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="milestones" id="milestones">
-      <SectionHeading title="Milestones" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="milestones" title="Milestones">
+      <p className="max-w-[40rem]">
         The project is organised around five milestones. Only the first is being
         built now.
       </p>
@@ -172,7 +170,7 @@ const TeamPage = () => (
           </tbody>
         </table>
       </section>
-    </section>
+    </ContentSection>
   </div>
 );
 

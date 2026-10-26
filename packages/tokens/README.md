@@ -1,6 +1,6 @@
-# @context-bridge/tokens
+# @coderune/tokens
 
-Paper Mono variable typeface and OKLCH color tokens shared by Context Bridge apps.
+Geist, Paper Mono, and OKLCH color tokens shared by Coderune apps.
 
 ## Usage
 
@@ -9,7 +9,7 @@ Add the workspace package to an app:
 ```json
 {
   "dependencies": {
-    "@context-bridge/tokens": "workspace:*"
+    "@coderune/tokens": "workspace:*"
   }
 }
 ```
@@ -17,17 +17,24 @@ Add the workspace package to an app:
 Import the stylesheet once at the app entry point:
 
 ```ts
-import "@context-bridge/tokens";
+import "@coderune/tokens";
 ```
 
-The import registers `Paper Mono`, exposes the color variables on `:root`, and
+The import registers `Geist Variable` and `Paper Mono`, exposes the color variables on `:root`, and
 makes `--font-family-base` and `--font-family-mono` available.
 
-## Typeface
+## Typefaces
 
-`fonts/PaperMono-Variable.woff2` is a variable font with a weight axis from 100
-to 800. The `@font-face` rule uses `font-weight: 100 800` and `font-display:
-swap`.
+`@fontsource-variable/geist` provides locally bundled variable WOFF2 fonts with
+weights from 100 to 900. `fonts/PaperMono-Variable.woff2` provides the full Paper
+Mono v1.000 variable font with weights from 100 to 800, including its keyboard,
+box-drawing, and geometric glyphs. Both use `font-display: swap`; no external
+font service is needed.
+
+`--font-family-base` uses Geist for prose and interface text.
+`--font-family-mono` uses Paper Mono for code, the index, and section side titles.
+The font remains available through `@coderune/tokens/fonts/paper-mono-variable.woff2`.
+The site's logo uses Paper Mono's `₪` glyph (U+20AA).
 
 ## Colors
 

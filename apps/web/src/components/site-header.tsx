@@ -1,4 +1,3 @@
-import { GithubLogo } from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
 
@@ -26,24 +25,27 @@ export const SiteHeader = () => {
       <div className="flex items-center justify-between gap-4">
         <Link
           aria-label={`${site.name} home`}
-          className="flex items-center gap-2.5 text-base leading-none font-bold tracking-[-0.03em] whitespace-nowrap"
+          className="flex items-center gap-2 text-base leading-none font-semibold tracking-[0.01em] whitespace-nowrap uppercase"
           to="/"
         >
-          <SiteLogo className="size-7" />
+          <SiteLogo className="size-6" />
           <span>{site.name}</span>
         </Link>
         <a
           aria-label="GitHub repository"
-          className="text-muted-foreground hover:text-foreground transition-colors md:hidden"
+          className="text-muted-foreground hover:text-foreground font-mono text-sm tracking-[0.04em] uppercase transition-colors min-[60rem]:hidden"
           href={site.repositoryUrl}
           rel="noreferrer"
           target="_blank"
         >
-          <GithubLogo aria-hidden="true" className="size-5" />
+          GitHub
         </a>
       </div>
 
-      <nav aria-label="Main navigation" className="sidebar-nav hidden md:grid">
+      <nav
+        aria-label="Main navigation"
+        className="sidebar-nav hidden min-[60rem]:grid"
+      >
         {navItems.map((item) => {
           const active = isActive(pathname, item.to);
 
@@ -65,19 +67,18 @@ export const SiteHeader = () => {
           );
         })}
         <a
-          className="sidebar-meta inline-flex items-center gap-1.5"
+          className="sidebar-meta"
           href={site.repositoryUrl}
           rel="noreferrer"
           target="_blank"
         >
-          <GithubLogo aria-hidden="true" className="size-3.5" />
           GitHub
         </a>
       </nav>
 
       <nav
         aria-label="Main navigation"
-        className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm md:hidden"
+        className="mt-4 flex flex-wrap gap-x-4 gap-y-2 font-mono text-sm tracking-[0.04em] uppercase min-[60rem]:hidden"
       >
         {navItems.map((item) => (
           <Link

@@ -15,14 +15,14 @@ const RootLayout = () => (
 );
 
 const NotFoundPage = () => (
-  <section className="flex flex-col items-start py-16">
+  <section className="flex flex-col items-start py-8">
     <p className="text-muted-foreground font-mono text-sm">404</p>
-    <h1 className="mt-5 text-[clamp(2rem,4vw,2.5rem)] leading-[1.15] font-semibold tracking-[-0.025em]">
+    <h1 className="page-title mt-4">
       This page is outside the captured scope.
     </h1>
-    <p className="text-muted-foreground mt-4 max-w-lg leading-7">
+    <p className="text-muted-foreground mt-3 max-w-lg">
       The route does not exist. Return to the overview to continue reading about
-      Context Bridge.
+      Coderune.
     </p>
     <Link className={buttonVariants({ className: "mt-7" })} to="/">
       Back to overview

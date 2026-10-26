@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { ContentSection } from "@/components/content-section";
 import { PageHeader } from "@/components/page-header";
-import { SectionHeading } from "@/components/section-heading";
 
 const evidence = [
   {
@@ -71,7 +71,7 @@ const humanFailures = [
 const ResearchPage = () => (
   <div>
     <PageHeader
-      description="AI coding assistants fill gaps in context with assumptions. Developers carry the burden of discovering those assumptions, usually without evidence to check them. Context Bridge treats this as a two-sided alignment problem."
+      description="AI coding assistants fill gaps in context with assumptions. Developers carry the burden of discovering those assumptions, usually without evidence to check them. Coderune treats this as a two-sided alignment problem."
       title="The verification gap is a context problem."
     >
       <div className="flex flex-wrap gap-4 text-sm">
@@ -84,9 +84,8 @@ const ResearchPage = () => (
       </div>
     </PageHeader>
 
-    <section aria-labelledby="verification-gap" id="verification-gap">
-      <SectionHeading title="The verification gap" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="verification-gap" title="The verification gap">
+      <p className="max-w-[40rem]">
         Previous work has studied context-aware code generation, output
         verification, over-reliance, and programming knowledge tracing
         separately. The integration is the research gap.
@@ -152,11 +151,10 @@ const ResearchPage = () => (
           much to show, and when to show it without interrupting focused work.
         </p>
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="research-questions" id="research-questions">
-      <SectionHeading title="Research questions" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="research-questions" title="Research questions">
+      <p className="max-w-[40rem]">
         The proposal asks whether a context-aware verification and alignment
         layer can improve reliability, comprehension, and learning engagement in
         AI-assisted development.
@@ -180,11 +178,10 @@ const ResearchPage = () => (
           </div>
         ))}
       </div>
-    </section>
+    </ContentSection>
 
-    <section aria-labelledby="objectives" id="objectives">
-      <SectionHeading title="Objectives" />
-      <p className="mt-4 max-w-[40rem]">
+    <ContentSection id="objectives" title="Objectives">
+      <p className="max-w-[40rem]">
         Design, implement, and evaluate a privacy-preserving bidirectional
         shared-context framework that verifies AI assumptions and supports
         developer understanding and learning during AI-assisted software
@@ -215,7 +212,7 @@ const ResearchPage = () => (
           How the design works
         </Link>
       </div>
-    </section>
+    </ContentSection>
   </div>
 );
 

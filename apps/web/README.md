@@ -1,6 +1,6 @@
-# Context Bridge website
+# Coderune website
 
-Research project site for Context Bridge, built with React, TanStack Router, Tailwind CSS v4, Base UI, and Phosphor icons.
+Research project site for Coderune, built with React, TanStack Router, Tailwind CSS v4, Base UI, and Phosphor icons.
 
 ## Stack
 
@@ -9,7 +9,7 @@ Research project site for Context Bridge, built with React, TanStack Router, Tai
 - Tailwind CSS v4 via `@tailwindcss/vite`
 - shadcn/ui components backed by Base UI
 - Phosphor icons
-- Shared design tokens from `@context-bridge/tokens`
+- Shared design tokens from `@coderune/tokens`
 - TypeScript 7, Vite+, Oxlint, Oxfmt
 
 ## Commands
@@ -37,9 +37,16 @@ Routes live in `src/routes`. The router plugin generates `src/routeTree.gen.ts`.
 
 ## Design tokens
 
-`@context-bridge/tokens` provides the Paper Mono variable font and the light cream, ink, and blue palette in OKLCH. The package exposes:
+`@coderune/tokens` provides the Geist and Paper Mono variable fonts and the light cream, ink, and blue palette in OKLCH. The package exposes:
 
-- `@context-bridge/tokens` for `tokens.css`
-- `@context-bridge/tokens/PaperMono-Variable.woff2` for the font
+- `@coderune/tokens` for `tokens.css`
+- `@coderune/tokens/tokens.css` for an explicit stylesheet import
+- `@coderune/tokens/fonts/paper-mono-variable.woff2` for the full Paper Mono font
 
 Semantic names follow shadcn conventions (`--background`, `--foreground`, `--primary`, `--accent`, and so on) and are mapped into Tailwind through `@theme inline` in `src/index.css`.
+
+Geist is the body and ordinary heading face. Paper Mono is used for code, the
+index, section side titles, and the `₪` glyph logo. The wordmark, index, and section
+side titles are uppercase. Both fonts are bundled locally.
+Typography and layout decisions are recorded in
+[`docs/web-typography-layout.md`](../../docs/web-typography-layout.md).

@@ -86,11 +86,13 @@ export const VerificationDemo = () => (
               className="border-border border-b py-3 first:pt-1 last:border-b-0 last:pb-0"
               key={assumption.claim}
             >
-              <div className="flex items-start justify-between gap-4">
-                <p className="text-sm leading-6">{assumption.claim}</p>
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                <p className="min-w-0 flex-1 basis-48 text-sm leading-6">
+                  {assumption.claim}
+                </p>
                 <span
                   className={cn(
-                    "inline-flex h-5 shrink-0 items-center gap-1 rounded-full px-2 text-[0.65rem] font-medium",
+                    "inline-flex min-h-5 shrink-0 items-center gap-1 rounded-full px-2 font-mono text-xs font-medium",
                     style.badge
                   )}
                   title={style.label}
