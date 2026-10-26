@@ -1,5 +1,5 @@
 {
-  "name": "context-bridge",
+  "name": "coderune",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -12,6 +12,8 @@
     "check": "vp check",
     "check-types": "turbo run check-types",
     "dev": "turbo run dev",
+    "dev:desktop": "turbo run dev --filter=desktop",
+    "dev:web": "turbo run dev --filter=web",
     "fix": "vp check --fix",
     "lint": "turbo run lint",
     "prepare": "vp config --no-agent",

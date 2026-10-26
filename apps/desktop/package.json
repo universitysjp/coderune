@@ -1,0 +1,25 @@
+{
+  "name": "desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build app.tsx --target bun --outfile dist/coderune --external @gpuix/native",
+    "check-types": "bun check",
+    "dev": "bun --hot app.tsx",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@coderune/agents": "workspace:*",
+    "@coderune/collectors": "workspace:*",
+    "@coderune/core": "workspace:*",
+    "@coderune/storage": "workspace:*",
+    "@coderune/tokens": "workspace:*",
+    "@gpuix/native": "0.11.0",
+    "@gpuix/react": "0.11.0",
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
+  }
+}
