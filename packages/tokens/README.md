@@ -71,3 +71,11 @@ against `--background`, so do not use it for small text on the cream canvas. Use
 `--foreground` for text and `--primary` for fills, rules, focus rings, and other
 non-text accents. Text placed on the primary fill uses `--primary-foreground`,
 which has 5.26:1 contrast.
+
+## Native Quartz
+
+The desktop imports `quartz` from `@coderune/tokens/quartz`. This projection uses neutral black and
+white surfaces, blue selection accents, Geist for interface text, and Paper Mono for copyable code,
+paths, IDs, and JSON. It keeps the web palette independent. Bundled variable TTF files and OFL
+licenses live beside the web WOFF2 font; register the TTF files before native layout. See
+[Quartz in Coderune](../../docs/desktop-quartz.md) for the adapter interface and verification commands.

@@ -8,6 +8,28 @@
   font-display: swap;
 }
 
+:root .quartz {
+  --font-sans: var(--font-family-base);
+  --font-mono: var(--font-family-mono);
+  --surface-canvas: var(--background);
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--leading-body);
+}
+
+.quartz .site-page {
+  --surface-page: var(--background);
+  --surface-card: var(--card);
+  --text-1: var(--foreground);
+  --text-2: var(--muted-foreground);
+  --button-primary: var(--primary);
+  --text-inverse: var(--primary-foreground);
+  --surface-hover: var(--accent);
+  --line-row: var(--border);
+}
+
 :root {
   /* Typeface */
   --font-family-base:
