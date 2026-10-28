@@ -401,6 +401,7 @@ export class LocalRepositoryCollector implements RepositoryCollector {
         try {
           const status = statSync(scopeRoot);
           const relativeScope = toRelativePath(root, scopeRoot);
+
           const protectedReason = protectedPathReason(
             relativeScope,
             status.isDirectory()

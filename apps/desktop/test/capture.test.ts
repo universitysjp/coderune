@@ -186,6 +186,7 @@ describe("repository capture", () => {
     });
 
     const preview = await harness!.app.previewCapture(project.id);
+
     const skipped = new Map(
       preview.skipped.map((item) => [item.path, item.reason])
     );

@@ -1,7 +1,4 @@
-import type {
-  CodingAgentCapabilities,
-  CodingAgentId,
-} from "@coderune/core";
+import type { CodingAgentCapabilities, CodingAgentId } from "@coderune/core";
 
 export interface AgentDefinition {
   id: CodingAgentId;

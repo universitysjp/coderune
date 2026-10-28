@@ -5,15 +5,8 @@ import {
   LocalRepositoryCollector,
 } from "@coderune/collectors";
 import { ApplicationOperations } from "@coderune/core";
-import type {
-  Clock,
-  CodingAgentGateway,
-  ContextStore,
-} from "@coderune/core";
-import {
-  resolveDatabasePath,
-  SqliteContextStore,
-} from "@coderune/storage";
+import type { Clock, CodingAgentGateway, ContextStore } from "@coderune/core";
+import { resolveDatabasePath, SqliteContextStore } from "@coderune/storage";
 
 export interface CreateApplicationOptions {
   dataDir: string;

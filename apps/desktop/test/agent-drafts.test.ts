@@ -183,6 +183,7 @@ describe("coding-agent CV drafts", () => {
     expect(gateway.calls).toHaveLength(0);
 
     const progress: string[] = [];
+
     const result = await harness.app.requestCvDraft(
       document.id,
       "claude-code",
