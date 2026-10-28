@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun build app.tsx --target bun --outfile dist/coderune --external @gpuix/native",
+    "build": "bun build app.tsx --target bun --outdir dist --entry-naming coderune --external @gpuix/native",
     "check-types": "bun check",
     "dev": "bun --hot app.tsx",
     "test": "bun test"

@@ -13,56 +13,33 @@ import type {
   CapturePreview,
 } from "@coderune/core";
 import { resolveApplicationDataDir } from "@coderune/storage";
-import { Button, isTerminal, render } from "@gpuix/react";
+import { quartz } from "@coderune/tokens/quartz";
+import { isTerminal, render, useWindowSize } from "@gpuix/react";
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
 
 import { createApplication } from "./src/application";
 import type { ApplicationRuntime } from "./src/application";
+import {
+  Alert as Notice,
+  Badge,
+  Button,
+  Card as Section,
+  Field as Labeled,
+  Input,
+  PageHeader,
+  Sidebar,
+  Text,
+  Textarea,
+  View,
+  QuartzFonts,
+} from "./src/quartz";
 
-const colors = {
-  bg: "#f4f2fa",
-  panel: "#ffffff",
-  ink: "#1d1a24",
-  muted: "#6e6878",
-  line: "#ddd8e6",
-  accent: "#5b3df5",
-  accentSoft: "#ede9ff",
-  danger: "#b42318",
-  dangerSoft: "#fee4e2",
-  success: "#17663a",
-  successSoft: "#e7f6ec",
-  code: "#f7f6fb",
-};
+const {colors} = quartz;
 
 const terminalWarning =
   isTerminal() && (process.platform === "win32" || Boolean(process.env.TMUX))
     ? "This terminal combination is not supported for GPUIX terminal mode. Use native desktop mode, or a compatible macOS/Linux terminal without tmux."
     : "";
-
-const buttonBase = {
-  paddingTop: 7,
-  paddingBottom: 7,
-  paddingLeft: 12,
-  paddingRight: 12,
-  borderRadius: 7,
-  borderWidth: 1,
-  borderColor: colors.line,
-  backgroundColor: colors.panel,
-  cursor: "pointer",
-} as const;
-
-const inputBase = {
-  height: 32,
-  paddingLeft: 9,
-  paddingRight: 9,
-  borderWidth: 1,
-  borderColor: colors.line,
-  borderRadius: 6,
-  backgroundColor: "#ffffff",
-  fontSize: 13,
-  color: colors.ink,
-} as const;
 
 function lines(value: string): string[] {
   return value
@@ -78,93 +55,6 @@ function errorText(cause: unknown): string {
 function stageLabel(stage: ExperienceStage): string {
   return stage.replaceAll("-", " ");
 }
-
-const Section = ({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) => {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        padding: 18,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: colors.line,
-        backgroundColor: colors.panel,
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <text style={{ fontSize: 18, fontWeight: 650, color: colors.ink }}>
-          {title}
-        </text>
-        {description ? (
-          <text
-            style={{ fontSize: 12, color: colors.muted, whiteSpace: "normal" }}
-          >
-            {description}
-          </text>
-        ) : null}
-      </div>
-      {children}
-    </div>
-  );
-};
-
-const Labeled = ({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) => {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <text style={{ fontSize: 12, fontWeight: 600, color: colors.ink }}>
-        {label}
-      </text>
-      {hint ? (
-        <text style={{ fontSize: 11, color: colors.muted }}>{hint}</text>
-      ) : null}
-      {children}
-    </div>
-  );
-};
-
-const Notice = ({ error, message }: { error: string; message: string }) => {
-  if (!error && !message) {
-    return null;
-  }
-
-  return (
-    <div
-      style={{
-        padding: 10,
-        borderRadius: 7,
-        backgroundColor: error ? colors.dangerSoft : colors.successSoft,
-      }}
-    >
-      <text
-        style={{
-          fontSize: 12,
-          color: error ? colors.danger : colors.success,
-          whiteSpace: "normal",
-        }}
-      >
-        {error || message}
-      </text>
-    </div>
-  );
-};
 
 const ProfileEditor = ({
   initial,
@@ -239,7 +129,7 @@ const ProfileEditor = ({
     const timer = setTimeout(() => {
       try {
         const input = buildInput();
-        saveDraft(input).catch(() => undefined);
+        saveDraft(input).catch(() => {});
       } catch {
         // Keep typing while optional JSON is temporarily incomplete.
       }
@@ -264,22 +154,35 @@ const ProfileEditor = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <View
+      style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
+    >
       <Notice error={error} message="" />
-      <div style={{ display: "flex", gap: 12 }}>
-        <div style={{ flexGrow: 1 }}>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[4],
+        }}
+      >
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Display name or pseudonym">
-            <input
+            <Input
               value={displayName}
               onChange={(event) => setDisplayName(event.value ?? "")}
               placeholder="Ada"
-              style={inputBase}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Experience stage">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <View
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: quartz.space[2],
+              }}
+            >
               {(
                 [
                   "new-to-coding",
@@ -290,44 +193,46 @@ const ProfileEditor = ({
               ).map((option) => (
                 <Button
                   key={option}
+                  pressed={stage === option}
                   onClick={() => setStage(option)}
                   style={{
-                    ...buttonBase,
                     backgroundColor:
                       stage === option ? colors.accentSoft : colors.panel,
                     borderColor: stage === option ? colors.accent : colors.line,
                   }}
                 >
-                  <text style={{ fontSize: 12 }}>{stageLabel(option)}</text>
+                  <Text style={{ ...quartz.type.bodySm }}>
+                    {stageLabel(option)}
+                  </Text>
                 </Button>
               ))}
-            </div>
+            </View>
           </Labeled>
-        </div>
-      </div>
+        </View>
+      </View>
 
       <Button
+        pressed={newToCoding}
         onClick={() => setNewToCoding((value) => !value)}
         style={{
-          ...buttonBase,
           alignSelf: "flex-start",
           backgroundColor: newToCoding ? colors.successSoft : colors.panel,
         }}
       >
-        <text style={{ fontSize: 12 }}>
+        <Text style={{ ...quartz.type.bodySm }}>
           {newToCoding
             ? "New to coding; no skills listed yet"
             : "I have an initial skills statement"}
-        </text>
+        </Text>
       </Button>
 
       {newToCoding ? null : (
         <Labeled label="Initial skills statement">
-          <textarea
+          <Textarea
             value={skills}
             onChange={(event) => setSkills(event.value ?? "")}
             minRows={2}
-            style={{ ...inputBase, height: 64, paddingTop: 7 }}
+            style={{ paddingTop: quartz.space[2] }}
           />
         </Labeled>
       )}
@@ -336,11 +241,11 @@ const ProfileEditor = ({
         label="Learning goals"
         hint="One goal per line. At least one is required."
       >
-        <textarea
+        <Textarea
           value={goals}
           onChange={(event) => setGoals(event.value ?? "")}
           minRows={3}
-          style={{ ...inputBase, height: 72, paddingTop: 7 }}
+          style={{ paddingTop: quartz.space[2] }}
         />
       </Labeled>
 
@@ -348,45 +253,45 @@ const ProfileEditor = ({
         label="Optional profile detail (JSON)"
         hint="Education, employment, projects, certifications, links, skills, and preferences. Missing fields are allowed."
       >
-        <textarea
+        <Textarea
           value={details}
           onChange={(event) => setDetails(event.value ?? "")}
           minRows={8}
           style={{
-            ...inputBase,
-            height: 170,
-            paddingTop: 7,
-            fontFamily: "monospace",
+            paddingTop: quartz.space[2],
+            fontFamily: quartz.fonts.mono,
           }}
         />
       </Labeled>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <View style={{ display: "flex", flexWrap: "wrap", gap: quartz.space[2] }}>
         {onDraft ? (
           <Button
             onClick={() => void run((input) => onDraft(input))}
             disabled={busy}
-            style={{ ...buttonBase, opacity: busy ? 0.5 : 1 }}
+            style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
           >
-            <text style={{ fontSize: 12 }}>Save draft</text>
+            <Text style={{ ...quartz.type.bodySm }}>Save draft</Text>
           </Button>
         ) : null}
         <Button
+          testId="save-profile"
           onClick={() => void run(onSubmit)}
           disabled={busy}
-          style={{
-            ...buttonBase,
-            backgroundColor: colors.accent,
-            borderColor: colors.accent,
-            opacity: busy ? 0.5 : 1,
-          }}
+          variant="primary"
+          style={{}}
         >
-          <text style={{ fontSize: 12, color: "#ffffff", fontWeight: 600 }}>
+          <Text
+            style={{
+              ...quartz.type.bodySm,
+              fontWeight: quartz.type.label.fontWeight,
+            }}
+          >
             {busy ? "Saving..." : submitLabel}
-          </text>
+          </Text>
         </Button>
-      </div>
-    </div>
+      </View>
+    </View>
   );
 };
 
@@ -495,173 +400,227 @@ const ProjectEditor = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <View
+      style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
+    >
       <Notice error={error} message="" />
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flexGrow: 1 }}>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[4],
+        }}
+      >
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Project name">
-            <input
+            <Input
               value={name}
               onChange={(event) => setName(event.value ?? "")}
-              style={inputBase}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 2 }}>
+        </View>
+        <View style={{ flexGrow: 2 }}>
           <Labeled label="Readable root folder">
-            <input
+            <Input
               value={rootPath}
+              style={{ fontFamily: quartz.fonts.mono }}
               onChange={(event) => setRootPath(event.value ?? "")}
               placeholder="/Users/me/project"
-              style={inputBase}
             />
           </Labeled>
-        </div>
-      </div>
+        </View>
+      </View>
       <Labeled label="Goals" hint="One per line. At least one is required.">
-        <textarea
+        <Textarea
           value={goals}
           onChange={(event) => setGoals(event.value ?? "")}
           minRows={2}
-          style={{ ...inputBase, height: 56, paddingTop: 6 }}
+          style={{ paddingTop: quartz.space[2] }}
         />
       </Labeled>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flexGrow: 1 }}>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[4],
+        }}
+      >
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Purpose">
-            <textarea
+            <Textarea
               value={purpose}
               onChange={(event) => setPurpose(event.value ?? "")}
               minRows={2}
-              style={{ ...inputBase, height: 58, paddingTop: 6 }}
+              style={{ paddingTop: quartz.space[2] }}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Business logic">
-            <textarea
+            <Textarea
               value={businessLogic}
               onChange={(event) => setBusinessLogic(event.value ?? "")}
               minRows={2}
-              style={{ ...inputBase, height: 58, paddingTop: 6 }}
+              style={{ paddingTop: quartz.space[2] }}
             />
           </Labeled>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+      </View>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[4],
+        }}
+      >
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Rules">
-            <textarea
+            <Textarea
               value={rules}
               onChange={(event) => setRules(event.value ?? "")}
-              style={{ ...inputBase, height: 70, paddingTop: 6 }}
+              style={{ paddingTop: quartz.space[2] }}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Constraints">
-            <textarea
+            <Textarea
               value={constraints}
               onChange={(event) => setConstraints(event.value ?? "")}
-              style={{ ...inputBase, height: 70, paddingTop: 6 }}
+              style={{ paddingTop: quartz.space[2] }}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Decisions">
-            <textarea
+            <Textarea
               value={decisions}
               onChange={(event) => setDecisions(event.value ?? "")}
-              style={{ ...inputBase, height: 70, paddingTop: 6 }}
+              style={{ paddingTop: quartz.space[2] }}
             />
           </Labeled>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+      </View>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[4],
+        }}
+      >
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Acceptance criteria">
-            <textarea
+            <Textarea
               value={acceptance}
               onChange={(event) => setAcceptance(event.value ?? "")}
-              style={{ ...inputBase, height: 70, paddingTop: 6 }}
+              style={{ paddingTop: quartz.space[2] }}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Other knowledge">
-            <textarea
+            <Textarea
               value={knowledge}
               onChange={(event) => setKnowledge(event.value ?? "")}
-              style={{ ...inputBase, height: 70, paddingTop: 6 }}
+              style={{ paddingTop: quartz.space[2] }}
             />
           </Labeled>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+      </View>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[4],
+        }}
+      >
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Include paths" hint="Optional. One per line.">
-            <textarea
+            <Textarea
               value={includePaths}
               onChange={(event) => setIncludePaths(event.value ?? "")}
-              style={{ ...inputBase, height: 54, paddingTop: 6 }}
+              style={{
+                paddingTop: quartz.space[2],
+                fontFamily: quartz.fonts.mono,
+              }}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Exclude paths" hint="Optional. One per line.">
-            <textarea
+            <Textarea
               value={excludePaths}
               onChange={(event) => setExcludePaths(event.value ?? "")}
-              style={{ ...inputBase, height: 54, paddingTop: 6 }}
+              style={{
+                paddingTop: quartz.space[2],
+                fontFamily: quartz.fonts.mono,
+              }}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Capture limits" hint="MiB per file and per capture.">
-            <div style={{ display: "flex", gap: 6 }}>
-              <input
+            <View
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: quartz.space[2],
+              }}
+            >
+              <Input
+                aria-label="Per-file size limit in MiB"
                 value={maxFileMiB}
                 onChange={(event) => setMaxFileMiB(event.value ?? "")}
-                style={{ ...inputBase, flexGrow: 1 }}
+                style={{ flexGrow: 1 }}
               />
-              <input
+              <Input
+                aria-label="Per-capture size limit in MiB"
                 value={maxCaptureMiB}
                 onChange={(event) => setMaxCaptureMiB(event.value ?? "")}
-                style={{ ...inputBase, flexGrow: 1 }}
+                style={{ flexGrow: 1 }}
               />
-            </div>
+            </View>
           </Labeled>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        </View>
+      </View>
+      <View
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: quartz.space[2],
+          alignItems: "center",
+        }}
+      >
         <Button
+          pressed={respectGitignore}
           onClick={() => setRespectGitignore((value) => !value)}
-          style={{ ...buttonBase }}
+          style={{}}
         >
-          <text style={{ fontSize: 12 }}>
+          <Text style={{ ...quartz.type.bodySm }}>
             {respectGitignore ? "Respect .gitignore" : "Ignore .gitignore"}
-          </text>
+          </Text>
         </Button>
         <Button
           onClick={() => void submit()}
           disabled={busy}
-          style={{
-            ...buttonBase,
-            backgroundColor: colors.accent,
-            borderColor: colors.accent,
-            opacity: busy ? 0.5 : 1,
-          }}
+          variant="primary"
+          style={{}}
         >
-          <text style={{ fontSize: 12, color: "#ffffff", fontWeight: 600 }}>
+          <Text
+            style={{
+              ...quartz.type.bodySm,
+              fontWeight: quartz.type.label.fontWeight,
+            }}
+          >
             {busy
               ? "Saving..."
               : project
                 ? "Save project version"
                 : "Create project"}
-          </text>
+          </Text>
         </Button>
-      </div>
-    </div>
+      </View>
+    </View>
   );
 };
 
@@ -732,9 +691,9 @@ const AgentDraftPanel = ({
       const result = await app.extractDocument({
         path: documentPath,
         kind,
-        maxBytes:
-          Math.max(1, Number(maxDocumentMiB) || 20) * 1_048_576,
+        maxBytes: Math.max(1, Number(maxDocumentMiB) || 20) * 1_048_576,
       });
+
       setExtraction(result);
 
       if (!result.ok) {
@@ -884,82 +843,98 @@ const AgentDraftPanel = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <View
+      style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
+    >
       <Notice error={error} message={message} />
       <Labeled
         label={`Import a local ${kind.toUpperCase()}`}
         hint="PDF, DOCX, Markdown, or plain text. Text is extracted locally; the original file is not copied. The number is the per-document MiB limit."
       >
-        <div style={{ display: "flex", gap: 6 }}>
-          <input
+        <View
+          style={{ display: "flex", flexWrap: "wrap", gap: quartz.space[2] }}
+        >
+          <Input
+            aria-label="Document path"
             value={documentPath}
             onChange={(event) => setDocumentPath(event.value ?? "")}
             placeholder={`/Users/me/${kind}.pdf`}
-            style={{ ...inputBase, flexGrow: 1 }}
+            style={{ flexGrow: 1, fontFamily: quartz.fonts.mono }}
           />
-          <input
+          <Input
+            aria-label="Document size limit in MiB"
             value={maxDocumentMiB}
             onChange={(event) => setMaxDocumentMiB(event.value ?? "")}
-            style={{ ...inputBase, width: 54 }}
+            style={{ width: quartz.space[20] }}
           />
           <Button
             onClick={() => void importDocument()}
             disabled={busy || !documentPath}
-            style={{ ...buttonBase, opacity: busy ? 0.5 : 1 }}
+            style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
           >
-            <text style={{ fontSize: 12 }}>Extract</text>
+            <Text style={{ ...quartz.type.bodySm }}>Extract</Text>
           </Button>
-        </div>
+        </View>
       </Labeled>
 
       {extraction?.ok ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: quartz.space[2],
+          }}
+        >
+          <View
             style={{
-              maxHeight: 130,
+              maxHeight: quartz.layout.fieldMaxHeight,
               overflow: "scroll",
-              padding: 9,
-              borderRadius: 6,
+              padding: quartz.space[2],
+              borderRadius: quartz.radius.soft,
               backgroundColor: colors.code,
             }}
           >
-            <text
+            <Text
               style={{
-                fontSize: 11,
+                ...quartz.type.bodySm,
                 color: colors.muted,
                 whiteSpace: "normal",
               }}
             >
               {extraction.document.text}
-            </text>
-          </div>
+            </Text>
+          </View>
           <Button
             onClick={() => void confirmDocument()}
             disabled={busy}
-            style={{ ...buttonBase, alignSelf: "flex-start" }}
+            style={{ alignSelf: "flex-start" }}
           >
-            <text style={{ fontSize: 12 }}>Save reviewed document text</text>
+            <Text style={{ ...quartz.type.bodySm }}>
+              Save reviewed document text
+            </Text>
           </Button>
-        </div>
+        </View>
       ) : null}
 
       <Labeled label="Imported document">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <View
+          style={{ display: "flex", flexWrap: "wrap", gap: quartz.space[2] }}
+        >
           {availableDocs.length === 0 ? (
-            <text style={{ fontSize: 12, color: colors.muted }}>
+            <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
               No imported {kind.toUpperCase()} yet.
-            </text>
+            </Text>
           ) : (
             availableDocs.map((document) => (
               <Button
                 key={document.id}
+                pressed={selectedDocumentId === document.id}
                 onClick={() => {
                   setSelectedDocumentId(document.id);
                   setPreview(null);
                   clear();
                 }}
                 style={{
-                  ...buttonBase,
                   backgroundColor:
                     selectedDocumentId === document.id
                       ? colors.accentSoft
@@ -970,21 +945,29 @@ const AgentDraftPanel = ({
                       : colors.line,
                 }}
               >
-                <text style={{ fontSize: 12 }}>{document.name}</text>
+                <Text style={{ ...quartz.type.bodySm }}>{document.name}</Text>
               </Button>
             ))
           )}
-        </div>
+        </View>
       </Labeled>
 
       <Labeled
         label="Coding agent"
         hint="Coderune never switches agents or providers after a failure."
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: quartz.space[2],
+          }}
+        >
           {agents.map((agent) => (
             <Button
               key={agent.id}
+              aria-label={`Select ${agent.name}`}
+              pressed={agentId === agent.id}
               onClick={() => {
                 setAgentId(agent.id);
                 setPreview(null);
@@ -992,198 +975,237 @@ const AgentDraftPanel = ({
               }}
               disabled={agent.availability !== "ready"}
               style={{
-                ...buttonBase,
                 textAlign: "left",
-                opacity: agent.availability === "ready" ? 1 : 0.55,
+                opacity:
+                  agent.availability === "ready" ? 1 : quartz.opacity.disabled,
                 backgroundColor:
                   agentId === agent.id ? colors.accentSoft : colors.panel,
                 borderColor: agentId === agent.id ? colors.accent : colors.line,
               }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <text style={{ fontSize: 12, fontWeight: 600 }}>
+              <View
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: quartz.space[1],
+                }}
+              >
+                <View
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: quartz.space[2],
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      ...quartz.type.bodySm,
+                      fontWeight: quartz.type.label.fontWeight,
+                    }}
+                  >
                     {agent.name}
-                  </text>
-                  <text style={{ fontSize: 10, color: colors.muted }}>
+                  </Text>
+                  <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
                     {agent.availability === "ready"
                       ? "installed"
                       : "not installed"}
                     {agent.verified
                       ? " / verified"
                       : " / compatibility not yet demonstrated"}
-                  </text>
-                </div>
-                <text
+                  </Text>
+                </View>
+                <Text
                   style={{
-                    fontSize: 10,
+                    ...quartz.type.bodySm,
                     color: colors.muted,
                     whiteSpace: "normal",
                   }}
                 >
                   {agent.detail}
-                </text>
-                <text
+                </Text>
+                <Text
                   style={{
-                    fontSize: 10,
+                    ...quartz.type.bodySm,
                     color: colors.muted,
                     whiteSpace: "normal",
                   }}
                 >
                   {agent.capabilities.restrictions.join(" ")}
-                </text>
-              </div>
+                </Text>
+              </View>
             </Button>
           ))}
-        </div>
+        </View>
       </Labeled>
 
       <Button
         onClick={() => void prepare()}
         disabled={busy || !selected || !agentId}
         style={{
-          ...buttonBase,
           alignSelf: "flex-start",
           opacity: busy || !selected || !agentId ? 0.5 : 1,
         }}
       >
-        <text style={{ fontSize: 12 }}>Prepare exact sharing preview</text>
+        <Text style={{ ...quartz.type.bodySm }}>
+          Prepare exact sharing preview
+        </Text>
       </Button>
 
       {preview ? (
-        <div
+        <View
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 8,
-            padding: 12,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: colors.accent,
+            gap: quartz.space[2],
+            padding: quartz.space[3],
+            borderRadius: quartz.radius.frame,
+            borderWidth: quartz.line.hair,
+            borderColor: colors.line,
             backgroundColor: colors.accentSoft,
           }}
         >
-          <text style={{ fontSize: 12, fontWeight: 600, color: colors.ink }}>
+          <Text
+            style={{
+              ...quartz.type.bodySm,
+              fontWeight: quartz.type.label.fontWeight,
+              color: colors.ink,
+            }}
+          >
             Sharing with {preview.agent.name}
-          </text>
-          <text style={{ fontSize: 11, color: colors.muted }}>
+          </Text>
+          <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
             {preview.estimatedBytes} bytes
             {preview.maxInputBytes === null
               ? " / no reported input limit"
               : ` / ${preview.maxInputBytes} byte limit`}
             {preview.fits ? " / fits" : " / too large"}
-          </text>
-          <div
+          </Text>
+          <View
             style={{
-              maxHeight: 220,
+              maxHeight: quartz.layout.overlay / 2,
               overflow: "scroll",
-              padding: 9,
-              borderRadius: 6,
+              padding: quartz.space[2],
+              borderRadius: quartz.radius.soft,
               backgroundColor: colors.panel,
             }}
           >
-            <text
-              style={{ fontSize: 11, color: colors.ink, whiteSpace: "normal" }}
+            <Text
+              style={{
+                ...quartz.type.bodySm,
+                color: colors.ink,
+                whiteSpace: "normal",
+              }}
             >
               {preview.text}
-            </text>
-          </div>
+            </Text>
+          </View>
           <Button
+            pressed={shareConfirmed}
             onClick={() => setShareConfirmed((value) => !value)}
             style={{
-              ...buttonBase,
               backgroundColor: shareConfirmed
                 ? colors.successSoft
                 : colors.panel,
             }}
           >
-            <text style={{ fontSize: 12 }}>
+            <Text style={{ ...quartz.type.bodySm }}>
               {shareConfirmed
                 ? "I reviewed the exact text to share"
                 : "Confirm the exact text before sending"}
-            </text>
+            </Text>
           </Button>
-          <div style={{ display: "flex", gap: 8 }}>
+          <View
+            style={{ display: "flex", flexWrap: "wrap", gap: quartz.space[2] }}
+          >
             <Button
               onClick={() => void requestDraft()}
               disabled={!shareConfirmed || busy || !preview.fits}
-              style={{
-                ...buttonBase,
-                backgroundColor: colors.accent,
-                borderColor: colors.accent,
-                opacity: !shareConfirmed || busy || !preview.fits ? 0.5 : 1,
-              }}
+              variant="primary"
+              style={{}}
             >
-              <text style={{ fontSize: 12, color: "#ffffff", fontWeight: 600 }}>
+              <Text
+                style={{
+                  ...quartz.type.bodySm,
+                  fontWeight: quartz.type.label.fontWeight,
+                }}
+              >
                 {busy ? "Drafting..." : "Request reviewed draft"}
-              </text>
+              </Text>
             </Button>
             {controller ? (
               <Button
                 onClick={() => controller.abort()}
-                style={{ ...buttonBase, borderColor: colors.danger }}
+                variant="destructive"
+                style={{}}
               >
-                <text style={{ fontSize: 12, color: colors.danger }}>
+                <Text style={{ ...quartz.type.bodySm, color: colors.danger }}>
                   Cancel
-                </text>
+                </Text>
               </Button>
             ) : null}
-          </div>
-        </div>
+          </View>
+        </View>
       ) : null}
 
       {draftJson ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: quartz.space[2],
+          }}
+        >
           <Labeled
             label={`Review and correct the ${kind.toUpperCase()} draft`}
             hint={`Returned by ${draftAgent}. Schema-valid output is not treated as fact. Edit any field before saving.`}
           >
-            <textarea
+            <Textarea
               value={draftJson}
               onChange={(event) => setDraftJson(event.value ?? "")}
               minRows={14}
               style={{
-                ...inputBase,
-                height: 300,
-                paddingTop: 7,
-                fontFamily: "monospace",
+                paddingTop: quartz.space[2],
+                fontFamily: quartz.fonts.mono,
               }}
             />
           </Labeled>
           <Button
+            pressed={applyConfirmed}
             onClick={() => setApplyConfirmed((value) => !value)}
             style={{
-              ...buttonBase,
               alignSelf: "flex-start",
               backgroundColor: applyConfirmed
                 ? colors.successSoft
                 : colors.panel,
             }}
           >
-            <text style={{ fontSize: 12 }}>
+            <Text style={{ ...quartz.type.bodySm }}>
               {applyConfirmed
                 ? "I reviewed every field in this draft"
                 : "Confirm review before saving"}
-            </text>
+            </Text>
           </Button>
           <Button
             onClick={() => void applyDraft()}
             disabled={!applyConfirmed || busy}
+            variant="primary"
             style={{
-              ...buttonBase,
               alignSelf: "flex-start",
-              backgroundColor: colors.accent,
-              borderColor: colors.accent,
-              opacity: !applyConfirmed || busy ? 0.5 : 1,
             }}
           >
-            <text style={{ fontSize: 12, color: "#ffffff", fontWeight: 600 }}>
+            <Text
+              style={{
+                ...quartz.type.bodySm,
+                fontWeight: quartz.type.label.fontWeight,
+              }}
+            >
               Save reviewed {kind.toUpperCase()}
-            </text>
+            </Text>
           </Button>
-        </div>
+        </View>
       ) : null}
-    </div>
+    </View>
   );
 };
 
@@ -1315,219 +1337,292 @@ const CapturePanel = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <View
+      style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
+    >
       <Notice error={error} message={message} />
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flexGrow: 1 }}>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[4],
+        }}
+      >
+        <View style={{ flexGrow: 1 }}>
           <Labeled
             label="Include paths"
             hint="Optional. Empty means the whole repository."
           >
-            <textarea
+            <Textarea
               value={includePaths}
               onChange={(event) => setIncludePaths(event.value ?? "")}
-              style={{ ...inputBase, height: 54, paddingTop: 6 }}
+              style={{
+                paddingTop: quartz.space[2],
+                fontFamily: quartz.fonts.mono,
+              }}
             />
           </Labeled>
-        </div>
-        <div style={{ flexGrow: 1 }}>
+        </View>
+        <View style={{ flexGrow: 1 }}>
           <Labeled label="Exclude paths" hint="One per line.">
-            <textarea
+            <Textarea
               value={excludePaths}
               onChange={(event) => setExcludePaths(event.value ?? "")}
-              style={{ ...inputBase, height: 54, paddingTop: 6 }}
+              style={{
+                paddingTop: quartz.space[2],
+                fontFamily: quartz.fonts.mono,
+              }}
             />
           </Labeled>
-        </div>
-        <div>
+        </View>
+        <View>
           <Labeled label="Limits" hint="MiB per file / capture.">
-            <div style={{ display: "flex", gap: 6 }}>
-              <input
+            <View
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: quartz.space[2],
+              }}
+            >
+              <Input
+                aria-label="Per-file size limit in MiB"
                 value={maxFileMiB}
                 onChange={(event) => setMaxFileMiB(event.value ?? "")}
-                style={{ ...inputBase, width: 58 }}
+                style={{ width: quartz.space[20] }}
               />
-              <input
+              <Input
+                aria-label="Per-capture size limit in MiB"
                 value={maxCaptureMiB}
                 onChange={(event) => setMaxCaptureMiB(event.value ?? "")}
-                style={{ ...inputBase, width: 58 }}
+                style={{ width: quartz.space[20] }}
               />
-            </div>
+            </View>
           </Labeled>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        </View>
+      </View>
+      <View
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: quartz.space[2],
+          alignItems: "center",
+        }}
+      >
         <Button
+          pressed={respectGitignore}
           onClick={() => setRespectGitignore((value) => !value)}
-          style={{ ...buttonBase }}
+          style={{}}
         >
-          <text style={{ fontSize: 12 }}>
+          <Text style={{ ...quartz.type.bodySm }}>
             {respectGitignore ? "Respect .gitignore" : "Ignore .gitignore"}
-          </text>
+          </Text>
         </Button>
         <Button
           onClick={() => void runPreview()}
           disabled={busy}
-          style={{ ...buttonBase, opacity: busy ? 0.5 : 1 }}
+          style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
         >
-          <text style={{ fontSize: 12 }}>Preview capture</text>
+          <Text style={{ ...quartz.type.bodySm }}>Preview capture</Text>
         </Button>
         <Button
           onClick={() => void refresh()}
           disabled={busy}
-          style={{ ...buttonBase, opacity: busy ? 0.5 : 1 }}
+          style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
         >
-          <text style={{ fontSize: 12 }}>Refresh context</text>
+          <Text style={{ ...quartz.type.bodySm }}>Refresh context</Text>
         </Button>
-      </div>
+      </View>
 
       {preview ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", gap: 12 }}>
-            <text style={{ fontSize: 12, fontWeight: 600 }}>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: quartz.space[2],
+          }}
+        >
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: quartz.space[4],
+            }}
+          >
+            <Text
+              style={{
+                ...quartz.type.bodySm,
+                fontWeight: quartz.type.label.fontWeight,
+              }}
+            >
               {preview.files.length} files / {preview.totalBytes} bytes
-            </text>
-            <text style={{ fontSize: 12, color: colors.muted }}>
+            </Text>
+            <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
               {preview.skipped.length} skipped
-            </text>
-            <text style={{ fontSize: 12, color: colors.muted }}>
+            </Text>
+            <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
               Git:{" "}
               {preview.git
                 ? `${preview.git.branch ?? "detached"}${preview.git.dirty ? " (dirty)" : " (clean)"}`
                 : "not available"}
-            </text>
-          </div>
-          <div
+            </Text>
+          </View>
+          <View
             style={{
-              maxHeight: 220,
+              maxHeight: quartz.layout.overlay / 2,
               overflow: "scroll",
-              padding: 9,
-              borderRadius: 6,
+              padding: quartz.space[2],
+              borderRadius: quartz.radius.soft,
               backgroundColor: colors.code,
             }}
           >
             {preview.files.map((file) => (
-              <text
+              <View
                 key={file.path}
                 style={{
-                  fontSize: 11,
-                  color: colors.ink,
-                  whiteSpace: "normal",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: quartz.space[2],
                 }}
               >
-                {file.category} / {file.path} / {file.size} bytes
-              </text>
+                <Text size="bodySm">{file.category}</Text>
+                <Text size="codeSm">{file.path}</Text>
+                <Text size="bodySm">{file.size} bytes</Text>
+              </View>
             ))}
-          </div>
+          </View>
           {preview.skipped.length > 0 ? (
-            <div
+            <View
               style={{
-                maxHeight: 100,
+                maxHeight: quartz.layout.fieldMaxHeight,
                 overflow: "scroll",
-                padding: 9,
-                borderRadius: 6,
+                padding: quartz.space[2],
+                borderRadius: quartz.radius.soft,
                 backgroundColor: colors.panel,
-                borderWidth: 1,
+                borderWidth: quartz.line.hair,
                 borderColor: colors.line,
               }}
             >
               {preview.skipped.map((item) => (
-                <text
+                <View
                   key={`${item.path}:${item.reason}`}
                   style={{
-                    fontSize: 10,
-                    color: colors.muted,
-                    whiteSpace: "normal",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: quartz.space[2],
                   }}
                 >
-                  skipped {item.path}: {item.reason}
-                </text>
+                  <Text size="bodySm" tone="muted">
+                    Skipped
+                  </Text>
+                  <Text size="codeSm">{item.path}</Text>
+                  <Text size="bodySm" tone="muted">
+                    {item.reason}
+                  </Text>
+                </View>
               ))}
-            </div>
+            </View>
           ) : null}
           <Button
+            pressed={confirmed}
             onClick={() => setConfirmed((value) => !value)}
             style={{
-              ...buttonBase,
               alignSelf: "flex-start",
               backgroundColor: confirmed ? colors.successSoft : colors.panel,
             }}
           >
-            <text style={{ fontSize: 12 }}>
+            <Text style={{ ...quartz.type.bodySm }}>
               {confirmed
                 ? "I reviewed this exact capture"
                 : "Confirm reviewed capture before saving"}
-            </text>
+            </Text>
           </Button>
           <Button
             onClick={() => void save()}
             disabled={!confirmed || busy}
+            variant="primary"
             style={{
-              ...buttonBase,
               alignSelf: "flex-start",
-              backgroundColor: colors.accent,
-              borderColor: colors.accent,
-              opacity: !confirmed || busy ? 0.5 : 1,
             }}
           >
-            <text style={{ fontSize: 12, color: "#ffffff", fontWeight: 600 }}>
+            <Text
+              style={{
+                ...quartz.type.bodySm,
+                fontWeight: quartz.type.label.fontWeight,
+              }}
+            >
               Save reviewed capture
-            </text>
+            </Text>
           </Button>
-        </div>
+        </View>
       ) : null}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <text style={{ fontSize: 13, fontWeight: 600 }}>Capture history</text>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: quartz.space[2],
+        }}
+      >
+        <Text
+          style={{
+            ...quartz.type.bodySm,
+            fontWeight: quartz.type.label.fontWeight,
+          }}
+        >
+          Capture history
+        </Text>
         {captures.length === 0 ? (
-          <text style={{ fontSize: 12, color: colors.muted }}>
+          <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
             No captures yet.
-          </text>
+          </Text>
         ) : (
           captures.map((capture) => (
-            <div
+            <View
               key={capture.id}
               style={{
                 display: "flex",
-                gap: 8,
+                gap: quartz.space[2],
                 alignItems: "center",
-                padding: 8,
-                borderRadius: 6,
-                borderWidth: 1,
+                padding: quartz.space[2],
+                borderRadius: quartz.radius.soft,
+                borderWidth: quartz.line.hair,
                 borderColor: colors.line,
               }}
             >
-              <div
+              <View
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 2,
+                  gap: quartz.space[0.5],
                   flexGrow: 1,
                 }}
               >
-                <text style={{ fontSize: 12, fontWeight: 600 }}>
+                <Text
+                  style={{
+                    ...quartz.type.bodySm,
+                    fontWeight: quartz.type.label.fontWeight,
+                  }}
+                >
                   Version {capture.version}
-                </text>
-                <text style={{ fontSize: 10, color: colors.muted }}>
+                </Text>
+                <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
                   {capture.createdAt} / {capture.files.length} files /{" "}
                   {capture.totalBytes} bytes / profile v
                   {capture.profileSnapshot.version} / project v
                   {capture.projectSnapshot.version}
-                </text>
-              </div>
-              <Button
-                onClick={() => void inspectCapture(capture.id)}
-                style={buttonBase}
-              >
-                <text style={{ fontSize: 11 }}>View</text>
+                </Text>
+              </View>
+              <Button onClick={() => void inspectCapture(capture.id)}>
+                <Text style={{ ...quartz.type.bodySm }}>View</Text>
               </Button>
               <Button
                 onClick={() => setDeleteId(capture.id)}
-                style={{ ...buttonBase, borderColor: colors.danger }}
+                variant="destructive"
+                style={{}}
               >
-                <text style={{ fontSize: 11, color: colors.danger }}>
+                <Text style={{ ...quartz.type.bodySm, color: colors.danger }}>
                   Delete
-                </text>
+                </Text>
               </Button>
               {deleteId === capture.id ? (
                 <Button
@@ -1547,119 +1642,155 @@ const CapturePanel = ({
                       }
                     })();
                   }}
-                  style={{
-                    ...buttonBase,
-                    backgroundColor: colors.dangerSoft,
-                    borderColor: colors.danger,
-                  }}
+                  variant="destructive"
+                  style={{}}
                 >
-                  <text style={{ fontSize: 11, color: colors.danger }}>
+                  <Text style={{ ...quartz.type.bodySm, color: colors.danger }}>
                     Confirm delete
-                  </text>
+                  </Text>
                 </Button>
               ) : null}
-            </div>
+            </View>
           ))
         )}
         {viewCapture ? (
-          <div
+          <View
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 7,
-              padding: 9,
-              borderRadius: 7,
-              borderWidth: 1,
+              gap: quartz.space[2],
+              padding: quartz.space[2],
+              borderRadius: quartz.radius.soft,
+              borderWidth: quartz.line.hair,
               borderColor: colors.line,
               backgroundColor: colors.code,
             }}
           >
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <text style={{ fontSize: 12, fontWeight: 600, flexGrow: 1 }}>
+            <View
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: quartz.space[2],
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  ...quartz.type.bodySm,
+                  fontWeight: quartz.type.label.fontWeight,
+                  flexGrow: 1,
+                }}
+              >
                 Capture version {viewCapture.version} details
-              </text>
+              </Text>
               <Button
                 onClick={() => {
                   setViewCapture(null);
                   setViewFile(null);
                 }}
-                style={buttonBase}
               >
-                <text style={{ fontSize: 11 }}>Close</text>
+                <Text style={{ ...quartz.type.bodySm }}>Close</Text>
               </Button>
-            </div>
-            <text style={{ fontSize: 11, color: colors.muted }}>
+            </View>
+            <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
               Saved {viewCapture.createdAt} / {viewCapture.files.length} files /{" "}
               {viewCapture.totalBytes} bytes / skipped{" "}
               {viewCapture.skipped.length}
-            </text>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            </Text>
+            <View
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: quartz.space[2],
+              }}
+            >
               {viewCapture.files.map((file) => (
                 <Button
                   key={file.path}
+                  pressed={viewFile === file.path}
+                  aria-label={`View file ${file.path}`}
                   onClick={() => setViewFile(file.path)}
                   style={{
-                    ...buttonBase,
                     backgroundColor:
                       viewFile === file.path ? colors.accentSoft : colors.panel,
                   }}
                 >
-                  <text style={{ fontSize: 11 }}>
-                    {file.path} / {file.size} bytes / {file.hash.slice(0, 12)}
-                  </text>
+                  <View
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: quartz.space[2],
+                    }}
+                  >
+                    <Text size="codeSm">{file.path}</Text>
+                    <Text size="bodySm">{file.size} bytes</Text>
+                    <Text size="codeSm">{file.hash.slice(0, 12)}</Text>
+                  </View>
                 </Button>
               ))}
-            </div>
+            </View>
             {viewFile ? (
-              <textarea
+              <Textarea
                 readOnly
+                aria-label="Saved file contents"
                 value={
                   viewCapture.files.find((file) => file.path === viewFile)
                     ?.content ?? ""
                 }
                 style={{
-                  ...inputBase,
-                  height: 180,
-                  paddingTop: 7,
-                  fontFamily: "monospace",
+                  paddingTop: quartz.space[2],
+                  fontFamily: quartz.fonts.mono,
                 }}
               />
             ) : null}
             {viewCapture.skipped.length > 0 ? (
-              <div
+              <View
                 style={{
-                  maxHeight: 100,
+                  maxHeight: quartz.layout.fieldMaxHeight,
                   overflow: "scroll",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 3,
+                  gap: quartz.space[1],
                 }}
               >
                 {viewCapture.skipped.map((item) => (
-                  <text
+                  <View
                     key={`${item.path}:${item.reason}`}
-                    style={{ fontSize: 10, color: colors.muted }}
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: quartz.space[2],
+                    }}
                   >
-                    skipped {item.path}: {item.reason}
-                  </text>
+                    <Text size="bodySm" tone="muted">
+                      Skipped
+                    </Text>
+                    <Text size="codeSm">{item.path}</Text>
+                    <Text size="bodySm" tone="muted">
+                      {item.reason}
+                    </Text>
+                  </View>
                 ))}
-              </div>
+              </View>
             ) : null}
-            <text style={{ fontSize: 11, color: colors.muted }}>
+            <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
               Git:{" "}
               {viewCapture.git
                 ? `${viewCapture.git.branch ?? "detached"}${viewCapture.git.dirty ? " (dirty)" : " (clean)"}`
                 : "not available"}
-            </text>
-          </div>
+            </Text>
+          </View>
         ) : null}
-      </div>
-    </div>
+      </View>
+    </View>
   );
 };
 
-const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
+export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   const app = runtime.operations;
+  const { width } = useWindowSize();
+  const compact = width < quartz.layout.pageHeaderMax;
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const [profile, setProfile] = useState<DeveloperProfile | null>(null);
   const [draft, setDraft] = useState<Partial<DeveloperProfile> | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -1688,6 +1819,7 @@ const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     try {
       const text =
         exportText || JSON.stringify(await app.exportData(), null, 2);
+
       const stamp = new Date().toISOString().replaceAll(":", "-");
       const target = `${process.cwd()}/coderune-export-${stamp}.json`;
 
@@ -1741,7 +1873,7 @@ const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
 
   if (loading) {
     return (
-      <div
+      <View
         style={{
           width: "100%",
           height: "100%",
@@ -1751,51 +1883,54 @@ const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
           backgroundColor: colors.bg,
         }}
       >
-        <text style={{ fontSize: 13, color: colors.muted }}>
+        <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
           Loading Coderune...
-        </text>
-      </div>
+        </Text>
+      </View>
     );
   }
 
   if (!profile) {
     return (
-      <div
+      <View
         style={{
           width: "100%",
           height: "100%",
           overflow: "scroll",
           backgroundColor: colors.bg,
-          padding: 24,
+          padding: compact ? quartz.space[4] : quartz.space[8],
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <div
+        <View
           style={{
             width: "100%",
-            maxWidth: 980,
+            maxWidth: quartz.layout.container,
             display: "flex",
             flexDirection: "column",
-            gap: 16,
+            gap: quartz.space[4],
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <text style={{ fontSize: 26, fontWeight: 700, color: colors.ink }}>
-              Coderune
-            </text>
-            <text
-              style={{
-                fontSize: 13,
-                color: colors.muted,
-                whiteSpace: "normal",
-              }}
-            >
-              Confirm a developer baseline before project work. Manual entry and
-              reviewed CV import both work without a coding-agent connection.
-            </text>
-          </div>
+          <View
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: quartz.space[2],
+              alignItems: "center",
+              paddingBottom: quartz.space[4],
+            }}
+          >
+            <Text size="headingSm" mono>
+              ₪
+            </Text>
+            <Text size="headingSm">Coderune</Text>
+          </View>
+          <PageHeader
+            title="Your context starts here"
+            description="Confirm a developer baseline before project work. Manual entry and reviewed CV import both work without a coding-agent connection."
+          />
           {terminalWarning ? (
             <Notice error={terminalWarning} message="" />
           ) : null}
@@ -1837,528 +1972,727 @@ const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
               onSaved={refresh}
             />
           </Section>
-        </div>
-      </div>
+        </View>
+      </View>
     );
   }
 
   const nav = ["Profile", "Projects", "Documents", "Agents", "Capture", "Data"];
 
+  const descriptions: Record<string, string> = {
+    Profile:
+      "Your experience, skills, and learning goals, shared across your projects.",
+    Projects: "Give your coding agents the context behind the code.",
+    Documents: "Local source documents, reviewed before they become context.",
+    Agents: "Connect the coding assistants you already use.",
+    Capture: "Review repository context and save only what you approve.",
+    Data: "Export your local context or manage what you keep.",
+  };
+
+  const counts: Record<string, number | undefined> = {
+    Projects: projects.length,
+    Documents: documents.length,
+    Agents: agents.filter((agent) => agent.availability === "ready").length,
+  };
+
   return (
-    <div
+    <View
       style={{
         width: "100%",
         height: "100%",
         display: "flex",
+        flexDirection: compact ? "column" : "row",
         backgroundColor: colors.bg,
       }}
     >
-      <div
-        style={{
-          width: 190,
-          height: "100%",
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          borderRightWidth: 1,
-          borderColor: colors.line,
-          backgroundColor: colors.panel,
-        }}
-      >
-        <text style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
-          Coderune
-        </text>
-        {nav.map((item) => (
-          <Button
-            key={item}
-            onClick={() => setSection(item)}
+      {!compact || navigationOpen ? (
+        <Sidebar
+          style={
+            compact
+              ? {
+                  width: "100%",
+                  height: "auto",
+                  borderRightWidth: quartz.space[0],
+                  borderBottomWidth: quartz.line.hair,
+                }
+              : {}
+          }
+        >
+          <View
             style={{
-              ...buttonBase,
-              borderColor: section === item ? colors.accent : "transparent",
-              backgroundColor:
-                section === item ? colors.accentSoft : "transparent",
-              justifyContent: "flex-start",
+              display: "flex",
+              alignItems: "center",
+              gap: quartz.space[2],
+              minHeight: quartz.layout.topbar,
+              paddingLeft: quartz.space[2],
+              marginBottom: quartz.space[6],
             }}
           >
-            <text style={{ fontSize: 13 }}>{item}</text>
-          </Button>
-        ))}
-        <div style={{ flexGrow: 1 }} />
-        <text
-          style={{ fontSize: 10, color: colors.muted, whiteSpace: "normal" }}
-        >
-          {isTerminal() ? "GPUIX terminal mode" : "GPUIX desktop mode"}
-        </text>
-        <text
-          style={{ fontSize: 10, color: colors.muted, whiteSpace: "normal" }}
-        >
-          Data stays in {runtime.store ? "local SQLite" : "local storage"}.
-        </text>
-      </div>
+            <Text size="headingSm" mono>
+              ₪
+            </Text>
+            <Text size="headingSm">Coderune</Text>
+          </View>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: quartz.space[1],
+            }}
+          >
+            {nav.map((item) => (
+              <Button
+                key={item}
+                variant="ghost"
+                pressed={section === item}
+                testId={`nav-${item.toLowerCase()}`}
+                aria-label={item}
+                onClick={() => {
+                  setSection(item);
+                  setNavigationOpen(false);
+                }}
+                style={{
+                  justifyContent: "flex-start",
+                  minHeight: quartz.layout.row,
+                }}
+              >
+                <View
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: quartz.space[2],
+                  }}
+                >
+                  <Text size="label">{item}</Text>
+                  {counts[item] === undefined ? null : (
+                    <Badge>{counts[item]}</Badge>
+                  )}
+                </View>
+              </Button>
+            ))}
+          </View>
+          <View style={{ flexGrow: 1 }} />
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: quartz.space[1],
+              padding: quartz.space[2],
+              paddingTop: quartz.space[6],
+            }}
+          >
+            <Text size="label">{profile.displayName}</Text>
+            <Text size="bodySm" tone="muted">
+              Personal workspace
+            </Text>
+            <Text size="bodySm" tone="muted">
+              Stored on this device
+            </Text>
+          </View>
+        </Sidebar>
+      ) : null}
 
-      <div
+      <View
         style={{
           flexGrow: 1,
-          height: "100%",
-          overflow: "scroll",
-          padding: 22,
+          minHeight: quartz.space[0],
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <div
+        <View
           style={{
-            maxWidth: 1000,
             display: "flex",
-            flexDirection: "column",
-            gap: 16,
+            flexShrink: quartz.space[0],
+            alignItems: "center",
+            gap: quartz.space[3],
+            minHeight: quartz.layout.topbar,
+            paddingLeft: compact ? quartz.space[4] : quartz.space[6],
+            paddingRight: quartz.space[4],
+            borderBottomWidth: quartz.line.hair,
+            borderColor: colors.rowLine,
+            backgroundColor: colors.panel,
           }}
         >
-          {terminalWarning ? (
-            <Notice error={terminalWarning} message="" />
+          {compact ? (
+            <Button
+              variant="ghost"
+              testId="toggle-navigation"
+              aria-label={
+                navigationOpen ? "Close navigation" : "Open navigation"
+              }
+              onClick={() => setNavigationOpen(!navigationOpen)}
+            >
+              Menu
+            </Button>
           ) : null}
-          <Notice error={error} message={message} />
+          <Text size="bodySm" tone="muted">
+            Personal workspace
+          </Text>
+          <Text size="bodySm" tone="muted">
+            /
+          </Text>
+          <Text size="bodySm">{section}</Text>
+          <View style={{ flexGrow: 1 }} />
+          {compact ? null : <Badge>Local only</Badge>}
+        </View>
+        <View
+          style={{
+            flexGrow: 1,
+            minHeight: quartz.space[0],
+            overflow: "scroll",
+            padding: compact ? quartz.space[4] : quartz.space[8],
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: quartz.layout.container,
+              display: "flex",
+              flexDirection: "column",
+              gap: quartz.space[6],
+            }}
+          >
+            <PageHeader
+              title={
+                section === "Profile"
+                  ? "Developer profile"
+                  : section === "Data"
+                    ? "Your data"
+                    : section
+              }
+              description={descriptions[section]}
+            />
+            {terminalWarning ? (
+              <Notice error={terminalWarning} message="" />
+            ) : null}
+            <Notice error={error} message={message} />
 
-          {section === "Profile" ? (
-            <>
-              <Section
-                title={profile.displayName}
-                description={`Developer profile version ${profile.version}. ${profile.experienceStage.replaceAll("-", " ")}.`}
-              >
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+            {section === "Profile" ? (
+              <>
+                <Section
+                  title={profile.displayName}
+                  description={`Developer profile version ${profile.version}. ${profile.experienceStage.replaceAll("-", " ")}.`}
                 >
-                  <text style={{ fontSize: 12, whiteSpace: "normal" }}>
-                    Skills: {profile.skillsStatement}
-                  </text>
-                  <text style={{ fontSize: 12, whiteSpace: "normal" }}>
-                    Learning goals: {profile.learningGoals.join("; ")}
-                  </text>
-                  {profile.fieldSources &&
-                  Object.keys(profile.fieldSources).length > 0 ? (
-                    <text
-                      style={{
-                        fontSize: 11,
-                        color: colors.muted,
-                        whiteSpace: "normal",
-                      }}
-                    >
-                      Some fields retain document provenance for review.
-                    </text>
-                  ) : null}
-                </div>
-              </Section>
-              <Section
-                title="Edit developer profile"
-                description="Edits affect future captures; existing captures keep their profile snapshot."
-              >
-                <ProfileEditor
-                  key={`profile-${profile.version}`}
-                  initial={profile}
-                  submitLabel="Save profile version"
-                  onSubmit={async (input) => {
-                    const saved = await app.updateProfile(input);
-                    setProfile(saved);
-                    notify(`Profile version ${saved.version} saved.`);
-                  }}
-                />
-              </Section>
-            </>
-          ) : null}
-
-          {section === "Projects" ? (
-            <>
-              <Section
-                title="Projects"
-                description="A project needs a name, readable root folder, and at least one goal."
-              >
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {projects.map((project) => (
-                    <Button
-                      key={project.id}
-                      onClick={() => {
-                        setSelectedProjectId(project.id);
-                        setDeleteProjectId("");
-                      }}
-                      style={{
-                        ...buttonBase,
-                        backgroundColor:
-                          selectedProjectId === project.id
-                            ? colors.accentSoft
-                            : colors.panel,
-                        borderColor:
-                          selectedProjectId === project.id
-                            ? colors.accent
-                            : colors.line,
-                      }}
-                    >
-                      <text style={{ fontSize: 12 }}>
-                        {project.name} / v{project.version}
-                      </text>
-                    </Button>
-                  ))}
-                  <Button
-                    onClick={() => {
-                      setSelectedProjectId(null);
-                      setDeleteProjectId("");
+                  <View
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: quartz.space[2],
                     }}
-                    style={buttonBase}
                   >
-                    <text style={{ fontSize: 12 }}>New project</text>
-                  </Button>
-                </div>
-              </Section>
-              <Section
-                title={selectedProject ? "Edit project" : "Create project"}
-                description="Project context combines developer statements with optional reviewed SRS-derived fields."
-              >
-                <ProjectEditor
-                  key={
-                    selectedProject
-                      ? `${selectedProject.id}-${selectedProject.version}`
-                      : "new-project"
-                  }
-                  project={selectedProject}
-                  onCreate={async (input) => {
-                    const created = await app.createProject(input);
-                    setSelectedProjectId(created.id);
-                    notify(`Project ${created.name} created.`);
-                    await refresh();
-                  }}
-                  onUpdate={async (id, input) => {
-                    const saved = await app.updateProject(id, input);
-                    setSelectedProjectId(saved.id);
-                    notify(`Project version ${saved.version} saved.`);
-                    await refresh();
-                  }}
-                />
-                {selectedProject ? (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <Button
-                      onClick={() => setDeleteProjectId(selectedProject.id)}
-                      style={{ ...buttonBase, borderColor: colors.danger }}
+                    <Text
+                      style={{ ...quartz.type.bodySm, whiteSpace: "normal" }}
                     >
-                      <text style={{ fontSize: 11, color: colors.danger }}>
-                        Delete project
-                      </text>
-                    </Button>
-                    {deleteProjectId === selectedProject.id ? (
-                      <Button
-                        onClick={() => {
-                          void (async () => {
-                            try {
-                              await app.deleteProject(selectedProject.id);
-                              setDeleteProjectId("");
-                              setSelectedProjectId(null);
-                              notify(
-                                "Project and its captures deleted. Profile and other projects remain."
-                              );
-                              await refresh();
-                            } catch (error) {
-                              setError(errorText(error));
-                            }
-                          })();
-                        }}
+                      Skills: {profile.skillsStatement}
+                    </Text>
+                    <Text
+                      style={{ ...quartz.type.bodySm, whiteSpace: "normal" }}
+                    >
+                      Learning goals: {profile.learningGoals.join("; ")}
+                    </Text>
+                    {profile.fieldSources &&
+                    Object.keys(profile.fieldSources).length > 0 ? (
+                      <Text
                         style={{
-                          ...buttonBase,
-                          backgroundColor: colors.dangerSoft,
-                          borderColor: colors.danger,
+                          ...quartz.type.bodySm,
+                          color: colors.muted,
+                          whiteSpace: "normal",
                         }}
                       >
-                        <text style={{ fontSize: 11, color: colors.danger }}>
-                          Confirm project delete
-                        </text>
-                      </Button>
+                        Some fields retain document provenance for review.
+                      </Text>
                     ) : null}
-                  </div>
-                ) : null}
-              </Section>
-            </>
-          ) : null}
+                  </View>
+                </Section>
+                <Section
+                  title="Edit developer profile"
+                  description="Edits affect future captures; existing captures keep their profile snapshot."
+                >
+                  <ProfileEditor
+                    key={`profile-${profile.version}`}
+                    initial={profile}
+                    submitLabel="Save profile version"
+                    onSubmit={async (input) => {
+                      const saved = await app.updateProfile(input);
+                      setProfile(saved);
+                      notify(`Profile version ${saved.version} saved.`);
+                    }}
+                  />
+                </Section>
+              </>
+            ) : null}
 
-          {section === "Documents" ? (
-            <>
-              <Section
-                title="CV document import"
-                description="Use local extraction and reviewed agent assistance for profile fields."
-              >
-                <AgentDraftPanel
-                  app={app}
-                  kind="cv"
-                  projectId={null}
-                  documents={documents}
-                  agents={agents}
-                  onDocumentsChanged={refresh}
-                  onSaved={refresh}
-                />
-              </Section>
-              <Section
-                title="SRS document import"
-                description={
-                  selectedProject
-                    ? `Project: ${selectedProject.name}`
-                    : "Select a project first."
-                }
-              >
-                {selectedProject ? (
+            {section === "Projects" ? (
+              <>
+                <Section
+                  title="Projects"
+                  description="A project needs a name, readable root folder, and at least one goal."
+                >
+                  <View
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: quartz.space[2],
+                    }}
+                  >
+                    {projects.map((project) => (
+                      <Button
+                        key={project.id}
+                        pressed={selectedProjectId === project.id}
+                        onClick={() => {
+                          setSelectedProjectId(project.id);
+                          setDeleteProjectId("");
+                        }}
+                        style={{
+                          backgroundColor:
+                            selectedProjectId === project.id
+                              ? colors.accentSoft
+                              : colors.panel,
+                          borderColor:
+                            selectedProjectId === project.id
+                              ? colors.accent
+                              : colors.line,
+                        }}
+                      >
+                        <Text style={{ ...quartz.type.bodySm }}>
+                          {project.name} / v{project.version}
+                        </Text>
+                      </Button>
+                    ))}
+                    <Button
+                      onClick={() => {
+                        setSelectedProjectId(null);
+                        setDeleteProjectId("");
+                      }}
+                    >
+                      <Text style={{ ...quartz.type.bodySm }}>New project</Text>
+                    </Button>
+                  </View>
+                </Section>
+                <Section
+                  title={selectedProject ? "Edit project" : "Create project"}
+                  description="Project context combines developer statements with optional reviewed SRS-derived fields."
+                >
+                  <ProjectEditor
+                    key={
+                      selectedProject
+                        ? `${selectedProject.id}-${selectedProject.version}`
+                        : "new-project"
+                    }
+                    project={selectedProject}
+                    onCreate={async (input) => {
+                      const created = await app.createProject(input);
+                      setSelectedProjectId(created.id);
+                      notify(`Project ${created.name} created.`);
+                      await refresh();
+                    }}
+                    onUpdate={async (id, input) => {
+                      const saved = await app.updateProject(id, input);
+                      setSelectedProjectId(saved.id);
+                      notify(`Project version ${saved.version} saved.`);
+                      await refresh();
+                    }}
+                  />
+                  {selectedProject ? (
+                    <View
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: quartz.space[2],
+                      }}
+                    >
+                      <Button
+                        onClick={() => setDeleteProjectId(selectedProject.id)}
+                        variant="destructive"
+                        style={{}}
+                      >
+                        <Text
+                          style={{
+                            ...quartz.type.bodySm,
+                            color: colors.danger,
+                          }}
+                        >
+                          Delete project
+                        </Text>
+                      </Button>
+                      {deleteProjectId === selectedProject.id ? (
+                        <Button
+                          onClick={() => {
+                            void (async () => {
+                              try {
+                                await app.deleteProject(selectedProject.id);
+                                setDeleteProjectId("");
+                                setSelectedProjectId(null);
+                                notify(
+                                  "Project and its captures deleted. Profile and other projects remain."
+                                );
+                                await refresh();
+                              } catch (error) {
+                                setError(errorText(error));
+                              }
+                            })();
+                          }}
+                          variant="destructive"
+                          style={{}}
+                        >
+                          <Text
+                            style={{
+                              ...quartz.type.bodySm,
+                              color: colors.danger,
+                            }}
+                          >
+                            Confirm project delete
+                          </Text>
+                        </Button>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </Section>
+              </>
+            ) : null}
+
+            {section === "Documents" ? (
+              <>
+                <Section
+                  title="CV document import"
+                  description="Use local extraction and reviewed agent assistance for profile fields."
+                >
                   <AgentDraftPanel
-                    key={`srs-${selectedProject.id}`}
                     app={app}
-                    kind="srs"
-                    projectId={selectedProject.id}
+                    kind="cv"
+                    projectId={null}
                     documents={documents}
                     agents={agents}
                     onDocumentsChanged={refresh}
                     onSaved={refresh}
                   />
-                ) : (
-                  <text style={{ fontSize: 12, color: colors.muted }}>
-                    Create or select a project in Projects.
-                  </text>
-                )}
-              </Section>
-              <Section
-                title="Saved document text"
-                description="Original files are not copied. The reviewed extracted text remains available."
-              >
-                {documents.length === 0 ? (
-                  <text style={{ fontSize: 12, color: colors.muted }}>
-                    No documents saved.
-                  </text>
-                ) : (
-                  documents.map((document) => (
-                    <div
-                      key={document.id}
-                      style={{
-                        padding: 8,
-                        borderRadius: 6,
-                        borderWidth: 1,
-                        borderColor: colors.line,
-                      }}
-                    >
-                      <text style={{ fontSize: 12, fontWeight: 600 }}>
-                        {document.kind.toUpperCase()} / {document.name}
-                      </text>
-                      <text style={{ fontSize: 10, color: colors.muted }}>
-                        {document.size} bytes / hash{" "}
-                        {document.hash.slice(0, 12)} / imported{" "}
-                        {document.importedAt}
-                      </text>
-                    </div>
-                  ))
-                )}
-              </Section>
-            </>
-          ) : null}
-
-          {section === "Agents" ? (
-            <Section
-              title="Coding-agent compatibility"
-              description="Coderune connects only when you request a draft. Each agent owns sign-in, provider, and model configuration. No adapter is marked verified until compatibility is demonstrated."
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {agents.map((agent) => (
-                  <div
-                    key={agent.id}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 5,
-                      padding: 10,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: colors.line,
-                    }}
-                  >
-                    <div
-                      style={{ display: "flex", gap: 8, alignItems: "center" }}
-                    >
-                      <text style={{ fontSize: 13, fontWeight: 600 }}>
-                        {agent.name}
-                      </text>
-                      <text style={{ fontSize: 10, color: colors.muted }}>
-                        {agent.availability} / verified:{" "}
-                        {agent.verified ? "yes" : "no"}
-                      </text>
-                    </div>
-                    <text
-                      style={{
-                        fontSize: 11,
-                        color: colors.muted,
-                        whiteSpace: "normal",
-                      }}
-                    >
-                      {agent.detail}
-                    </text>
-                    <text style={{ fontSize: 10, whiteSpace: "normal" }}>
-                      Structured output:{" "}
-                      {agent.capabilities.structuredOutput
-                        ? "yes"
-                        : "validated JSON"}{" "}
-                      / cancellation:{" "}
-                      {agent.capabilities.cancellation ? "yes" : "no"} /
-                      streaming: {agent.capabilities.streaming ? "yes" : "no"} /
-                      isolation: {agent.capabilities.documentOnlyIsolation}
-                    </text>
-                    <text
-                      style={{
-                        fontSize: 10,
-                        color: colors.muted,
-                        whiteSpace: "normal",
-                      }}
-                    >
-                      {agent.capabilities.restrictions.join(" ")}
-                    </text>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          ) : null}
-
-          {section === "Capture" ? (
-            selectedProject ? (
-              <Section
-                title={`Capture ${selectedProject.name}`}
-                description="Collection is explicit. Preview the exact file list before saving. Saving is bound to the reviewed content."
-              >
-                <CapturePanel
-                  key={`${selectedProject.id}-${selectedProject.version}`}
-                  app={app}
-                  project={selectedProject}
-                  onChanged={refresh}
-                />
-              </Section>
-            ) : (
-              <Section title="Capture">
-                <text style={{ fontSize: 12, color: colors.muted }}>
-                  Create or select a project first.
-                </text>
-              </Section>
-            )
-          ) : null}
-
-          {section === "Data" ? (
-            <>
-              <Section
-                title="Export JSON"
-                description="Includes profile versions, projects, documents, and capture history."
-              >
-                <Button
-                  onClick={() => {
-                    void (async () => {
-                      try {
-                        const data = await app.exportData();
-                        setExportText(JSON.stringify(data, null, 2));
-                        notify("Export prepared locally.");
-                      } catch (error) {
-                        setError(errorText(error));
-                      }
-                    })();
-                  }}
-                  style={buttonBase}
+                </Section>
+                <Section
+                  title="SRS document import"
+                  description={
+                    selectedProject
+                      ? `Project: ${selectedProject.name}`
+                      : "Select a project first."
+                  }
                 >
-                  <text style={{ fontSize: 12 }}>Prepare export</text>
-                </Button>
-                <Button
-                  onClick={() => void saveExportFile()}
-                  style={buttonBase}
+                  {selectedProject ? (
+                    <AgentDraftPanel
+                      key={`srs-${selectedProject.id}`}
+                      app={app}
+                      kind="srs"
+                      projectId={selectedProject.id}
+                      documents={documents}
+                      agents={agents}
+                      onDocumentsChanged={refresh}
+                      onSaved={refresh}
+                    />
+                  ) : (
+                    <Text
+                      style={{ ...quartz.type.bodySm, color: colors.muted }}
+                    >
+                      Create or select a project in Projects.
+                    </Text>
+                  )}
+                </Section>
+                <Section
+                  title="Saved document text"
+                  description="Original files are not copied. The reviewed extracted text remains available."
                 >
-                  <text style={{ fontSize: 12 }}>Save JSON file</text>
-                </Button>
-                {exportPath ? (
-                  <text style={{ fontSize: 12, color: colors.muted }}>
-                    Saved to {exportPath}
-                  </text>
-                ) : null}
-                {exportText ? (
-                  <textarea
-                    value={exportText}
-                    readOnly
-                    minRows={12}
-                    style={{
-                      ...inputBase,
-                      height: 320,
-                      paddingTop: 7,
-                      fontFamily: "monospace",
-                    }}
-                  />
-                ) : null}
-              </Section>
+                  {documents.length === 0 ? (
+                    <Text
+                      style={{ ...quartz.type.bodySm, color: colors.muted }}
+                    >
+                      No documents saved.
+                    </Text>
+                  ) : (
+                    documents.map((document) => (
+                      <View
+                        key={document.id}
+                        style={{
+                          padding: quartz.space[2],
+                          borderRadius: quartz.radius.soft,
+                          borderWidth: quartz.line.hair,
+                          borderColor: colors.line,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            ...quartz.type.bodySm,
+                            fontWeight: quartz.type.label.fontWeight,
+                          }}
+                        >
+                          {document.kind.toUpperCase()} / {document.name}
+                        </Text>
+                        <View
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: quartz.space[2],
+                          }}
+                        >
+                          <Text size="bodySm" tone="muted">
+                            {document.size} bytes
+                          </Text>
+                          <Text size="codeSm">
+                            {document.hash.slice(0, 12)}
+                          </Text>
+                          <Text size="bodySm" tone="muted">
+                            Imported {document.importedAt}
+                          </Text>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </Section>
+              </>
+            ) : null}
+
+            {section === "Agents" ? (
               <Section
-                title="Delete all application data"
-                description="Removes the profile, projects, documents, and captures. This cannot be undone."
+                title="Coding-agent compatibility"
+                description="Coderune connects only when you request a draft. Each agent owns sign-in, provider, and model configuration. No adapter is marked verified until compatibility is demonstrated."
               >
-                <Button
-                  onClick={() => setDeleteAll((value) => !value)}
+                <View
                   style={{
-                    ...buttonBase,
-                    alignSelf: "flex-start",
-                    borderColor: colors.danger,
-                    backgroundColor: deleteAll
-                      ? colors.dangerSoft
-                      : colors.panel,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: quartz.space[2],
                   }}
                 >
-                  <text style={{ fontSize: 12, color: colors.danger }}>
-                    {deleteAll
-                      ? "Delete everything is armed"
-                      : "Delete all data"}
-                  </text>
-                </Button>
-                {deleteAll ? (
+                  {agents.map((agent) => (
+                    <View
+                      key={agent.id}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: quartz.space[2],
+                        padding: quartz.space[3],
+                        borderBottomWidth: quartz.line.hair,
+                        borderColor: colors.rowLine,
+                      }}
+                    >
+                      <View
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: quartz.space[2],
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            ...quartz.type.bodySm,
+                            fontWeight: quartz.type.label.fontWeight,
+                          }}
+                        >
+                          {agent.name}
+                        </Text>
+                        <Text
+                          style={{ ...quartz.type.bodySm, color: colors.muted }}
+                        >
+                          {agent.availability} / verified:{" "}
+                          {agent.verified ? "yes" : "no"}
+                        </Text>
+                      </View>
+                      <Text
+                        style={{
+                          ...quartz.type.bodySm,
+                          color: colors.muted,
+                          whiteSpace: "normal",
+                        }}
+                      >
+                        {agent.detail}
+                      </Text>
+                      <Text
+                        style={{ ...quartz.type.bodySm, whiteSpace: "normal" }}
+                      >
+                        Structured output:{" "}
+                        {agent.capabilities.structuredOutput
+                          ? "yes"
+                          : "validated JSON"}{" "}
+                        / cancellation:{" "}
+                        {agent.capabilities.cancellation ? "yes" : "no"} /
+                        streaming: {agent.capabilities.streaming ? "yes" : "no"}{" "}
+                        / isolation: {agent.capabilities.documentOnlyIsolation}
+                      </Text>
+                      <Text
+                        style={{
+                          ...quartz.type.bodySm,
+                          color: colors.muted,
+                          whiteSpace: "normal",
+                        }}
+                      >
+                        {agent.capabilities.restrictions.join(" ")}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </Section>
+            ) : null}
+
+            {section === "Capture" ? (
+              selectedProject ? (
+                <Section
+                  title={`Capture ${selectedProject.name}`}
+                  description="Collection is explicit. Preview the exact file list before saving. Saving is bound to the reviewed content."
+                >
+                  <CapturePanel
+                    key={`${selectedProject.id}-${selectedProject.version}`}
+                    app={app}
+                    project={selectedProject}
+                    onChanged={refresh}
+                  />
+                </Section>
+              ) : (
+                <Section title="Capture">
+                  <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
+                    Create or select a project first.
+                  </Text>
+                </Section>
+              )
+            ) : null}
+
+            {section === "Data" ? (
+              <>
+                <Section
+                  title="Export JSON"
+                  description="Includes profile versions, projects, documents, and capture history."
+                >
                   <Button
                     onClick={() => {
                       void (async () => {
                         try {
-                          await app.deleteAllData();
-                          setDeleteAll(false);
-                          setExportText("");
-                          setExportPath("");
-                          setProfile(null);
-                          setProjects([]);
-                          setDocuments([]);
-                          setSelectedProjectId(null);
-                          notify("All application data deleted.");
-                          await refresh();
+                          const data = await app.exportData();
+                          setExportText(JSON.stringify(data, null, 2));
+                          notify("Export prepared locally.");
                         } catch (error) {
                           setError(errorText(error));
                         }
                       })();
                     }}
-                    style={{
-                      ...buttonBase,
-                      alignSelf: "flex-start",
-                      borderColor: colors.danger,
-                      backgroundColor: colors.danger,
-                    }}
                   >
-                    <text
+                    <Text style={{ ...quartz.type.bodySm }}>
+                      Prepare export
+                    </Text>
+                  </Button>
+                  <Button onClick={() => void saveExportFile()}>
+                    <Text style={{ ...quartz.type.bodySm }}>
+                      Save JSON file
+                    </Text>
+                  </Button>
+                  {exportPath ? (
+                    <View
                       style={{
-                        fontSize: 12,
-                        color: "#ffffff",
-                        fontWeight: 600,
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: quartz.space[2],
                       }}
                     >
-                      Confirm delete everything
-                    </text>
+                      <Text size="bodySm" tone="muted">
+                        Saved to
+                      </Text>
+                      <Text size="codeSm">{exportPath}</Text>
+                    </View>
+                  ) : null}
+                  {exportText ? (
+                    <Textarea
+                      value={exportText}
+                      aria-label="Export JSON"
+                      readOnly
+                      minRows={12}
+                      style={{
+                        paddingTop: quartz.space[2],
+                        fontFamily: quartz.fonts.mono,
+                      }}
+                    />
+                  ) : null}
+                </Section>
+                <Section
+                  title="Delete all application data"
+                  description="Removes the profile, projects, documents, and captures. This cannot be undone."
+                >
+                  <Button
+                    onClick={() => setDeleteAll((value) => !value)}
+                    variant="destructive"
+                    style={{
+                      alignSelf: "flex-start",
+                      backgroundColor: deleteAll
+                        ? colors.dangerSoft
+                        : colors.panel,
+                    }}
+                  >
+                    <Text
+                      style={{ ...quartz.type.bodySm, color: colors.danger }}
+                    >
+                      {deleteAll
+                        ? "Delete everything is armed"
+                        : "Delete all data"}
+                    </Text>
                   </Button>
-                ) : null}
-              </Section>
-            </>
-          ) : null}
-        </div>
-      </div>
-    </div>
+                  {deleteAll ? (
+                    <Button
+                      onClick={() => {
+                        void (async () => {
+                          try {
+                            await app.deleteAllData();
+                            setDeleteAll(false);
+                            setExportText("");
+                            setExportPath("");
+                            setProfile(null);
+                            setProjects([]);
+                            setDocuments([]);
+                            setSelectedProjectId(null);
+                            notify("All application data deleted.");
+                            await refresh();
+                          } catch (error) {
+                            setError(errorText(error));
+                          }
+                        })();
+                      }}
+                      variant="destructive"
+                      style={{
+                        alignSelf: "flex-start",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          ...quartz.type.bodySm,
+                          fontWeight: quartz.type.label.fontWeight,
+                        }}
+                      >
+                        Confirm delete everything
+                      </Text>
+                    </Button>
+                  ) : null}
+                </Section>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    </View>
   );
 };
 
-const runtime = await createApplication({
-  dataDir: resolveApplicationDataDir(),
-});
+export function mountDesktop(runtime: ApplicationRuntime) {
+  return render(
+    <QuartzFonts>
+      <App runtime={runtime} />
+    </QuartzFonts>,
+    {
+      title: "Coderune",
+      width: 1240,
+      height: 820,
+    }
+  );
+}
 
-process.on("exit", () => runtime.close());
+if (import.meta.main) {
+  const runtime = await createApplication({
+    dataDir: resolveApplicationDataDir(),
+  });
 
-render(<App runtime={runtime} />, {
-  title: "Coderune",
-  width: 1240,
-  height: 820,
-});
+  process.on("exit", () => runtime.close());
+  mountDesktop(runtime);
+}
