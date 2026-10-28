@@ -8,11 +8,10 @@
       "computedHash": "d1c5b4151720e96135154bd593ac4986a1030a2bc81e2aaf129f8b11224af9a9"
     },
     "build-design-system": {
-      "source": "design.how",
-      "sourceUrl": "https://design.how",
-      "sourceType": "well-known",
-      "computedHash": "68fe389da353c02a64094841f4658387883db7f2a280956e308489e479cffeaf",
-      "wellKnownDigest": "sha256:cd0298ea97c501f0387ea5aeef864580c06f5e01de1e8197c7d6376dfe7f568c"
+      "source": "arla6ka/design.how",
+      "sourceType": "github",
+      "skillPath": "skills/build-design-system/SKILL.md",
+      "computedHash": "68fe389da353c02a64094841f4658387883db7f2a280956e308489e479cffeaf"
     },
     "chief-of-staff": {
       "source": "mattpocock/skills",
@@ -39,18 +38,16 @@
       "computedHash": "b2888e4f4e8c0af3bfd557575a64b905c44e6248c3101d72077816882b3a92b9"
     },
     "component-docs": {
-      "source": "design.how",
-      "sourceUrl": "https://design.how",
-      "sourceType": "well-known",
-      "computedHash": "0cc156185f7acb88350cb02583cdad358ddd7a592c6df69fafce2a2ad146f99d",
-      "wellKnownDigest": "sha256:ed50d4af6037f8fcc54f0e1b863a0ef6456551928d0911ebe2d6c0bbabe7e006"
+      "source": "arla6ka/design.how",
+      "sourceType": "github",
+      "skillPath": "skills/component-docs/SKILL.md",
+      "computedHash": "0cc156185f7acb88350cb02583cdad358ddd7a592c6df69fafce2a2ad146f99d"
     },
     "design-system-boss": {
-      "source": "design.how",
-      "sourceUrl": "https://design.how",
-      "sourceType": "well-known",
-      "computedHash": "6e11bbaedb2ff96ff95fba3c420a6c378ee74610ee6270f5de55c659b5d93a5c",
-      "wellKnownDigest": "sha256:041cb28de5f14846bd65b185e12059bee3472d24a27797eb23dde1660d5c45ce"
+      "source": "arla6ka/design.how",
+      "sourceType": "github",
+      "skillPath": "skills/design-system-boss/SKILL.md",
+      "computedHash": "6e11bbaedb2ff96ff95fba3c420a6c378ee74610ee6270f5de55c659b5d93a5c"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -119,11 +116,10 @@
       "computedHash": "72e01a16929dbf6583afc469a49d64b28b1be4a6034c900decd94cd5a69ba6e6"
     },
     "migrate-design-system": {
-      "source": "design.how",
-      "sourceUrl": "https://design.how",
-      "sourceType": "well-known",
-      "computedHash": "b912ff72a22a49993d4a37cbb5cb6c8b07348682d7d7409dc2fc0cdce5053895",
-      "wellKnownDigest": "sha256:cbf4b27491c8f06058def0e4f2b86c4a53b01edef15f68d0f000377101e8608a"
+      "source": "arla6ka/design.how",
+      "sourceType": "github",
+      "skillPath": "skills/migrate-design-system/SKILL.md",
+      "computedHash": "b912ff72a22a49993d4a37cbb5cb6c8b07348682d7d7409dc2fc0cdce5053895"
     },
     "migrate-to-shoehorn": {
       "source": "mattpocock/skills",
@@ -216,11 +212,10 @@
       "computedHash": "5f871bdc46a9212222214ba399be4965374208af1bd7f48f1271bef72841dd31"
     },
     "token-mapping": {
-      "source": "design.how",
-      "sourceUrl": "https://design.how",
-      "sourceType": "well-known",
-      "computedHash": "9d6f299ea41b2b8c68d743af398935527fe9256f943d5640993dcab95fa47ace",
-      "wellKnownDigest": "sha256:6886cad4fe8fe1a7b706e28dd12105390a78460a38852b118084f42cbfc453e9"
+      "source": "arla6ka/design.how",
+      "sourceType": "github",
+      "skillPath": "skills/token-mapping/SKILL.md",
+      "computedHash": "9d6f299ea41b2b8c68d743af398935527fe9256f943d5640993dcab95fa47ace"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -235,11 +230,10 @@
       "computedHash": "9681d8dfeb5e6cdff767f1bcaba5d7ac55732a9d6c02ee120f44229f8ec25e7e"
     },
     "ui-review": {
-      "source": "design.how",
-      "sourceUrl": "https://design.how",
-      "sourceType": "well-known",
-      "computedHash": "d693f31476d9f94a683e5e07bdcaa51117b2aeb02f1d9895b8248313f3bcfdf7",
-      "wellKnownDigest": "sha256:4c1c697ecde90b2b3463905237f910a577c25bbaf8064535066c07ab01638bf1"
+      "source": "arla6ka/design.how",
+      "sourceType": "github",
+      "skillPath": "skills/ui-review/SKILL.md",
+      "computedHash": "d693f31476d9f94a683e5e07bdcaa51117b2aeb02f1d9895b8248313f3bcfdf7"
     },
     "wait-what": {
       "source": "mattpocock/skills",
