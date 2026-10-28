@@ -24,7 +24,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # caches
 .turbo
-.eslintcache
 .cache
 *.tsbuildinfo
 
@@ -33,3 +32,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# local design verification
+.design-system/
+.ui-review/
+.playwright-cli/
