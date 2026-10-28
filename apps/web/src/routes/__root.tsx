@@ -1,5 +1,7 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 
+import "@/components/quartz/styles.css";
+
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -16,7 +18,7 @@ const RootLayout = () => (
 
 const NotFoundPage = () => (
   <section className="flex flex-col items-start py-8">
-    <p className="text-muted-foreground font-mono text-sm">404</p>
+    <p className="type-body-sm text-text-2 data">404</p>
     <h1 className="page-title mt-4">
       This page is outside the captured scope.
     </h1>
