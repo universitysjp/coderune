@@ -293,7 +293,8 @@ export class JsonRpcPeer {
     } finally {
       this.#closed = true;
       const exitCode = await this.#process.exited;
-      const stderr = (await this.#stderr).trim();
+      const stderrOutput = await this.#stderr;
+      const stderr = stderrOutput.trim();
 
       const error =
         this.#readError ??
