@@ -11,6 +11,7 @@ export const parseJsonObject = function parseJsonObject(
   value: unknown
 ): Record<string, unknown> {
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    // SAFETY: The guard above proves the value is a non-null, non-array object.
     return value as Record<string, unknown>;
   }
 

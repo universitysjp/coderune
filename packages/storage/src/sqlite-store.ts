@@ -220,6 +220,7 @@ export class SqliteContextStore implements ContextStore {
       )
       .get();
 
+    // SAFETY: Profile rows are written from DeveloperProfile values by saveProfile.
     return row ? (JSON.parse(row.data) as DeveloperProfile) : null;
   }
 
@@ -230,6 +231,7 @@ export class SqliteContextStore implements ContextStore {
       )
       .all();
 
+    // SAFETY: Profile version rows are written from DeveloperProfile values by saveProfile.
     return rows.map((row) => JSON.parse(row.data) as DeveloperProfile);
   }
 
@@ -279,6 +281,7 @@ export class SqliteContextStore implements ContextStore {
       )
       .get();
 
+    // SAFETY: The onboarding draft row is written from OnboardingDraft values by saveOnboardingDraft.
     return row ? (JSON.parse(row.data) as OnboardingDraft) : null;
   }
 
@@ -370,6 +373,7 @@ export class SqliteContextStore implements ContextStore {
       )
       .get(id);
 
+    // SAFETY: Project rows are written from Project values by createProject or updateProject.
     return row ? (JSON.parse(row.data) as Project) : null;
   }
 
@@ -380,6 +384,7 @@ export class SqliteContextStore implements ContextStore {
       )
       .all(id);
 
+    // SAFETY: Project version rows are written from Project values by createProject or updateProject.
     return rows.map((row) => JSON.parse(row.data) as Project);
   }
 
@@ -390,6 +395,7 @@ export class SqliteContextStore implements ContextStore {
       )
       .all();
 
+    // SAFETY: Project rows are written from Project values by createProject or updateProject.
     return rows.map((row) => JSON.parse(row.data) as Project);
   }
 
@@ -545,6 +551,7 @@ export class SqliteContextStore implements ContextStore {
   }
 
   #hydrateCapture(data: string): ContextCapture {
+    // SAFETY: Capture rows are written from ContextCapture values by saveCapture.
     const capture = JSON.parse(data) as ContextCapture;
 
     return {
@@ -595,6 +602,7 @@ export class SqliteContextStore implements ContextStore {
       )
       .get(id);
 
+    // SAFETY: Document rows are written from ImportedDocument values by saveDocument.
     return row ? (JSON.parse(row.data) as ImportedDocument) : null;
   }
 
@@ -612,6 +620,7 @@ export class SqliteContextStore implements ContextStore {
             )
             .all(projectId);
 
+    // SAFETY: Document rows are written from ImportedDocument values by saveDocument.
     return rows.map((row) => JSON.parse(row.data) as ImportedDocument);
   }
 

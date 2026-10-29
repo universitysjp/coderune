@@ -128,6 +128,7 @@ export const parseAgentDraft = function parseAgentDraft(
 export const draftJsonSchema = function draftJsonSchema(
   kind: DocumentKind
 ): Record<string, unknown> {
+  // SAFETY: z.toJSONSchema returns the JSON Schema shape for the selected Zod draft schema.
   return z.toJSONSchema(
     kind === "cv" ? cvDraftSchema : srsDraftSchema
   ) as Record<string, unknown>;

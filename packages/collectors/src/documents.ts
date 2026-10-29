@@ -24,10 +24,12 @@ const failure = (
   error: { code, message, path, manualEntryAvailable: true },
 });
 
+const supportedExtensionNames = new Set<string>(SUPPORTED_DOCUMENT_EXTENSIONS);
+
 const supportedExtension = (
   extension: string
 ): extension is SupportedDocumentExtension =>
-  (SUPPORTED_DOCUMENT_EXTENSIONS as readonly string[]).includes(extension);
+  supportedExtensionNames.has(extension);
 
 interface ExtractedText {
   text: string;

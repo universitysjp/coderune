@@ -46,6 +46,7 @@ const permissionResponse = function permissionResponse(
     throw new Error(`Unsupported agent request: ${request.method}`);
   }
 
+  // SAFETY: The request method was checked above, so params follows the ACP permission request schema.
   const params = request.params as PermissionRequest | undefined;
 
   const reject = params?.options?.find(
@@ -82,6 +83,7 @@ export const draftWithOpencode = async function draftWithOpencode(
       return;
     }
 
+    // SAFETY: The notification method was checked above, so params follows the ACP session update schema.
     const params = notification.params as SessionUpdate | undefined;
     const update = params?.update;
 
@@ -94,6 +96,7 @@ export const draftWithOpencode = async function draftWithOpencode(
   });
 
   try {
+    // SAFETY: The ACP initialize response is validated by the protocol version check below.
     const initialized = (await peer.request("initialize", {
       protocolVersion: 1,
       clientCapabilities: {
@@ -114,6 +117,7 @@ export const draftWithOpencode = async function draftWithOpencode(
       );
     }
 
+    // SAFETY: The ACP session/new response is checked for a session id below.
     const session = (await peer.request("session/new", {
       cwd,
       mcpServers: [],
@@ -126,6 +130,7 @@ export const draftWithOpencode = async function draftWithOpencode(
       );
     }
 
+    // SAFETY: The ACP session/prompt response is checked for its stop reason below.
     const prompted = (await peer.request("session/prompt", {
       sessionId: session.sessionId,
       prompt: [{ type: "text", text: request.text }],

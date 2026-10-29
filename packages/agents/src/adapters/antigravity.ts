@@ -67,6 +67,7 @@ export const draftWithAntigravity = async function draftWithAntigravity(
       }
 
       try {
+        // SAFETY: Each stdout line is a JSON envelope emitted by the Antigravity CLI; its event field is checked below.
         const message = JSON.parse(line) as AntigravityEnvelope;
 
         if (message.event === "result") {

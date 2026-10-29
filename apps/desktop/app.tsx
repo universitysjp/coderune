@@ -131,6 +131,7 @@ const ProfileEditor = ({
   }, [onDraft]);
 
   const buildInput = useCallback((): DeveloperProfileInput => {
+    // SAFETY: details is produced by JSON.stringify from the typed DeveloperProfileInput defaults.
     const extra = JSON.parse(details) as Partial<DeveloperProfileInput>;
 
     return {
@@ -230,7 +231,7 @@ const ProfileEditor = ({
                   "early-career",
                   "mid-career",
                   "experienced",
-                ] as ExperienceStage[]
+                ] satisfies ExperienceStage[]
               ).map((option) => (
                 <Button
                   key={option}
@@ -872,7 +873,7 @@ const AgentDraftPanel = ({
     clear();
 
     try {
-      const parsed = JSON.parse(draftJson) as unknown;
+      const parsed: unknown = JSON.parse(draftJson);
 
       await (kind === "srs" && projectId
         ? app.applySrsDraft(projectId, selected.id, parsed, {
@@ -1920,8 +1921,10 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
         ]);
 
       setProfile(onboarding.profile);
+      // SAFETY: getOnboardingState returns the persisted onboarding draft shape.
       setDraft(onboarding.draft as Partial<DeveloperProfile> | null);
       setProjects(projectList);
+      // SAFETY: exportData returns imported documents in the ImportedDocument shape.
       setDocuments(exportBundle.documents as ImportedDocument[]);
       setAgents(agentList);
       setSelectedProjectId((current) => {
@@ -2023,6 +2026,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
               submitLabel="Confirm developer baseline"
               onDraft={async (input) => {
                 const saved = await app.saveOnboardingDraft(input);
+                // SAFETY: saveOnboardingDraft returns the validated onboarding draft shape.
                 setDraft(saved as Partial<DeveloperProfile>);
                 notify(
                   "Onboarding draft saved. You can close and resume later."

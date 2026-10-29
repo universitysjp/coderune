@@ -79,6 +79,7 @@ export const draftWithCodex = async function draftWithCodex(
 
   const off = peer.onNotification((notification) => {
     if (notification.method === "item/completed") {
+      // SAFETY: The item/completed notification payload follows the Codex item schema checked below.
       const params = notification.params as ItemCompleted | undefined;
 
       if (params?.item?.type === "agentMessage") {
@@ -89,6 +90,7 @@ export const draftWithCodex = async function draftWithCodex(
     }
 
     if (notification.method === "turn/completed") {
+      // SAFETY: The turn/completed notification payload is matched against the active turn id below.
       const params = notification.params as TurnCompleted | undefined;
       const turn = params?.turn;
 
@@ -115,6 +117,7 @@ export const draftWithCodex = async function draftWithCodex(
     });
     peer.notify("initialized", {});
 
+    // SAFETY: The Codex thread/start response is checked for a thread id below.
     const threadResult = (await peer.request("thread/start", {
       cwd,
       approvalPolicy: "never",
@@ -131,6 +134,7 @@ export const draftWithCodex = async function draftWithCodex(
       );
     }
 
+    // SAFETY: The Codex turn/start response is read only after the request succeeds.
     const started = (await peer.request("turn/start", {
       threadId,
       cwd,

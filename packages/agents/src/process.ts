@@ -307,20 +307,25 @@ export class JsonRpcPeer {
     let message: Message;
 
     try {
+      // SAFETY: The line is parsed JSON from the JSON-RPC peer; malformed lines are ignored below.
       message = JSON.parse(line) as Message;
     } catch {
       return;
     }
 
+    // SAFETY: JSON-RPC ids are constrained to the protocol's string or number form.
     const id = message.id as number | string | undefined;
     const method = typeof message.method === "string" ? message.method : null;
 
     if (method && id !== undefined && id !== null) {
+      // SAFETY: The method and id checks establish a JSON-RPC request; params is forwarded as the opaque request payload.
+      const params = message.params as Record<string, unknown> | undefined;
+
       Promise.resolve(
         this.#requestHandler({
           id,
           method,
-          params: message.params as Record<string, unknown> | undefined,
+          params,
         })
       )
         .then((result) => {
@@ -352,13 +357,13 @@ export class JsonRpcPeer {
       this.#pending.delete(id);
 
       if (message.error) {
+        // SAFETY: JSON-RPC error payloads are checked for a string message before being converted.
+        const errorMessage = (message.error as { message?: unknown }).message;
+
         pending.reject(
           new ApplicationError(
             "agent-failed",
-            String(
-              (message.error as { message?: unknown }).message ??
-                "The coding agent rejected the request."
-            )
+            String(errorMessage ?? "The coding agent rejected the request.")
           )
         );
       } else {
@@ -371,6 +376,7 @@ export class JsonRpcPeer {
     if (method) {
       const notification: JsonRpcNotification = {
         method,
+        // SAFETY: Notification params come from a validated JSON-RPC message.
         params: message.params as Record<string, unknown> | undefined,
       };
 

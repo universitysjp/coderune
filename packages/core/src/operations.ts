@@ -310,6 +310,7 @@ export class ApplicationOperations {
     }
 
     const document = this.#draftDocument(documentId, "cv");
+    // SAFETY: #parseDraft validated the value as a CV draft for the requested kind.
     const draft = ApplicationOperations.#parseDraft(value, "cv") as CvDraft;
     const existing = this.#store.getProfile();
     const patch: Partial<DeveloperProfileInput> = {};
@@ -434,6 +435,7 @@ export class ApplicationOperations {
       );
     }
 
+    // SAFETY: #parseDraft validated the value as an SRS draft for the requested kind.
     const draft = ApplicationOperations.#parseDraft(value, "srs") as SrsDraft;
 
     const sources = new Map(
