@@ -102,6 +102,7 @@ const ProfileEditor = ({
 
   const [newToCoding, setNewToCoding] = useState(initial?.newToCoding ?? true);
   const [skills, setSkills] = useState(initial?.skillsStatement ?? "");
+
   const [goals, setGoals] = useState(() =>
     (initial?.learningGoals ?? []).join("\n")
   );
