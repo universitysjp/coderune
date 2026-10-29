@@ -94,7 +94,7 @@ const ProfileEditor = ({
   );
 
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [errorMessage, setError] = useState("");
   const draftHandler = useRef(onDraft);
 
   draftHandler.current = onDraft;
@@ -146,8 +146,8 @@ const ProfileEditor = ({
 
     try {
       await action(buildInput());
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -157,7 +157,7 @@ const ProfileEditor = ({
     <View
       style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
     >
-      <Notice error={error} message="" />
+      <Notice error={errorMessage} message="" />
       <View
         style={{
           display: "flex",
@@ -362,7 +362,7 @@ const ProjectEditor = ({
   );
 
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [errorMessage, setError] = useState("");
 
   const input = (): ProjectInput => ({
     name,
@@ -396,8 +396,8 @@ const ProjectEditor = ({
       } else {
         await onCreate(input());
       }
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -407,7 +407,7 @@ const ProjectEditor = ({
     <View
       style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
     >
-      <Notice error={error} message="" />
+      <Notice error={errorMessage} message="" />
       <View
         style={{
           display: "flex",
@@ -677,7 +677,7 @@ const AgentDraftPanel = ({
   const [applyConfirmed, setApplyConfirmed] = useState(false);
   const [controller, setController] = useState<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [errorMessage, setError] = useState("");
   const [message, setMessage] = useState("");
 
   const selected = availableDocs.find(
@@ -707,8 +707,8 @@ const AgentDraftPanel = ({
           `${result.error.message} You can keep entering the ${kind.toUpperCase()} manually.`
         );
       }
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -733,8 +733,8 @@ const AgentDraftPanel = ({
       setDocumentPath("");
       await onDocumentsChanged();
       setMessage("Document text saved locally after review.");
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -766,8 +766,8 @@ const AgentDraftPanel = ({
       setShareConfirmed(false);
       setDraftJson("");
       setApplyConfirmed(false);
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -815,8 +815,8 @@ const AgentDraftPanel = ({
       setMessage(
         `${result.agent.name} returned a schema-valid draft. Review and correct every field below.`
       );
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setController(null);
       setBusy(false);
@@ -853,8 +853,8 @@ const AgentDraftPanel = ({
       setDraftJson("");
       setApplyConfirmed(false);
       await onSaved();
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -864,7 +864,7 @@ const AgentDraftPanel = ({
     <View
       style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
     >
-      <Notice error={error} message={message} />
+      <Notice error={errorMessage} message={message} />
       <Labeled
         label={`Import a local ${kind.toUpperCase()}`}
         hint="PDF, DOCX, Markdown, or plain text. Text is extracted locally; the original file is not copied. The number is the per-document MiB limit."
@@ -1274,7 +1274,7 @@ const CapturePanel = ({
   const [confirmed, setConfirmed] = useState(false);
   const [deleteId, setDeleteId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [errorMessage, setError] = useState("");
   const [message, setMessage] = useState("");
 
   const loadCaptures = async () => {
@@ -1310,8 +1310,8 @@ const CapturePanel = ({
 
       setPreview(next);
       setConfirmed(false);
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -1333,8 +1333,8 @@ const CapturePanel = ({
       setConfirmed(false);
       await loadCaptures();
       await onChanged();
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -1357,8 +1357,8 @@ const CapturePanel = ({
       }
 
       await loadCaptures();
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -1368,7 +1368,7 @@ const CapturePanel = ({
     <View
       style={{ display: "flex", flexDirection: "column", gap: quartz.space[3] }}
     >
-      <Notice error={error} message={message} />
+      <Notice error={errorMessage} message={message} />
       <View
         style={{
           display: "flex",
@@ -1673,8 +1673,8 @@ const CapturePanel = ({
                         setDeleteId("");
                         setMessage("Capture deleted.");
                         await loadCaptures();
-                      } catch (cause) {
-                        setError(errorText(cause));
+                      } catch (error) {
+                        setError(errorText(error));
                       } finally {
                         setBusy(false);
                       }
@@ -1840,7 +1840,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   );
 
   const [section, setSection] = useState("Profile");
-  const [error, setError] = useState("");
+  const [errorMessage, setError] = useState("");
   const [message, setMessage] = useState("");
   const [exportText, setExportText] = useState("");
   const [exportPath, setExportPath] = useState("");
@@ -1864,8 +1864,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
       await Bun.write(target, text);
       setExportPath(target);
       setMessage(`JSON export written to ${target}`);
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     }
   };
 
@@ -1893,8 +1893,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
 
         return projectList[0]?.id ?? null;
       });
-    } catch (cause) {
-      setError(errorText(cause));
+    } catch (error) {
+      setError(errorText(error));
     } finally {
       setLoading(false);
     }
@@ -1972,7 +1972,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
           {terminalWarning ? (
             <Notice error={terminalWarning} message="" />
           ) : null}
-          <Notice error={error} message={message} />
+          <Notice error={errorMessage} message={message} />
           <Section
             title="Developer baseline"
             description="A display name or pseudonym, experience stage, skills starting point, and at least one learning goal are required."
@@ -2204,7 +2204,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
             {terminalWarning ? (
               <Notice error={terminalWarning} message="" />
             ) : null}
-            <Notice error={error} message={message} />
+            <Notice error={errorMessage} message={message} />
 
             {section === "Profile" ? (
               <>
@@ -2366,8 +2366,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                                   "Project and its captures deleted. Profile and other projects remain."
                                 );
                                 await refresh();
-                              } catch (cause) {
-                                setError(errorText(cause));
+                              } catch (error) {
+                                setError(errorText(error));
                               }
                             })();
                           }}
@@ -2604,8 +2604,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                           const data = await app.exportData();
                           setExportText(JSON.stringify(data, null, 2));
                           notify("Export prepared locally.");
-                        } catch (cause) {
-                          setError(errorText(cause));
+                        } catch (error) {
+                          setError(errorText(error));
                         }
                       })();
                     }}
@@ -2687,8 +2687,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                             setSelectedProjectId(null);
                             notify("All application data deleted.");
                             await refresh();
-                          } catch (cause) {
-                            setError(errorText(cause));
+                          } catch (error) {
+                            setError(errorText(error));
                           }
                         })();
                       }}
