@@ -126,7 +126,9 @@ const ProfileEditor = ({
   const [errorMessage, setErrorMessage] = useState("");
   const draftHandler = useRef(onDraft);
 
-  draftHandler.current = onDraft;
+  useEffect(() => {
+    draftHandler.current = onDraft;
+  }, [onDraft]);
 
   const buildInput = (): DeveloperProfileInput => {
     const extra = JSON.parse(details) as Partial<DeveloperProfileInput>;
