@@ -85,6 +85,13 @@ export class LocalCodingAgentGateway implements CodingAgentGateway {
       case "antigravity": {
         return draftWithAntigravity(request, runOptions);
       }
+
+      default: {
+        throw new ApplicationError(
+          "agent-unavailable",
+          `Unsupported coding agent: ${request.agentId}`
+        );
+      }
     }
   }
 
