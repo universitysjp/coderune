@@ -56,7 +56,7 @@ export default definePlugin({
         schema: [],
         messages: {
           token:
-            "Use a shared Quartz token for {{name}}; see @coderune/tokens/quartz.",
+            "Use a shared Quartz token for {{name}}; see @coderune/quartz/tokens.",
         },
       },
       create(context) {
@@ -93,11 +93,15 @@ export default definePlugin({
         schema: [],
         messages: {
           component:
-            "Use native Quartz {{component}} from ./src/quartz instead of a raw host element.",
+            "Use native Quartz {{component}} from @coderune/quartz/native instead of a raw host element.",
         },
       },
       create(context) {
-        if (context.filename.endsWith("/src/quartz.tsx")) return {};
+        if (
+          context.filename.endsWith("/src/native/index.tsx") ||
+          context.filename.endsWith("/src/quartz.tsx")
+        )
+          return {};
         const components = {
           div: "View",
           text: "Text",
