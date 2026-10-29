@@ -4,7 +4,7 @@ import { join } from "node:path";
 // Keep the original storage identifiers so Coderune reopens existing profiles and captures.
 export const APPLICATION_DIRECTORY_NAME = "Context Bridge";
 
-export function resolveApplicationDataDir(
+export const resolveApplicationDataDir = function resolveApplicationDataDir(
   environment: NodeJS.ProcessEnv = process.env
 ): string {
   if (process.platform === "darwin") {
@@ -28,8 +28,10 @@ export function resolveApplicationDataDir(
   return xdgDataHome
     ? join(xdgDataHome, "context-bridge")
     : join(homedir(), ".local", "share", "context-bridge");
-}
+};
 
-export function resolveDatabasePath(dataDir: string): string {
+export const resolveDatabasePath = function resolveDatabasePath(
+  dataDir: string
+): string {
   return join(dataDir, "context-bridge.sqlite");
-}
+};

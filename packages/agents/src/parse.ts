@@ -1,13 +1,15 @@
 import { ApplicationError } from "@coderune/core";
 
-export function invalidOutput(): ApplicationError {
+export const invalidOutput = function invalidOutput(): ApplicationError {
   return new ApplicationError(
     "agent-invalid-output",
     "The coding agent did not return a usable JSON draft."
   );
-}
+};
 
-export function parseJsonObject(value: unknown): Record<string, unknown> {
+export const parseJsonObject = function parseJsonObject(
+  value: unknown
+): Record<string, unknown> {
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     return value as Record<string, unknown>;
   }
@@ -39,9 +41,9 @@ export function parseJsonObject(value: unknown): Record<string, unknown> {
 
     throw invalidOutput();
   }
-}
+};
 
-export function requireSuccess(
+export const requireSuccess = function requireSuccess(
   exitCode: number,
   stderr: string,
   commandName: string
@@ -67,4 +69,4 @@ export function requireSuccess(
     message.includes("sign in") ? "agent-unavailable" : "agent-failed",
     message
   );
-}
+};

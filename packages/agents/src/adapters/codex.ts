@@ -30,7 +30,9 @@ interface ItemCompleted {
   item?: { type?: string; text?: string };
 }
 
-function approvalResponse(request: JsonRpcRequest): unknown {
+const approvalResponse = function approvalResponse(
+  request: JsonRpcRequest
+): unknown {
   if (
     request.method === "item/commandExecution/requestApproval" ||
     request.method === "item/fileChange/requestApproval"
@@ -47,9 +49,9 @@ function approvalResponse(request: JsonRpcRequest): unknown {
   }
 
   throw new Error(`Unsupported agent request: ${request.method}`);
-}
+};
 
-export async function draftWithCodex(
+export const draftWithCodex = async function draftWithCodex(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<unknown> {
@@ -181,4 +183,4 @@ export async function draftWithCodex(
     peer.close();
     rmSync(cwd, { force: true, recursive: true });
   }
-}
+};

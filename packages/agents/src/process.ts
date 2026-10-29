@@ -15,7 +15,7 @@ export interface ProcessResult {
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 
-export async function runProcess(
+export const runProcess = async function runProcess(
   command: string[],
   options: ProcessOptions
 ): Promise<ProcessResult> {
@@ -85,7 +85,7 @@ export async function runProcess(
     clearTimeout(timer);
     options.signal?.removeEventListener("abort", killOnAbort);
   }
-}
+};
 
 export interface JsonRpcNotification {
   method: string;

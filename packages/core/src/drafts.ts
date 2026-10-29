@@ -119,15 +119,19 @@ export type AgentDraft = z.infer<typeof agentDraftSchema>;
 
 export type DraftSource = z.infer<typeof draftSourceSchema>;
 
-export function parseAgentDraft(value: unknown): AgentDraft {
+export const parseAgentDraft = function parseAgentDraft(
+  value: unknown
+): AgentDraft {
   return agentDraftSchema.parse(value);
-}
+};
 
-export function draftJsonSchema(kind: DocumentKind): Record<string, unknown> {
+export const draftJsonSchema = function draftJsonSchema(
+  kind: DocumentKind
+): Record<string, unknown> {
   return z.toJSONSchema(
     kind === "cv" ? cvDraftSchema : srsDraftSchema
   ) as Record<string, unknown>;
-}
+};
 
 const CV_INSTRUCTIONS = `Create a structured CV draft for the developer.
 Use only facts present in the source document. Do not invent or infer facts.
@@ -147,7 +151,7 @@ Use exactly these fields:
 kind ("srs"), purpose, businessLogic, goals (string[]), rules (string[]), constraints (string[]), decisions (string[]), acceptanceCriteria (string[]), knowledge (string[]), sources ({field, reference?}[]), warnings (string[]).
 The developer will review and correct every field before anything is saved.`;
 
-export function buildDraftRequestText(
+export const buildDraftRequestText = function buildDraftRequestText(
   kind: DocumentKind,
   document: ImportedDocument,
   project: Project | null
@@ -164,4 +168,4 @@ Document hash: ${document.hash}
 ${projectLine}
 SOURCE DOCUMENT TEXT
 ${document.text}`;
-}
+};

@@ -39,7 +39,9 @@ interface PermissionRequest {
   options?: PermissionOption[];
 }
 
-function permissionResponse(request: JsonRpcRequest): unknown {
+const permissionResponse = function permissionResponse(
+  request: JsonRpcRequest
+): unknown {
   if (request.method !== "session/request_permission") {
     throw new Error(`Unsupported agent request: ${request.method}`);
   }
@@ -57,9 +59,9 @@ function permissionResponse(request: JsonRpcRequest): unknown {
   }
 
   return { outcome: { outcome: "cancelled" } };
-}
+};
 
-export async function draftWithOpencode(
+export const draftWithOpencode = async function draftWithOpencode(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<unknown> {
@@ -153,4 +155,4 @@ export async function draftWithOpencode(
     peer.close();
     rmSync(cwd, { force: true, recursive: true });
   }
-}
+};

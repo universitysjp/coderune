@@ -9,7 +9,7 @@ import { AGENT_DEFINITIONS } from "../definitions";
 import { invalidOutput, parseJsonObject, requireSuccess } from "../parse";
 import { runProcess } from "../process";
 
-export async function draftWithClaude(
+export const draftWithClaude = async function draftWithClaude(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<unknown> {
@@ -72,4 +72,4 @@ export async function draftWithClaude(
   } finally {
     rmSync(cwd, { force: true, recursive: true });
   }
-}
+};

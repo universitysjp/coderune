@@ -34,7 +34,7 @@ interface ExtractedText {
   pageCount: number | null;
 }
 
-async function extractTextFor(
+const extractTextFor = async function extractTextFor(
   extension: SupportedDocumentExtension,
   bytes: Uint8Array,
   path: string
@@ -77,9 +77,9 @@ async function extractTextFor(
   }
 
   throw new Error(`No extractor for ${path}`);
-}
+};
 
-function formatBytes(bytes: number): string {
+const formatBytes = function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
   }
@@ -89,7 +89,7 @@ function formatBytes(bytes: number): string {
   }
 
   return `${bytes} B`;
-}
+};
 
 export class LocalDocumentExtractor implements DocumentExtractor {
   async extract(

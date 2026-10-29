@@ -41,20 +41,20 @@ const terminalWarning =
     ? "This terminal combination is not supported for GPUIX terminal mode. Use native desktop mode, or a compatible macOS/Linux terminal without tmux."
     : "";
 
-function lines(value: string): string[] {
+const lines = function lines(value: string): string[] {
   return value
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-}
+};
 
-function errorText(cause: unknown): string {
+const errorText = function errorText(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
-}
+};
 
-function stageLabel(stage: ExperienceStage): string {
+const stageLabel = function stageLabel(stage: ExperienceStage): string {
   return stage.replaceAll("-", " ");
-}
+};
 
 const ProfileEditor = ({
   initial,
@@ -2675,7 +2675,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   );
 };
 
-export function mountDesktop(runtime: ApplicationRuntime) {
+export const mountDesktop = function mountDesktop(runtime: ApplicationRuntime) {
   return render(
     <QuartzFonts>
       <App runtime={runtime} />
@@ -2686,7 +2686,7 @@ export function mountDesktop(runtime: ApplicationRuntime) {
       height: 820,
     }
   );
-}
+};
 
 if (import.meta.main) {
   const runtime = await createApplication({

@@ -203,11 +203,11 @@ const isTestPath = (path: string): boolean =>
 
 type IgnoreMatcher = (relativePath: string, isDirectory: boolean) => boolean;
 
-function normalizeRelative(path: string): string {
+const normalizeRelative = function normalizeRelative(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
-}
+};
 
-function matchesPattern(
+const matchesPattern = function matchesPattern(
   pattern: string,
   relativePath: string,
   isDirectory: boolean
@@ -254,9 +254,9 @@ function matchesPattern(
   }
 
   return isDirectory && candidate.startsWith(`${cleanPattern}/`);
-}
+};
 
-function isExcluded(
+const isExcluded = function isExcluded(
   relativePath: string,
   isDirectory: boolean,
   scope: CollectionScope,
@@ -279,9 +279,9 @@ function isExcluded(
   }
 
   return false;
-}
+};
 
-function ignoreReason(
+const ignoreReason = function ignoreReason(
   relativePath: string,
   scope: CollectionScope,
   ignoreMatcher: IgnoreMatcher,
@@ -302,9 +302,11 @@ function ignoreReason(
   }
 
   return "excluded";
-}
+};
 
-function loadIgnoreMatcher(root: string): IgnoreMatcher {
+const loadIgnoreMatcher = function loadIgnoreMatcher(
+  root: string
+): IgnoreMatcher {
   const rules: { pattern: string; negated: boolean }[] = [];
 
   try {
@@ -337,21 +339,27 @@ function loadIgnoreMatcher(root: string): IgnoreMatcher {
 
     return ignored;
   };
-}
+};
 
-function toRelativePath(root: string, absolutePath: string): string {
+const toRelativePath = function toRelativePath(
+  root: string,
+  absolutePath: string
+): string {
   const relativePath = relative(root, absolutePath);
 
   return relativePath.split(sep).join("/") || ".";
-}
+};
 
-function looksBinary(bytes: Uint8Array): boolean {
+const looksBinary = function looksBinary(bytes: Uint8Array): boolean {
   const sample = bytes.subarray(0, Math.min(bytes.byteLength, 8000));
 
   return sample.includes(0);
-}
+};
 
-function categorize(relativePath: string, name: string): CaptureFileCategory {
+const categorize = function categorize(
+  relativePath: string,
+  name: string
+): CaptureFileCategory {
   if (name.toLowerCase() === "agents.md") {
     return "agent-instructions";
   }
@@ -381,9 +389,9 @@ function categorize(relativePath: string, name: string): CaptureFileCategory {
   }
 
   return "other";
-}
+};
 
-function classifySkip(
+const classifySkip = function classifySkip(
   relativePath: string,
   name: string,
   absolutePath: string,
@@ -435,9 +443,9 @@ function classifySkip(
   }
 
   return null;
-}
+};
 
-function addSingleFile(
+const addSingleFile = function addSingleFile(
   root: string,
   absolutePath: string,
   request: RepositoryCollectionRequest,
@@ -497,9 +505,9 @@ function addSingleFile(
     content: new TextDecoder("utf-8", { fatal: false }).decode(bytes),
   });
   addBytes(size);
-}
+};
 
-function resolveScopeRoots(
+const resolveScopeRoots = function resolveScopeRoots(
   root: string,
   scope: CollectionScope
 ): (string | null)[] {
@@ -524,9 +532,11 @@ function resolveScopeRoots(
       return absolute;
     }
   });
-}
+};
 
-async function readGitState(root: string): Promise<GitState | null> {
+const readGitState = async function readGitState(
+  root: string
+): Promise<GitState | null> {
   try {
     const inside = Bun.spawnSync(
       ["git", "-C", root, "rev-parse", "--is-inside-work-tree"],
@@ -576,9 +586,9 @@ async function readGitState(root: string): Promise<GitState | null> {
   } catch {
     return null;
   }
-}
+};
 
-function protectedPathReason(
+const protectedPathReason = function protectedPathReason(
   relativePath: string,
   isDirectory: boolean
 ): CaptureSkipReason | null {
@@ -599,7 +609,7 @@ function protectedPathReason(
   }
 
   return null;
-}
+};
 
 export class LocalRepositoryCollector implements RepositoryCollector {
   validateRoot(rootPath: string): void {

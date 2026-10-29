@@ -119,7 +119,7 @@ export interface OnboardingState {
 
 export const NEW_TO_CODING_STATEMENT = "New to coding; no skills listed yet.";
 
-export function profileMissingFields(
+export const profileMissingFields = function profileMissingFields(
   fields: Partial<DeveloperProfileInput>
 ): string[] {
   const missing: string[] = [];
@@ -146,9 +146,9 @@ export function profileMissingFields(
   }
 
   return missing;
-}
+};
 
-export function normalizeProfileFields(
+export const normalizeProfileFields = function normalizeProfileFields(
   input: DeveloperProfileInput
 ): DeveloperProfileFields {
   return {
@@ -175,7 +175,7 @@ export function normalizeProfileFields(
     learningPreferences: input.learningPreferences ?? null,
     fieldSources: input.fieldSources ?? {},
   };
-}
+};
 
 export interface ExportBundle {
   exportedAt: string;
@@ -260,7 +260,9 @@ export interface ProjectInput {
   limits?: Partial<CaptureLimits>;
 }
 
-export function projectMissingFields(input: ProjectInput): string[] {
+export const projectMissingFields = function projectMissingFields(
+  input: ProjectInput
+): string[] {
   const missing: string[] = [];
 
   if (!input.name?.trim()) {
@@ -276,7 +278,7 @@ export function projectMissingFields(input: ProjectInput): string[] {
   }
 
   return missing;
-}
+};
 
 export const DEFAULT_DOCUMENT_LIMIT_BYTES = 20 * 1024 * 1024;
 
@@ -456,7 +458,9 @@ export interface CaptureSummary {
   gitDirty: boolean;
 }
 
-export function summarizePreview(preview: CapturePreview): CaptureSummary {
+export const summarizePreview = function summarizePreview(
+  preview: CapturePreview
+): CaptureSummary {
   const byCategory: Record<string, number> = {};
 
   for (const file of preview.files) {
@@ -479,4 +483,4 @@ export function summarizePreview(preview: CapturePreview): CaptureSummary {
     gitAvailable: preview.git !== null,
     gitDirty: preview.git?.dirty ?? false,
   };
-}
+};

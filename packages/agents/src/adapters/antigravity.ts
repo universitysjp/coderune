@@ -23,7 +23,7 @@ interface AntigravityEnvelope {
   };
 }
 
-export async function draftWithAntigravity(
+export const draftWithAntigravity = async function draftWithAntigravity(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<unknown> {
@@ -109,4 +109,4 @@ export async function draftWithAntigravity(
   } finally {
     rmSync(cwd, { force: true, recursive: true });
   }
-}
+};
