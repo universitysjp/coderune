@@ -252,18 +252,11 @@ export class JsonRpcPeer {
   }
 
   async #readLoop(): Promise<void> {
-    const reader = this.#process.stdout.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 
     try {
-      while (true) {
-        const { value, done } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
+      for await (const value of this.#process.stdout) {
         buffer += decoder.decode(value, { stream: true });
         let newline = buffer.indexOf("\n");
 
