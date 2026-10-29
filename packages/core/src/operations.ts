@@ -194,7 +194,7 @@ export class ApplicationOperations {
     const project: Project = {
       id: crypto.randomUUID(),
       version: 1,
-      ...this.#normalizeProjectFields(input),
+      ...ApplicationOperations.#normalizeProjectFields(input),
       createdAt: now,
       updatedAt: now,
     };
@@ -214,7 +214,7 @@ export class ApplicationOperations {
 
     const project: Project = {
       ...current,
-      ...this.#normalizeProjectFields(input, current),
+      ...ApplicationOperations.#normalizeProjectFields(input, current),
       version: current.version + 1,
       updatedAt: this.#clock.now(),
     };
@@ -309,7 +309,7 @@ export class ApplicationOperations {
     }
 
     const document = this.#draftDocument(documentId, "cv");
-    const draft = this.#parseDraft(value, "cv") as CvDraft;
+    const draft = ApplicationOperations.#parseDraft(value, "cv") as CvDraft;
     const existing = this.#store.getProfile();
     const patch: Partial<DeveloperProfileInput> = {};
 
@@ -369,7 +369,7 @@ export class ApplicationOperations {
       ...patch,
       fieldSources: {
         ...existing?.fieldSources,
-        ...this.#draftFieldSources(draft, document),
+        ...ApplicationOperations.#draftFieldSources(draft, document),
       },
     };
 
@@ -433,7 +433,7 @@ export class ApplicationOperations {
       );
     }
 
-    const draft = this.#parseDraft(value, "srs") as SrsDraft;
+    const draft = ApplicationOperations.#parseDraft(value, "srs") as SrsDraft;
 
     const sources = new Map(
       draft.sources.map((source) => [
@@ -526,33 +526,45 @@ export class ApplicationOperations {
     }
   }
 
-  #normalizeProjectFields(
+  static #normalizeProjectFields(
     input: ProjectInput,
     existing?: Project
   ): Omit<Project, "id" | "version" | "createdAt" | "updatedAt"> {
     return {
       name: input.name.trim(),
       rootPath: input.rootPath,
-      goals: this.#statements(input.goals, existing?.goals),
-      purpose: this.#statement(input.purpose, existing?.purpose ?? undefined),
-      businessLogic: this.#statement(
+      goals: ApplicationOperations.#statements(input.goals, existing?.goals),
+      purpose: ApplicationOperations.#statement(
+        input.purpose,
+        existing?.purpose ?? undefined
+      ),
+      businessLogic: ApplicationOperations.#statement(
         input.businessLogic,
         existing?.businessLogic ?? undefined
       ),
-      rules: this.#statements(input.rules, existing?.rules),
-      constraints: this.#statements(input.constraints, existing?.constraints),
-      decisions: this.#statements(input.decisions, existing?.decisions),
-      acceptanceCriteria: this.#statements(
+      rules: ApplicationOperations.#statements(input.rules, existing?.rules),
+      constraints: ApplicationOperations.#statements(
+        input.constraints,
+        existing?.constraints
+      ),
+      decisions: ApplicationOperations.#statements(
+        input.decisions,
+        existing?.decisions
+      ),
+      acceptanceCriteria: ApplicationOperations.#statements(
         input.acceptanceCriteria,
         existing?.acceptanceCriteria
       ),
-      knowledge: this.#statements(input.knowledge, existing?.knowledge),
-      scope: this.#scope(input.scope),
-      limits: this.#limits(input.limits),
+      knowledge: ApplicationOperations.#statements(
+        input.knowledge,
+        existing?.knowledge
+      ),
+      scope: ApplicationOperations.#scope(input.scope),
+      limits: ApplicationOperations.#limits(input.limits),
     };
   }
 
-  #statement(
+  static #statement(
     text: string | undefined,
     existing?: ProjectStatement
   ): ProjectStatement | null {
@@ -573,7 +585,7 @@ export class ApplicationOperations {
     };
   }
 
-  #statements(
+  static #statements(
     texts: string[] | undefined,
     existing: ProjectStatement[] = []
   ): ProjectStatement[] {
@@ -582,18 +594,21 @@ export class ApplicationOperations {
     );
 
     return (texts ?? []).flatMap((text) => {
-      const statement = this.#statement(text, preserved.get(text.trim()));
+      const statement = ApplicationOperations.#statement(
+        text,
+        preserved.get(text.trim())
+      );
 
       return statement ? [statement] : [];
     });
   }
 
-  #scope(scope: Partial<CollectionScope> | undefined): CollectionScope {
+  static #scope(scope: Partial<CollectionScope> | undefined): CollectionScope {
     return {
-      includePaths: this.#uniquePaths(
+      includePaths: ApplicationOperations.#uniquePaths(
         scope?.includePaths ?? DEFAULT_COLLECTION_SCOPE.includePaths
       ),
-      excludePaths: this.#uniquePaths(
+      excludePaths: ApplicationOperations.#uniquePaths(
         scope?.excludePaths ?? DEFAULT_COLLECTION_SCOPE.excludePaths
       ),
       respectGitignore:
@@ -601,7 +616,7 @@ export class ApplicationOperations {
     };
   }
 
-  #limits(limits: Partial<CaptureLimits> | undefined): CaptureLimits {
+  static #limits(limits: Partial<CaptureLimits> | undefined): CaptureLimits {
     const maxFileBytes =
       limits?.maxFileBytes ?? DEFAULT_CAPTURE_LIMITS.maxFileBytes;
 
@@ -620,7 +635,7 @@ export class ApplicationOperations {
     return { maxFileBytes, maxCaptureBytes };
   }
 
-  #uniquePaths(paths: string[]): string[] {
+  static #uniquePaths(paths: string[]): string[] {
     return [...new Set(paths.map((path) => path.trim()).filter(Boolean))];
   }
 
@@ -641,15 +656,20 @@ export class ApplicationOperations {
 
     const scope: CollectionScope = {
       includePaths: overrides.scope?.includePaths ?? project.scope.includePaths,
-      excludePaths: this.#uniquePaths([
+      excludePaths: ApplicationOperations.#uniquePaths([
         ...(overrides.scope?.excludePaths ?? project.scope.excludePaths),
       ]),
       respectGitignore:
         overrides.scope?.respectGitignore ?? project.scope.respectGitignore,
     };
 
-    const limits = this.#limits({ ...project.limits, ...overrides.limits });
-    const extraExcludePaths = this.#uniquePaths(overrides.excludePaths ?? []);
+    const limits = ApplicationOperations.#limits({
+      ...project.limits,
+      ...overrides.limits,
+    });
+    const extraExcludePaths = ApplicationOperations.#uniquePaths(
+      overrides.excludePaths ?? []
+    );
 
     const collection = await this.#repository.collect({
       rootPath: project.rootPath,
@@ -674,7 +694,7 @@ export class ApplicationOperations {
       totalBytes: collection.totalBytes,
       scope,
       limits,
-      fingerprint: this.#captureFingerprint(
+      fingerprint: ApplicationOperations.#captureFingerprint(
         collection.fingerprint,
         profile,
         project
@@ -727,7 +747,7 @@ export class ApplicationOperations {
       extraExcludePaths: entry.extraExcludePaths,
     });
 
-    const currentFingerprint = this.#captureFingerprint(
+    const currentFingerprint = ApplicationOperations.#captureFingerprint(
       currentCollection.fingerprint,
       profile,
       project
@@ -803,7 +823,7 @@ export class ApplicationOperations {
     this.#previews.clear();
   }
 
-  #captureFingerprint(
+  static #captureFingerprint(
     repositoryFingerprint: string,
     profile: DeveloperProfile,
     project: Project
@@ -941,11 +961,11 @@ export class ApplicationOperations {
 
     return {
       agent: preview.agent,
-      draft: this.#parseDraft(value, preview.kind),
+      draft: ApplicationOperations.#parseDraft(value, preview.kind),
     };
   }
 
-  #parseDraft(value: unknown, kind: DocumentKind): CvDraft | SrsDraft {
+  static #parseDraft(value: unknown, kind: DocumentKind): CvDraft | SrsDraft {
     let draft: CvDraft | SrsDraft;
 
     try {
@@ -1003,7 +1023,7 @@ export class ApplicationOperations {
     return agent;
   }
 
-  #draftFieldSources(
+  static #draftFieldSources(
     draft: CvDraft | SrsDraft,
     document: ImportedDocument
   ): Record<string, FieldSource> {

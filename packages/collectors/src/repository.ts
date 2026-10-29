@@ -615,6 +615,8 @@ const protectedPathReason = function protectedPathReason(
 };
 
 export class LocalRepositoryCollector implements RepositoryCollector {
+  // The collector contract is instance-based but these methods hold no state.
+  // oxlint-disable-next-line eslint/class-methods-use-this
   validateRoot(rootPath: string): void {
     const status = statSync(rootPath);
 
@@ -625,6 +627,7 @@ export class LocalRepositoryCollector implements RepositoryCollector {
     accessSync(rootPath, constants.R_OK);
   }
 
+  // oxlint-disable-next-line eslint/class-methods-use-this
   async collect(
     request: RepositoryCollectionRequest
   ): Promise<RepositoryCollection> {

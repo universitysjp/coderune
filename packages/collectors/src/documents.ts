@@ -92,6 +92,8 @@ const formatBytes = function formatBytes(bytes: number): string {
 };
 
 export class LocalDocumentExtractor implements DocumentExtractor {
+  // The extractor contract is instance-based but this method holds no state.
+  // oxlint-disable-next-line eslint/class-methods-use-this
   async extract(
     request: DocumentExtractionRequest
   ): Promise<DocumentExtractionResult> {

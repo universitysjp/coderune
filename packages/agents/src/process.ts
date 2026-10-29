@@ -300,16 +300,12 @@ export class JsonRpcPeer {
         new ApplicationError(
           "agent-failed",
           stderr
-            ? `${this.#name()} exited with code ${exitCode}: ${stderr.slice(-800)}`
-            : `${this.#name()} exited with code ${exitCode}.`
+            ? `${"The coding agent"} exited with code ${exitCode}: ${stderr.slice(-800)}`
+            : `${"The coding agent"} exited with code ${exitCode}.`
         );
 
       this.#failPending(error);
     }
-  }
-
-  #name(): string {
-    return "The coding agent";
   }
 
   #handleLine(line: string): void {
