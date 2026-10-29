@@ -267,7 +267,9 @@ const ProfileEditor = ({
       <View style={{ display: "flex", flexWrap: "wrap", gap: quartz.space[2] }}>
         {onDraft ? (
           <Button
-            onClick={() => void run((input) => onDraft(input))}
+            onClick={async () => {
+              await run((input) => onDraft(input));
+            }}
             disabled={busy}
             style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
           >
@@ -276,7 +278,9 @@ const ProfileEditor = ({
         ) : null}
         <Button
           testId="save-profile"
-          onClick={() => void run(onSubmit)}
+          onClick={async () => {
+            await run(onSubmit);
+          }}
           disabled={busy}
           variant="primary"
           style={{}}
@@ -601,7 +605,9 @@ const ProjectEditor = ({
           </Text>
         </Button>
         <Button
-          onClick={() => void submit()}
+          onClick={async () => {
+            await submit();
+          }}
           disabled={busy}
           variant="primary"
           style={{}}
@@ -868,7 +874,9 @@ const AgentDraftPanel = ({
             style={{ width: quartz.space[20] }}
           />
           <Button
-            onClick={() => void importDocument()}
+            onClick={async () => {
+              await importDocument();
+            }}
             disabled={busy || !documentPath}
             style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
           >
@@ -905,7 +913,9 @@ const AgentDraftPanel = ({
             </Text>
           </View>
           <Button
-            onClick={() => void confirmDocument()}
+            onClick={async () => {
+              await confirmDocument();
+            }}
             disabled={busy}
             style={{ alignSelf: "flex-start" }}
           >
@@ -1040,7 +1050,9 @@ const AgentDraftPanel = ({
       </Labeled>
 
       <Button
-        onClick={() => void prepare()}
+        onClick={async () => {
+          await prepare();
+        }}
         disabled={busy || !selected || !agentId}
         style={{
           alignSelf: "flex-start",
@@ -1119,7 +1131,9 @@ const AgentDraftPanel = ({
             style={{ display: "flex", flexWrap: "wrap", gap: quartz.space[2] }}
           >
             <Button
-              onClick={() => void requestDraft()}
+              onClick={async () => {
+                await requestDraft();
+              }}
               disabled={!shareConfirmed || busy || !preview.fits}
               variant="primary"
               style={{}}
@@ -1187,7 +1201,9 @@ const AgentDraftPanel = ({
             </Text>
           </Button>
           <Button
-            onClick={() => void applyDraft()}
+            onClick={async () => {
+              await applyDraft();
+            }}
             disabled={!applyConfirmed || busy}
             variant="primary"
             style={{
@@ -1418,14 +1434,18 @@ const CapturePanel = ({
           </Text>
         </Button>
         <Button
-          onClick={() => void runPreview()}
+          onClick={async () => {
+            await runPreview();
+          }}
           disabled={busy}
           style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
         >
           <Text style={{ ...quartz.type.bodySm }}>Preview capture</Text>
         </Button>
         <Button
-          onClick={() => void refresh()}
+          onClick={async () => {
+            await refresh();
+          }}
           disabled={busy}
           style={{ opacity: busy ? quartz.opacity.disabled : 1 }}
         >
@@ -1537,7 +1557,9 @@ const CapturePanel = ({
             </Text>
           </Button>
           <Button
-            onClick={() => void save()}
+            onClick={async () => {
+              await save();
+            }}
             disabled={!confirmed || busy}
             variant="primary"
             style={{
@@ -1612,7 +1634,11 @@ const CapturePanel = ({
                   {capture.projectSnapshot.version}
                 </Text>
               </View>
-              <Button onClick={() => void inspectCapture(capture.id)}>
+              <Button
+                onClick={async () => {
+                  await inspectCapture(capture.id);
+                }}
+              >
                 <Text style={{ ...quartz.type.bodySm }}>View</Text>
               </Button>
               <Button
@@ -2576,7 +2602,11 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                       Prepare export
                     </Text>
                   </Button>
-                  <Button onClick={() => void saveExportFile()}>
+                  <Button
+                    onClick={async () => {
+                      await saveExportFile();
+                    }}
+                  >
                     <Text style={{ ...quartz.type.bodySm }}>
                       Save JSON file
                     </Text>
