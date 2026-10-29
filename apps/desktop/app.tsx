@@ -1318,7 +1318,9 @@ const CapturePanel = ({
     setViewCapture(await app.getCapture(captureId));
   };
 
+  // Capture data must be loaded after mount and whenever the project changes.
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     void loadCaptures();
   }, [loadCaptures]);
 
@@ -1932,7 +1934,9 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     setLoading(false);
   }, [app]);
 
+  // Initial application data intentionally seeds the component state.
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     void refresh();
   }, [refresh]);
 
