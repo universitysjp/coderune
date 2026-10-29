@@ -188,17 +188,17 @@ const isConfiguration = (name: string): boolean => {
 
   return (
     CONFIGURATION_NAMES.has(lower) ||
-    /^(vite|vitest|jest|eslint|prettier)\.config\.(ts|js|mjs|cjs)$/iu.test(
+    /^(?<tool>vite|vitest|jest|eslint|prettier)\.config\.(?<extension>ts|js|mjs|cjs)$/iu.test(
       name
     ) ||
-    /^tsconfig(\..+)?\.json$/iu.test(name)
+    /^tsconfig(?<suffix>\..+)?\.json$/iu.test(name)
   );
 };
 
 const isTestPath = (path: string): boolean =>
-  /(^|\/)(__tests__|tests?)\//iu.test(path) ||
-  /\.(test|spec)\.[^.]+$/iu.test(path) ||
-  /(^|\/)test_[^/]+\.py$/iu.test(path) ||
+  /(?<prefix>^|\/)(?<directory>__tests__|tests?)\//iu.test(path) ||
+  /\.(?<kind>test|spec)\.[^.]+$/iu.test(path) ||
+  /(?<prefix>^|\/)test_[^/]+\.py$/iu.test(path) ||
   /_test\.py$/iu.test(path);
 
 type IgnoreMatcher = (relativePath: string, isDirectory: boolean) => boolean;
@@ -364,7 +364,7 @@ const categorize = function categorize(
     return "agent-instructions";
   }
 
-  if (/^readme(\..+)?$/iu.test(name)) {
+  if (/^readme(?<suffix>\..+)?$/iu.test(name)) {
     return "readme";
   }
 
@@ -400,7 +400,7 @@ const classifySkip = function classifySkip(
   ignoreMatcher: IgnoreMatcher,
   extraExclusions: string[]
 ): CaptureSkipReason | null {
-  if (/\.(pem|key|p12|pfx)$/iu.test(name)) {
+  if (/\.(?<extension>pem|key|p12|pfx)$/iu.test(name)) {
     return "private-key";
   }
 
@@ -422,7 +422,7 @@ const classifySkip = function classifySkip(
     isManifest(name) ||
     isConfiguration(name) ||
     name.toLowerCase() === "agents.md" ||
-    /^readme(\..+)?$/iu.test(name) ||
+    /^readme(?<suffix>\..+)?$/iu.test(name) ||
     DOCUMENTATION_EXTENSIONS.has(extension) ||
     SOURCE_EXTENSIONS.has(extension);
 
