@@ -459,9 +459,8 @@ const addSingleFile = function addSingleFile(
   extraExclusions: string[],
   files: CollectedFile[],
   skipped: Map<string, CaptureSkipReason>,
-  getTotalBytes: () => number,
-  addBytes: (size: number) => void
-): void {
+  totalBytes: number
+): number {
   const name = path.basename(absolutePath);
   const relativePath = toRelativePath(root, absolutePath);
 
@@ -478,7 +477,7 @@ const addSingleFile = function addSingleFile(
   if (skip) {
     skipped.set(relativePath, skip);
 
-    return;
+    return 0;
   }
 
   const { size } = statSync(absolutePath);
@@ -486,13 +485,13 @@ const addSingleFile = function addSingleFile(
   if (size > request.limits.maxFileBytes) {
     skipped.set(relativePath, "file-too-large");
 
-    return;
+    return 0;
   }
 
-  if (getTotalBytes() + size > request.limits.maxCaptureBytes) {
+  if (totalBytes + size > request.limits.maxCaptureBytes) {
     skipped.set(relativePath, "capture-limit");
 
-    return;
+    return 0;
   }
 
   const bytes = new Uint8Array(readFileSync(absolutePath));
@@ -500,7 +499,7 @@ const addSingleFile = function addSingleFile(
   if (looksBinary(bytes)) {
     skipped.set(relativePath, "binary");
 
-    return;
+    return 0;
   }
 
   files.push({
@@ -510,7 +509,8 @@ const addSingleFile = function addSingleFile(
     category: categorize(relativePath, name),
     content: new TextDecoder("utf-8", { fatal: false }).decode(bytes),
   });
-  addBytes(size);
+
+  return size;
 };
 
 const resolveScopeRoots = function resolveScopeRoots(
@@ -806,7 +806,7 @@ export class LocalRepositoryCollector implements RepositoryCollector {
           } else if (status.isDirectory()) {
             walk(scopeRoot);
           } else if (status.isFile()) {
-            addSingleFile(
+            totalBytes += addSingleFile(
               root,
               scopeRoot,
               request,
@@ -814,10 +814,7 @@ export class LocalRepositoryCollector implements RepositoryCollector {
               extraExclusions,
               files,
               skipped,
-              () => totalBytes,
-              (size) => {
-                totalBytes += size;
-              }
+              totalBytes
             );
           }
         } catch {
