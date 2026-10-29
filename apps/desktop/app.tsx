@@ -1291,6 +1291,8 @@ const CapturePanel = ({
     project.scope.excludePaths.join("\n")
   );
 
+  // App keys CapturePanel by project id and version, so prop changes remount it.
+  // oxlint-disable-next-line react-doctor/no-derived-useState
   const [respectGitignore, setRespectGitignore] = useState(
     project.scope.respectGitignore
   );
