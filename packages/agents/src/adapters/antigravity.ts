@@ -87,14 +87,17 @@ export const draftWithAntigravity = async function draftWithAntigravity(
         final.response ??
         "Antigravity did not complete the draft.";
 
-      throw new ApplicationError(
-        final.status === "CANCELED" || final.status === "INTERRUPTED"
-          ? "agent-cancelled"
-          : detail.toLowerCase().includes("auth")
-            ? "agent-unavailable"
-            : "agent-failed",
-        detail
-      );
+      let code: "agent-cancelled" | "agent-unavailable" | "agent-failed";
+
+      if (final.status === "CANCELED" || final.status === "INTERRUPTED") {
+        code = "agent-cancelled";
+      } else if (detail.toLowerCase().includes("auth")) {
+        code = "agent-unavailable";
+      } else {
+        code = "agent-failed";
+      }
+
+      throw new ApplicationError(code, detail);
     }
 
     if (final.structured_output !== undefined) {

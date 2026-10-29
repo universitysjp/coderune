@@ -56,6 +56,33 @@ const stageLabel = function stageLabel(stage: ExperienceStage): string {
   return stage.replaceAll("-", " ");
 };
 
+const projectSaveLabel = function projectSaveLabel(
+  busy: boolean,
+  hasProject: boolean
+): string {
+  if (busy) {
+    return "Saving...";
+  }
+
+  if (hasProject) {
+    return "Save project version";
+  }
+
+  return "Create project";
+};
+
+const sectionTitle = function sectionTitle(section: string): string {
+  if (section === "Profile") {
+    return "Developer profile";
+  }
+
+  if (section === "Data") {
+    return "Your data";
+  }
+
+  return section;
+};
+
 const ProfileEditor = ({
   initial,
   submitLabel,
@@ -616,11 +643,7 @@ const ProjectEditor = ({
               fontWeight: quartz.type.label.fontWeight,
             }}
           >
-            {busy
-              ? "Saving..."
-              : project
-                ? "Save project version"
-                : "Create project"}
+            {projectSaveLabel(busy, Boolean(project))}
           </Text>
         </Button>
       </View>
@@ -2188,13 +2211,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
             }}
           >
             <PageHeader
-              title={
-                section === "Profile"
-                  ? "Developer profile"
-                  : section === "Data"
-                    ? "Your data"
-                    : section
-              }
+              title={sectionTitle(section)}
               description={descriptions[section]}
             />
             {terminalWarning ? (
@@ -2565,26 +2582,26 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
               </Section>
             ) : null}
 
-            {section === "Capture" ? (
-              selectedProject ? (
-                <Section
-                  title={`Capture ${selectedProject.name}`}
-                  description="Collection is explicit. Preview the exact file list before saving. Saving is bound to the reviewed content."
-                >
-                  <CapturePanel
-                    key={`${selectedProject.id}-${selectedProject.version}`}
-                    app={app}
-                    project={selectedProject}
-                    onChanged={refresh}
-                  />
-                </Section>
-              ) : (
-                <Section title="Capture">
-                  <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
-                    Create or select a project first.
-                  </Text>
-                </Section>
-              )
+            {section === "Capture" && selectedProject ? (
+              <Section
+                title={`Capture ${selectedProject.name}`}
+                description="Collection is explicit. Preview the exact file list before saving. Saving is bound to the reviewed content."
+              >
+                <CapturePanel
+                  key={`${selectedProject.id}-${selectedProject.version}`}
+                  app={app}
+                  project={selectedProject}
+                  onChanged={refresh}
+                />
+              </Section>
+            ) : null}
+
+            {section === "Capture" && !selectedProject ? (
+              <Section title="Capture">
+                <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
+                  Create or select a project first.
+                </Text>
+              </Section>
             ) : null}
 
             {section === "Data" ? (

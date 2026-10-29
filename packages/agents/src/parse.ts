@@ -55,15 +55,20 @@ export const requireSuccess = function requireSuccess(
   const detail = stderr.trim();
   const lower = detail.toLowerCase();
 
-  const message =
+  let message: string;
+
+  if (
     lower.includes("not logged in") ||
     lower.includes("authentication") ||
     lower.includes("sign in") ||
     lower.includes("unauthorized")
-      ? `${commandName} needs you to sign in using its own tool before drafting.`
-      : detail
-        ? `${commandName} failed: ${detail.slice(-800)}`
-        : `${commandName} exited with code ${exitCode}.`;
+  ) {
+    message = `${commandName} needs you to sign in using its own tool before drafting.`;
+  } else if (detail) {
+    message = `${commandName} failed: ${detail.slice(-800)}`;
+  } else {
+    message = `${commandName} exited with code ${exitCode}.`;
+  }
 
   throw new ApplicationError(
     message.includes("sign in") ? "agent-unavailable" : "agent-failed",
