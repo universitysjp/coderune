@@ -142,7 +142,7 @@ export const draftWithCodex = async function draftWithCodex(
 
     turnId = started.turn?.id ?? null;
 
-    const timedOut = new Promise<never>((_, reject) => {
+    const timedOut = new Promise<never>((_resolve, reject) => {
       timeout = setTimeout(() => {
         reject(
           new ApplicationError(
