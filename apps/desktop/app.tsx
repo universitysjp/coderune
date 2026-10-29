@@ -71,7 +71,15 @@ const projectSaveLabel = function projectSaveLabel(
   return "Create project";
 };
 
-const sectionTitle = function sectionTitle(section: string): string {
+type Section =
+  | "Profile"
+  | "Projects"
+  | "Documents"
+  | "Agents"
+  | "Capture"
+  | "Data";
+
+const sectionTitle = function sectionTitle(section: Section): string {
   if (section === "Profile") {
     return "Developer profile";
   }
@@ -1879,7 +1887,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     null
   );
 
-  const [section, setSection] = useState("Profile");
+  const [section, setSection] = useState<Section>("Profile");
   const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
   const [exportText, setExportText] = useState("");
@@ -2060,9 +2068,16 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     );
   }
 
-  const nav = ["Profile", "Projects", "Documents", "Agents", "Capture", "Data"];
+  const nav = [
+    "Profile",
+    "Projects",
+    "Documents",
+    "Agents",
+    "Capture",
+    "Data",
+  ] satisfies Section[];
 
-  const descriptions: Record<string, string> = {
+  const descriptions = {
     Profile:
       "Your experience, skills, and learning goals, shared across your projects.",
     Projects: "Give your coding agents the context behind the code.",
@@ -2072,7 +2087,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     Data: "Export your local context or manage what you keep.",
   };
 
-  const counts: Record<string, number | undefined> = {
+  const counts: Partial<Record<Section, number>> = {
     Projects: projects.length,
     Documents: documents.length,
     Agents: agents.filter((agent) => agent.availability === "ready").length,

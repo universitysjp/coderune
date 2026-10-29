@@ -30,9 +30,7 @@ interface ItemCompleted {
   item?: { type?: string; text?: string };
 }
 
-const approvalResponse = function approvalResponse(
-  request: JsonRpcRequest
-): unknown {
+const approvalResponse = function approvalResponse(request: JsonRpcRequest) {
   if (
     request.method === "item/commandExecution/requestApproval" ||
     request.method === "item/fileChange/requestApproval"

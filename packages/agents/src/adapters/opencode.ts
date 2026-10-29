@@ -41,7 +41,7 @@ interface PermissionRequest {
 
 const permissionResponse = function permissionResponse(
   request: JsonRpcRequest
-): unknown {
+) {
   if (request.method !== "session/request_permission") {
     throw new Error(`Unsupported agent request: ${request.method}`);
   }

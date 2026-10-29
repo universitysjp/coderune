@@ -1032,7 +1032,7 @@ export class ApplicationOperations {
   static #draftFieldSources(
     draft: CvDraft | SrsDraft,
     document: ImportedDocument
-  ): Record<string, FieldSource> {
+  ) {
     const sources: Record<string, FieldSource> = {};
 
     for (const source of draft.sources) {
