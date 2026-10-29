@@ -177,9 +177,9 @@ const ProfileEditor = ({
       await action(buildInput());
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   return (
@@ -423,9 +423,9 @@ const ProjectEditor = ({
       await (project ? onUpdate(project.id, input()) : onCreate(input()));
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   return (
@@ -730,9 +730,9 @@ const AgentDraftPanel = ({
       }
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   const confirmDocument = async () => {
@@ -756,9 +756,9 @@ const AgentDraftPanel = ({
       setMessage("Document text saved locally after review.");
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   const prepare = async () => {
@@ -789,9 +789,9 @@ const AgentDraftPanel = ({
       setApplyConfirmed(false);
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   const requestDraft = async () => {
@@ -838,10 +838,10 @@ const AgentDraftPanel = ({
       );
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setController(null);
-      setBusy(false);
     }
+
+    setController(null);
+    setBusy(false);
   };
 
   const applyDraft = async () => {
@@ -874,9 +874,9 @@ const AgentDraftPanel = ({
       await onSaved();
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   return (
@@ -1331,9 +1331,9 @@ const CapturePanel = ({
       setConfirmed(false);
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   const save = async () => {
@@ -1354,9 +1354,9 @@ const CapturePanel = ({
       await onChanged();
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   const refresh = async () => {
@@ -1378,9 +1378,9 @@ const CapturePanel = ({
       await loadCaptures();
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setBusy(false);
     }
+
+    setBusy(false);
   };
 
   return (
@@ -1694,9 +1694,9 @@ const CapturePanel = ({
                         await loadCaptures();
                       } catch (error) {
                         setErrorMessage(errorText(error));
-                      } finally {
-                        setBusy(false);
                       }
+
+                      setBusy(false);
                     })();
                   }}
                   variant="destructive"
@@ -1914,9 +1914,9 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
       });
     } catch (error) {
       setErrorMessage(errorText(error));
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
