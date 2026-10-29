@@ -637,7 +637,9 @@ export class ApplicationOperations {
   }
 
   static #uniquePaths(paths: string[]): string[] {
-    return [...new Set(paths.map((path) => path.trim()).filter(Boolean))];
+    const trimmedPaths = paths.map((path) => path.trim());
+
+    return [...new Set(trimmedPaths.filter(Boolean))];
   }
 
   async previewCapture(
