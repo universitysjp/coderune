@@ -189,7 +189,8 @@ export class JsonRpcPeer {
       );
     }
 
-    const id = this.#nextId++;
+    const id = this.#nextId;
+    this.#nextId += 1;
 
     const result = new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
