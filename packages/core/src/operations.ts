@@ -668,6 +668,7 @@ export class ApplicationOperations {
       ...project.limits,
       ...overrides.limits,
     });
+
     const extraExcludePaths = ApplicationOperations.#uniquePaths(
       overrides.excludePaths ?? []
     );
