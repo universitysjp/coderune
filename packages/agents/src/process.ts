@@ -193,6 +193,7 @@ export class JsonRpcPeer {
     this.#nextId += 1;
 
     const result = Promise.withResolvers<unknown>();
+
     const timer = setTimeout(() => {
       this.#pending.delete(id);
       result.reject(
