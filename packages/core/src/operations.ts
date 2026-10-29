@@ -8,7 +8,7 @@ import type {
 } from "./agents";
 import { buildDraftRequestText, parseAgentDraft } from "./drafts";
 import type { CvDraft, SrsDraft } from "./drafts";
-import { ApplicationError, ValidationError } from "./errors";
+import { ApplicationError } from "./errors";
 import type {
   Clock,
   ContextStore,
@@ -46,6 +46,7 @@ import type {
   CollectionScope,
   RepositoryCollection,
 } from "./types";
+import { ValidationError } from "./validation-error";
 
 export interface ApplicationDependencies {
   store: ContextStore;
