@@ -102,9 +102,11 @@ const ProfileEditor = ({
 
   const [newToCoding, setNewToCoding] = useState(initial?.newToCoding ?? true);
   const [skills, setSkills] = useState(initial?.skillsStatement ?? "");
-  const [goals, setGoals] = useState((initial?.learningGoals ?? []).join("\n"));
+  const [goals, setGoals] = useState(() =>
+    (initial?.learningGoals ?? []).join("\n")
+  );
 
-  const [details, setDetails] = useState(
+  const [details, setDetails] = useState(() =>
     JSON.stringify(
       {
         selfReportedSkills: initial?.selfReportedSkills ?? [],
@@ -340,7 +342,7 @@ const ProjectEditor = ({
   const [name, setName] = useState(project?.name ?? "");
   const [rootPath, setRootPath] = useState(project?.rootPath ?? "");
 
-  const [goals, setGoals] = useState(
+  const [goals, setGoals] = useState(() =>
     (project?.goals ?? []).map((item) => item.text).join("\n")
   );
 
@@ -350,31 +352,31 @@ const ProjectEditor = ({
     project?.businessLogic?.text ?? ""
   );
 
-  const [rules, setRules] = useState(
+  const [rules, setRules] = useState(() =>
     (project?.rules ?? []).map((item) => item.text).join("\n")
   );
 
-  const [constraints, setConstraints] = useState(
+  const [constraints, setConstraints] = useState(() =>
     (project?.constraints ?? []).map((item) => item.text).join("\n")
   );
 
-  const [decisions, setDecisions] = useState(
+  const [decisions, setDecisions] = useState(() =>
     (project?.decisions ?? []).map((item) => item.text).join("\n")
   );
 
-  const [acceptance, setAcceptance] = useState(
+  const [acceptance, setAcceptance] = useState(() =>
     (project?.acceptanceCriteria ?? []).map((item) => item.text).join("\n")
   );
 
-  const [knowledge, setKnowledge] = useState(
+  const [knowledge, setKnowledge] = useState(() =>
     (project?.knowledge ?? []).map((item) => item.text).join("\n")
   );
 
-  const [includePaths, setIncludePaths] = useState(
+  const [includePaths, setIncludePaths] = useState(() =>
     (project?.scope.includePaths ?? []).join("\n")
   );
 
-  const [excludePaths, setExcludePaths] = useState(
+  const [excludePaths, setExcludePaths] = useState(() =>
     (project?.scope.excludePaths ?? []).join("\n")
   );
 
@@ -681,9 +683,10 @@ const AgentDraftPanel = ({
   );
 
   const [agentId, setAgentId] = useState<CodingAgentId | "">(
-    agents.find(
-      (agent) => agent.availability === "ready" && agent.id !== "codex"
-    )?.id ??
+    () =>
+      agents.find(
+        (agent) => agent.availability === "ready" && agent.id !== "codex"
+      )?.id ??
       agents.find((agent) => agent.availability === "ready")?.id ??
       ""
   );
@@ -1270,11 +1273,11 @@ const CapturePanel = ({
   const [viewCapture, setViewCapture] = useState<ContextCapture | null>(null);
   const [viewFile, setViewFile] = useState<string | null>(null);
 
-  const [includePaths, setIncludePaths] = useState(
+  const [includePaths, setIncludePaths] = useState(() =>
     project.scope.includePaths.join("\n")
   );
 
-  const [excludePaths, setExcludePaths] = useState(
+  const [excludePaths, setExcludePaths] = useState(() =>
     project.scope.excludePaths.join("\n")
   );
 
