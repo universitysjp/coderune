@@ -176,14 +176,13 @@ const ProfileEditor = ({
     }
 
     const timer = setTimeout(() => {
-      try {
-        const input = buildInput();
-        saveDraft(input).catch(() => {
+      void (async () => {
+        try {
+          await saveDraft(buildInput());
+        } catch {
           // Optional draft persistence errors are ignored while typing.
-        });
-      } catch {
-        // Keep typing while optional JSON is temporarily incomplete.
-      }
+        }
+      })();
     }, 700);
 
     return () => clearTimeout(timer);

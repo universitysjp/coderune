@@ -324,17 +324,16 @@ export class JsonRpcPeer {
       // SAFETY: The method and id checks establish a JSON-RPC request; params is forwarded as the opaque request payload.
       const params = message.params as Record<string, unknown> | undefined;
 
-      Promise.resolve(
-        this.#requestHandler({
-          id,
-          method,
-          params,
-        })
-      )
-        .then((result) => {
+      const handleRequest = async (): Promise<void> => {
+        try {
+          const result = await this.#requestHandler({
+            id,
+            method,
+            params,
+          });
+
           this.#send({ jsonrpc: "2.0", id, result });
-        })
-        .catch((error) => {
+        } catch (error) {
           this.#send({
             jsonrpc: "2.0",
             id,
@@ -344,7 +343,10 @@ export class JsonRpcPeer {
                 error instanceof Error ? error.message : "Request rejected.",
             },
           });
-        });
+        }
+      };
+
+      void handleRequest();
 
       return;
     }
