@@ -22,16 +22,16 @@ export interface ApplicationRuntime {
   close: () => void;
 }
 
-export const createApplication = async (
+export const createApplication = (
   options: CreateApplicationOptions
-): Promise<ApplicationRuntime> => {
+): ApplicationRuntime => {
   const store =
     options.store ??
     new SqliteContextStore({
       databasePath: resolveDatabasePath(options.dataDir),
     });
 
-  await store.initialize();
+  store.initialize();
 
   const operations = new ApplicationOperations({
     store,

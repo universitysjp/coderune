@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 
 import { ValidationError } from "@coderune/core";
 
-import { createTestHarness } from "./helpers";
+import { captureError, createTestHarness } from "./helpers";
 import type { TestHarness } from "./helpers";
 
 let harness: TestHarness | undefined;
@@ -29,15 +29,15 @@ describe("developer profile", () => {
   test("incomplete required fields are rejected with specific reasons", async () => {
     harness = await createTestHarness();
 
-    const error = await harness.app
-      .confirmOnboarding({
+    const error = await captureError(() =>
+      harness!.app.confirmOnboarding({
         displayName: "  ",
         experienceStage: "early-career",
         newToCoding: false,
         skillsStatement: "",
         learningGoals: ["  "],
       })
-      .catch((error: unknown) => error);
+    );
 
     expect(error).toBeInstanceOf(ValidationError);
     expect((error as ValidationError).details).toEqual([

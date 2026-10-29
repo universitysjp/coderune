@@ -174,7 +174,7 @@ export class JsonRpcPeer {
     return () => this.#notificationListeners.delete(listener);
   }
 
-  async request(
+  request(
     method: string,
     params: Record<string, unknown>,
     timeoutMs = this.#timeoutMs
@@ -230,7 +230,7 @@ export class JsonRpcPeer {
     this.#failPending(error);
   }
 
-  async stderr(): Promise<string> {
+  stderr(): Promise<string> {
     return this.#stderr;
   }
 

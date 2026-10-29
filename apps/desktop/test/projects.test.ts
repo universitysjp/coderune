@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { ApplicationError } from "@coderune/core";
 
-import { createTestHarness } from "./helpers";
+import { captureError, createTestHarness } from "./helpers";
 import type { TestHarness } from "./helpers";
 
 let harness: TestHarness | undefined;
@@ -41,13 +41,13 @@ describe("project context", () => {
   test("project creation is blocked before the developer baseline is confirmed", async () => {
     harness = await createTestHarness();
 
-    const error = await harness.app
-      .createProject({
+    const error = await captureError(() =>
+      harness!.app.createProject({
         name: "Blocked",
         rootPath: join(workspace, "readable"),
         goals: ["Ship it"],
       })
-      .catch((error: unknown) => error);
+    );
 
     expect(error).toBeInstanceOf(ApplicationError);
     expect((error as ApplicationError).code).toBe("onboarding-required");
@@ -56,46 +56,46 @@ describe("project context", () => {
   test("a project needs a name, a readable root folder, and at least one goal", async () => {
     harness = await completeOnboarding();
 
-    const noName = await harness.app
-      .createProject({
+    const noName = await captureError(() =>
+      harness!.app.createProject({
         name: " ",
         rootPath: join(workspace, "readable"),
         goals: ["Ship it"],
       })
-      .catch((error: unknown) => error);
+    );
 
     expect(noName).toBeInstanceOf(ApplicationError);
     expect((noName as ApplicationError).code).toBe("validation");
 
-    const noGoal = await harness.app
-      .createProject({
+    const noGoal = await captureError(() =>
+      harness!.app.createProject({
         name: "No goal",
         rootPath: join(workspace, "readable"),
         goals: ["  "],
       })
-      .catch((error: unknown) => error);
+    );
 
     expect(noGoal).toBeInstanceOf(ApplicationError);
     expect((noGoal as ApplicationError).code).toBe("validation");
 
-    const unreadable = await harness.app
-      .createProject({
+    const unreadable = await captureError(() =>
+      harness!.app.createProject({
         name: "Bad root",
         rootPath: join(workspace, "missing"),
         goals: ["Ship it"],
       })
-      .catch((error: unknown) => error);
+    );
 
     expect(unreadable).toBeInstanceOf(ApplicationError);
     expect((unreadable as ApplicationError).code).toBe("unreadable-path");
 
-    const notDirectory = await harness.app
-      .createProject({
+    const notDirectory = await captureError(() =>
+      harness!.app.createProject({
         name: "File root",
         rootPath: join(workspace, "not-a-directory.txt"),
         goals: ["Ship it"],
       })
-      .catch((error: unknown) => error);
+    );
 
     expect(notDirectory).toBeInstanceOf(ApplicationError);
     expect((notDirectory as ApplicationError).code).toBe("unreadable-path");

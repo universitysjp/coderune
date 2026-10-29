@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { ApplicationError } from "@coderune/core";
 
-import { createTestHarness } from "./helpers";
+import { captureError, createTestHarness } from "./helpers";
 import type { TestHarness } from "./helpers";
 
 const fixtures = join(import.meta.dir, "..", "fixtures");
@@ -31,9 +31,11 @@ describe("approved document retention", () => {
       return;
     }
 
-    const unconfirmed = await harness.app
-      .confirmDocumentImport(extracted.document, { confirmed: false })
-      .catch((error: unknown) => error);
+    const unconfirmed = await captureError(() =>
+      harness!.app.confirmDocumentImport(extracted.document, {
+        confirmed: false,
+      })
+    );
 
     expect(unconfirmed).toBeInstanceOf(ApplicationError);
     expect((unconfirmed as ApplicationError).code).toBe(

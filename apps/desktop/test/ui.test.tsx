@@ -10,8 +10,8 @@ import { createTestHarness } from "./helpers";
 const nativeTest = hasNativeTestRenderer ? test : test.skip;
 
 const agents = {
-  listAgents: async () => [],
-  getAgent: async () => null,
+  listAgents: () => [],
+  getAgent: () => null,
   draft: async () => {
     throw new Error("No agent was requested");
   },

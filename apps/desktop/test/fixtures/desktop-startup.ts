@@ -10,8 +10,8 @@ if (!dataDir) {
 const runtime = await createApplication({
   dataDir,
   agents: {
-    listAgents: async () => [],
-    getAgent: async () => null,
+    listAgents: () => [],
+    getAgent: () => null,
     draft: async () => {
       throw new Error("Agent access is disabled in startup tests");
     },

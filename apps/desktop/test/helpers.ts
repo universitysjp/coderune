@@ -16,6 +16,16 @@ export interface TestHarness {
   cleanup: () => void;
 }
 
+export const captureError = async (action: () => unknown): Promise<unknown> => {
+  try {
+    await action();
+  } catch (error) {
+    return error;
+  }
+
+  throw new Error("Expected the operation to fail.");
+};
+
 export async function createTestHarness(
   options: Partial<Omit<CreateApplicationOptions, "dataDir">> = {}
 ): Promise<TestHarness> {

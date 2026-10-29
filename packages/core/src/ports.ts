@@ -56,7 +56,7 @@ export interface ContextStore
     DocumentStore,
     CaptureStore,
     DataStore {
-  initialize: () => Promise<void>;
+  initialize: () => void;
   close: () => void;
 }
 

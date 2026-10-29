@@ -165,7 +165,7 @@ export class SqliteContextStore implements ContextStore {
     }
   }
 
-  async initialize(): Promise<void> {
+  initialize(): void {
     this.#database.exec(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,

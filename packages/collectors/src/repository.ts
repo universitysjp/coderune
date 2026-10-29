@@ -534,9 +534,7 @@ const resolveScopeRoots = function resolveScopeRoots(
   });
 };
 
-const readGitState = async function readGitState(
-  root: string
-): Promise<GitState | null> {
+const readGitState = function readGitState(root: string): GitState | null {
   try {
     const inside = Bun.spawnSync(
       ["git", "-C", root, "rev-parse", "--is-inside-work-tree"],

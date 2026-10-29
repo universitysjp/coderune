@@ -75,8 +75,8 @@ export interface AgentDraftRunOptions {
 }
 
 export interface CodingAgentGateway {
-  listAgents: () => Promise<CodingAgentStatus[]>;
-  getAgent: (id: CodingAgentId) => Promise<CodingAgentStatus | null>;
+  listAgents: () => CodingAgentStatus[];
+  getAgent: (id: CodingAgentId) => CodingAgentStatus | null;
   draft: (
     request: AgentDraftRequest,
     options?: AgentDraftRunOptions

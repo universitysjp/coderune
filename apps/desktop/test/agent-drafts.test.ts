@@ -12,7 +12,7 @@ import type {
   ImportedDocument,
 } from "@coderune/core";
 
-import { createTestHarness } from "./helpers";
+import { captureError, createTestHarness } from "./helpers";
 import type { TestHarness } from "./helpers";
 
 const fixtures = join(import.meta.dir, "..", "fixtures");
@@ -69,11 +69,11 @@ class ScriptedAgentGateway implements CodingAgentGateway {
     this.response = response;
   }
 
-  async listAgents(): Promise<CodingAgentStatus[]> {
+  listAgents(): CodingAgentStatus[] {
     return this.statuses;
   }
 
-  async getAgent(id: CodingAgentId): Promise<CodingAgentStatus | null> {
+  getAgent(id: CodingAgentId): CodingAgentStatus | null {
     return this.statuses.find((agent) => agent.id === id) ?? null;
   }
 
@@ -244,9 +244,11 @@ describe("coding-agent CV drafts", () => {
       { confirmed: true }
     );
 
-    const blocked = await harness.app
-      .applyCvDraft(document.id, missingGoal.draft, { confirmed: true })
-      .catch((error: unknown) => error);
+    const blocked = await captureError(() =>
+      harness!.app.applyCvDraft(document.id, missingGoal.draft, {
+        confirmed: true,
+      })
+    );
 
     expect(blocked).toBeInstanceOf(ApplicationError);
     expect((blocked as ApplicationError).code).toBe("validation");
@@ -362,11 +364,11 @@ describe("coding-agent SRS drafts", () => {
       { confirmed: true }
     );
 
-    const unconfirmed = await harness.app
-      .applySrsDraft(project.id, document.id, result.draft, {
+    const unconfirmed = await captureError(() =>
+      harness!.app.applySrsDraft(project.id, document.id, result.draft, {
         confirmed: false,
       })
-      .catch((error: unknown) => error);
+    );
 
     expect(unconfirmed).toBeInstanceOf(ApplicationError);
     expect((unconfirmed as ApplicationError).code).toBe(

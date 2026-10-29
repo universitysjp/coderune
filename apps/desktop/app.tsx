@@ -1835,18 +1835,18 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     setError("");
 
     try {
-      const [onboarding, projectList, documentList, agentList] =
+      const [onboarding, projectList, exportBundle, agentList] =
         await Promise.all([
           app.getOnboardingState(),
-          app.listProjects().catch(() => []),
-          app.exportData().then((data) => data.documents as ImportedDocument[]),
+          app.listProjects(),
+          app.exportData(),
           app.listCodingAgents(),
         ]);
 
       setProfile(onboarding.profile);
       setDraft(onboarding.draft as Partial<DeveloperProfile> | null);
       setProjects(projectList);
-      setDocuments(documentList);
+      setDocuments(exportBundle.documents as ImportedDocument[]);
       setAgents(agentList);
       setSelectedProjectId((current) => {
         if (current && projectList.some((project) => project.id === current)) {

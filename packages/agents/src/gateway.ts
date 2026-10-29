@@ -33,11 +33,11 @@ export class LocalCodingAgentGateway implements CodingAgentGateway {
     this.#timeoutMs = options.timeoutMs;
   }
 
-  async listAgents(): Promise<CodingAgentStatus[]> {
+  listAgents(): CodingAgentStatus[] {
     return AGENT_ORDER.map((id) => this.#status(id));
   }
 
-  async getAgent(id: CodingAgentId): Promise<CodingAgentStatus | null> {
+  getAgent(id: CodingAgentId): CodingAgentStatus | null {
     if (!(id in AGENT_DEFINITIONS)) {
       return null;
     }
@@ -45,7 +45,7 @@ export class LocalCodingAgentGateway implements CodingAgentGateway {
     return this.#status(id);
   }
 
-  async draft(
+  draft(
     request: AgentDraftRequest,
     options: {
       signal?: AbortSignal;

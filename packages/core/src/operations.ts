@@ -84,7 +84,7 @@ export class ApplicationOperations {
     this.#clock = dependencies.clock ?? systemClock;
   }
 
-  async getOnboardingState(): Promise<OnboardingState> {
+  getOnboardingState(): OnboardingState {
     const profile = this.#store.getProfile();
     const draft = this.#store.getOnboardingDraft();
 
@@ -109,9 +109,7 @@ export class ApplicationOperations {
     };
   }
 
-  async saveOnboardingDraft(
-    input: Partial<DeveloperProfileFields>
-  ): Promise<OnboardingDraft> {
+  saveOnboardingDraft(input: Partial<DeveloperProfileFields>): OnboardingDraft {
     const draft: OnboardingDraft = {
       ...input,
       updatedAt: this.#clock.now(),
@@ -120,9 +118,7 @@ export class ApplicationOperations {
     return this.#store.saveOnboardingDraft(draft);
   }
 
-  async confirmOnboarding(
-    input: DeveloperProfileInput
-  ): Promise<DeveloperProfile> {
+  confirmOnboarding(input: DeveloperProfileInput): DeveloperProfile {
     const missing = profileMissingFields(input);
 
     if (missing.length > 0) {
@@ -138,11 +134,11 @@ export class ApplicationOperations {
     return profile;
   }
 
-  async getProfile(): Promise<DeveloperProfile | null> {
+  getProfile(): DeveloperProfile | null {
     return this.#store.getProfile();
   }
 
-  async updateProfile(input: DeveloperProfileInput): Promise<DeveloperProfile> {
+  updateProfile(input: DeveloperProfileInput): DeveloperProfile {
     this.requireDeveloperBaseline();
     const missing = profileMissingFields(input);
 
@@ -156,16 +152,16 @@ export class ApplicationOperations {
     return this.#store.saveProfile(normalizeProfileFields(input));
   }
 
-  async extractDocument(
+  extractDocument(
     request: DocumentExtractionRequest
   ): Promise<DocumentExtractionResult> {
     return this.#documents.extract(request);
   }
 
-  async confirmDocumentImport(
+  confirmDocumentImport(
     document: ExtractedDocument,
     options: { confirmed: boolean; projectId?: string | null }
-  ): Promise<ImportedDocument> {
+  ): ImportedDocument {
     if (!options.confirmed) {
       throw new ApplicationError(
         "confirmation-required",
@@ -189,7 +185,7 @@ export class ApplicationOperations {
     return this.#store.saveDocument(imported);
   }
 
-  async createProject(input: ProjectInput): Promise<Project> {
+  createProject(input: ProjectInput): Project {
     this.requireDeveloperBaseline();
     this.#validateProjectInput(input);
 
@@ -206,7 +202,7 @@ export class ApplicationOperations {
     return this.#store.createProject(project);
   }
 
-  async updateProject(id: string, input: ProjectInput): Promise<Project> {
+  updateProject(id: string, input: ProjectInput): Project {
     this.requireDeveloperBaseline();
     const current = this.#store.getProject(id);
 
@@ -226,17 +222,17 @@ export class ApplicationOperations {
     return this.#store.updateProject(project);
   }
 
-  async listProjects(): Promise<Project[]> {
+  listProjects(): Project[] {
     this.requireDeveloperBaseline();
 
     return this.#store.listProjects();
   }
 
-  async getProject(id: string): Promise<Project | null> {
+  getProject(id: string): Project | null {
     return this.#store.getProject(id);
   }
 
-  async deleteProject(id: string): Promise<void> {
+  deleteProject(id: string): void {
     this.requireDeveloperBaseline();
 
     if (!this.#store.getProject(id)) {
@@ -246,18 +242,18 @@ export class ApplicationOperations {
     this.#store.deleteProject(id);
   }
 
-  async listCodingAgents(): Promise<CodingAgentStatus[]> {
+  listCodingAgents(): CodingAgentStatus[] {
     return this.#agents.listAgents();
   }
 
-  async prepareCvDraft(
+  prepareCvDraft(
     documentId: string,
     agentId: CodingAgentId
   ): Promise<DraftSharingPreview> {
     return this.#prepareDraft(documentId, agentId, "cv", null);
   }
 
-  async prepareSrsDraft(
+  prepareSrsDraft(
     documentId: string,
     agentId: CodingAgentId,
     projectId: string
@@ -300,11 +296,11 @@ export class ApplicationOperations {
     return this.#requestDraft(preview, options);
   }
 
-  async applyCvDraft(
+  applyCvDraft(
     documentId: string,
     value: unknown,
     options: { confirmed: boolean }
-  ): Promise<DeveloperProfile> {
+  ): DeveloperProfile {
     if (!options.confirmed) {
       throw new ApplicationError(
         "confirmation-required",
@@ -409,12 +405,12 @@ export class ApplicationOperations {
     );
   }
 
-  async applySrsDraft(
+  applySrsDraft(
     projectId: string,
     documentId: string,
     value: unknown,
     options: { confirmed: boolean }
-  ): Promise<Project> {
+  ): Project {
     if (!options.confirmed) {
       throw new ApplicationError(
         "confirmation-required",
@@ -786,15 +782,15 @@ export class ApplicationOperations {
     return { status: "changed", preview, capture: null };
   }
 
-  async listCaptures(projectId: string): Promise<ContextCapture[]> {
+  listCaptures(projectId: string): ContextCapture[] {
     return this.#store.listCaptures(projectId);
   }
 
-  async getCapture(id: string): Promise<ContextCapture | null> {
+  getCapture(id: string): ContextCapture | null {
     return this.#store.getCapture(id);
   }
 
-  async deleteCapture(id: string): Promise<void> {
+  deleteCapture(id: string): void {
     if (!this.#store.getCapture(id)) {
       throw new ApplicationError("not-found", "Capture not found.");
     }
@@ -802,7 +798,7 @@ export class ApplicationOperations {
     this.#store.deleteCapture(id);
   }
 
-  async deleteAllData(): Promise<void> {
+  deleteAllData(): void {
     this.#store.deleteAllData();
     this.#previews.clear();
   }
@@ -825,7 +821,7 @@ export class ApplicationOperations {
       .digest("hex");
   }
 
-  async exportData(): Promise<ExportBundle> {
+  exportData(): ExportBundle {
     return {
       exportedAt: this.#clock.now(),
       application: "Coderune",
