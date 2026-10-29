@@ -21,8 +21,8 @@ export const parseJsonObject = function parseJsonObject(
   const trimmed = value.trim();
 
   const unfenced = trimmed
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
+    .replace(/^```(?:json)?\s*/iu, "")
+    .replace(/\s*```$/u, "")
     .trim();
 
   try {

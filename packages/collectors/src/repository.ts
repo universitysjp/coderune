@@ -180,7 +180,7 @@ const isBinaryExtension = (extension: string): boolean =>
 const isManifest = (name: string): boolean => {
   const lower = name.toLowerCase();
 
-  return MANIFEST_NAMES.has(lower) || /^requirements.*\.txt$/i.test(name);
+  return MANIFEST_NAMES.has(lower) || /^requirements.*\.txt$/iu.test(name);
 };
 
 const isConfiguration = (name: string): boolean => {
@@ -188,23 +188,23 @@ const isConfiguration = (name: string): boolean => {
 
   return (
     CONFIGURATION_NAMES.has(lower) ||
-    /^(vite|vitest|jest|eslint|prettier)\.config\.(ts|js|mjs|cjs)$/i.test(
+    /^(vite|vitest|jest|eslint|prettier)\.config\.(ts|js|mjs|cjs)$/iu.test(
       name
     ) ||
-    /^tsconfig(\..+)?\.json$/i.test(name)
+    /^tsconfig(\..+)?\.json$/iu.test(name)
   );
 };
 
 const isTestPath = (path: string): boolean =>
-  /(^|\/)(__tests__|tests?)\//i.test(path) ||
-  /\.(test|spec)\.[^.]+$/i.test(path) ||
-  /(^|\/)test_[^/]+\.py$/i.test(path) ||
-  /_test\.py$/i.test(path);
+  /(^|\/)(__tests__|tests?)\//iu.test(path) ||
+  /\.(test|spec)\.[^.]+$/iu.test(path) ||
+  /(^|\/)test_[^/]+\.py$/iu.test(path) ||
+  /_test\.py$/iu.test(path);
 
 type IgnoreMatcher = (relativePath: string, isDirectory: boolean) => boolean;
 
 const normalizeRelative = function normalizeRelative(path: string): string {
-  return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
+  return path.replaceAll("\\", "/").replace(/^\.\//u, "").replace(/^\/+/u, "");
 };
 
 const matchesPattern = function matchesPattern(
@@ -217,7 +217,7 @@ const matchesPattern = function matchesPattern(
   }
 
   const directoryPattern = pattern.endsWith("/");
-  const cleanPattern = pattern.replace(/\/+$/, "");
+  const cleanPattern = pattern.replace(/\/+$/u, "");
   const candidate = normalizeRelative(relativePath);
 
   if (directoryPattern) {
@@ -226,7 +226,7 @@ const matchesPattern = function matchesPattern(
     );
   }
 
-  if (!cleanPattern.includes("/") && !/[*?[\]{}]/.test(cleanPattern)) {
+  if (!cleanPattern.includes("/") && !/[*?[\]{}]/u.test(cleanPattern)) {
     return candidate.split("/").includes(cleanPattern);
   }
 
@@ -239,7 +239,7 @@ const matchesPattern = function matchesPattern(
     }
   }
 
-  if (/[*?[\]{}]/.test(cleanPattern)) {
+  if (/[*?[\]{}]/u.test(cleanPattern)) {
     const glob = new Bun.Glob(cleanPattern);
 
     if (glob.match(candidate)) {
@@ -312,7 +312,7 @@ const loadIgnoreMatcher = function loadIgnoreMatcher(
   try {
     const text = readFileSync(path.resolve(root, ".gitignore"), "utf-8");
 
-    for (const line of text.split(/\r?\n/)) {
+    for (const line of text.split(/\r?\n/u)) {
       const trimmed = line.trim();
 
       if (!trimmed || trimmed.startsWith("#")) {
@@ -320,7 +320,7 @@ const loadIgnoreMatcher = function loadIgnoreMatcher(
       }
 
       rules.push({
-        pattern: normalizeRelative(trimmed.replace(/^!/, "")),
+        pattern: normalizeRelative(trimmed.replace(/^!/u, "")),
         negated: trimmed.startsWith("!"),
       });
     }
@@ -364,7 +364,7 @@ const categorize = function categorize(
     return "agent-instructions";
   }
 
-  if (/^readme(\..+)?$/i.test(name)) {
+  if (/^readme(\..+)?$/iu.test(name)) {
     return "readme";
   }
 
@@ -422,7 +422,7 @@ const classifySkip = function classifySkip(
     isManifest(name) ||
     isConfiguration(name) ||
     name.toLowerCase() === "agents.md" ||
-    /^readme(\..+)?$/i.test(name) ||
+    /^readme(\..+)?$/iu.test(name) ||
     DOCUMENTATION_EXTENSIONS.has(extension) ||
     SOURCE_EXTENSIONS.has(extension);
 
@@ -565,7 +565,7 @@ const readGitState = function readGitState(root: string): GitState | null {
 
     const status = statusResult.stdout
       .toString()
-      .split(/\r?\n/)
+      .split(/\r?\n/u)
       .filter(Boolean);
 
     return {
