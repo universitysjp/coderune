@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { ApplicationError, draftJsonSchema } from "@coderune/core";
 import type { AgentDraftRequest } from "@coderune/core";
@@ -28,7 +28,7 @@ export const draftWithAntigravity = async function draftWithAntigravity(
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<unknown> {
   const definition = AGENT_DEFINITIONS.antigravity;
-  const cwd = mkdtempSync(join(tmpdir(), "coderune-antigravity-"));
+  const cwd = mkdtempSync(path.join(tmpdir(), "coderune-antigravity-"));
 
   const input = `${JSON.stringify({
     event: "user",

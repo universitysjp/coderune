@@ -7,7 +7,7 @@ import {
   realpathSync,
   statSync,
 } from "node:fs";
-import { basename, extname, relative, resolve, sep } from "node:path";
+import path from "node:path";
 
 import type {
   CaptureFileCategory,
@@ -246,7 +246,7 @@ const matchesPattern = function matchesPattern(
       return true;
     }
 
-    const name = basename(candidate);
+    const name = path.basename(candidate);
 
     if (!cleanPattern.includes("/") && glob.match(name)) {
       return true;
@@ -310,7 +310,7 @@ const loadIgnoreMatcher = function loadIgnoreMatcher(
   const rules: { pattern: string; negated: boolean }[] = [];
 
   try {
-    const text = readFileSync(resolve(root, ".gitignore"), "utf-8");
+    const text = readFileSync(path.resolve(root, ".gitignore"), "utf-8");
 
     for (const line of text.split(/\r?\n/)) {
       const trimmed = line.trim();
@@ -345,9 +345,9 @@ const toRelativePath = function toRelativePath(
   root: string,
   absolutePath: string
 ): string {
-  const relativePath = relative(root, absolutePath);
+  const relativePath = path.relative(root, absolutePath);
 
-  return relativePath.split(sep).join("/") || ".";
+  return relativePath.split(path.sep).join("/") || ".";
 };
 
 const looksBinary = function looksBinary(bytes: Uint8Array): boolean {
@@ -380,11 +380,11 @@ const categorize = function categorize(
     return "test";
   }
 
-  if (SOURCE_EXTENSIONS.has(extname(name).toLowerCase())) {
+  if (SOURCE_EXTENSIONS.has(path.extname(name).toLowerCase())) {
     return "source";
   }
 
-  if (DOCUMENTATION_EXTENSIONS.has(extname(name).toLowerCase())) {
+  if (DOCUMENTATION_EXTENSIONS.has(path.extname(name).toLowerCase())) {
     return "documentation";
   }
 
@@ -412,7 +412,7 @@ const classifySkip = function classifySkip(
     return ignoreReason(relativePath, scope, ignoreMatcher, extraExclusions);
   }
 
-  const extension = extname(name).toLowerCase();
+  const extension = path.extname(name).toLowerCase();
 
   if (isBinaryExtension(extension)) {
     return "binary";
@@ -456,7 +456,7 @@ const addSingleFile = function addSingleFile(
   getTotalBytes: () => number,
   addBytes: (size: number) => void
 ): void {
-  const name = basename(absolutePath);
+  const name = path.basename(absolutePath);
   const relativePath = toRelativePath(root, absolutePath);
 
   const skip = classifySkip(
@@ -516,8 +516,8 @@ const resolveScopeRoots = function resolveScopeRoots(
   }
 
   return scope.includePaths.map((includePath) => {
-    const absolute = resolve(root, includePath);
-    const rel = relative(root, absolute);
+    const absolute = path.resolve(root, includePath);
+    const rel = path.relative(root, absolute);
 
     if (rel.startsWith("..") || rel === "..") {
       return null;
@@ -525,7 +525,7 @@ const resolveScopeRoots = function resolveScopeRoots(
 
     try {
       const real = realpathSync(absolute);
-      const realRel = relative(root, real);
+      const realRel = path.relative(root, real);
 
       return realRel.startsWith("..") ? null : real;
     } catch {
@@ -648,7 +648,7 @@ export class LocalRepositoryCollector implements RepositoryCollector {
       entries.sort((left, right) => left.name.localeCompare(right.name));
 
       for (const entry of entries) {
-        const absolutePath = resolve(absoluteDirectory, entry.name);
+        const absolutePath = path.resolve(absoluteDirectory, entry.name);
         const relativePath = toRelativePath(root, absolutePath);
 
         if (relativePath.startsWith("..") || relativePath === "") {

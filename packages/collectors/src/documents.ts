@@ -1,4 +1,4 @@
-import { basename, extname, resolve } from "node:path";
+import nodePath from "node:path";
 
 import type {
   DocumentExtractionRequest,
@@ -95,8 +95,8 @@ export class LocalDocumentExtractor implements DocumentExtractor {
   async extract(
     request: DocumentExtractionRequest
   ): Promise<DocumentExtractionResult> {
-    const path = resolve(request.path);
-    const extension = extname(path).toLowerCase();
+    const path = nodePath.resolve(request.path);
+    const extension = nodePath.extname(path).toLowerCase();
 
     if (!supportedExtension(extension)) {
       return failure(
@@ -129,7 +129,7 @@ export class LocalDocumentExtractor implements DocumentExtractor {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const hash = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
     const extractedAt = new Date().toISOString();
-    const name = basename(path);
+    const name = nodePath.basename(path);
 
     try {
       const extracted = await extractTextFor(extension, bytes, path);

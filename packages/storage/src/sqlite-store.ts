@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import path from "node:path";
 
 import type {
   ContextStore,
@@ -148,7 +148,7 @@ export class SqliteContextStore implements ContextStore {
   readonly #database: Database;
 
   constructor(options: SqliteStoreOptions) {
-    mkdirSync(dirname(options.databasePath), { recursive: true });
+    mkdirSync(path.dirname(options.databasePath), { recursive: true });
     const created = !existsSync(options.databasePath);
 
     this.#database = new Database(options.databasePath, { create: true });

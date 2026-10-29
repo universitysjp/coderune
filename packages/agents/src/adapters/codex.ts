@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { ApplicationError, draftJsonSchema } from "@coderune/core";
 import type { AgentDraftRequest } from "@coderune/core";
@@ -56,7 +56,7 @@ export const draftWithCodex = async function draftWithCodex(
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<unknown> {
   const definition = AGENT_DEFINITIONS.codex;
-  const cwd = mkdtempSync(join(tmpdir(), "coderune-codex-"));
+  const cwd = mkdtempSync(path.join(tmpdir(), "coderune-codex-"));
   const timeoutMs = options.timeoutMs ?? 120_000;
 
   const peer = new JsonRpcPeer(

@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { ApplicationError, draftJsonSchema } from "@coderune/core";
 import type { AgentDraftRequest } from "@coderune/core";
@@ -14,7 +14,7 @@ export const draftWithClaude = async function draftWithClaude(
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<unknown> {
   const definition = AGENT_DEFINITIONS["claude-code"];
-  const cwd = mkdtempSync(join(tmpdir(), "coderune-claude-"));
+  const cwd = mkdtempSync(path.join(tmpdir(), "coderune-claude-"));
 
   try {
     const result = await runProcess(
