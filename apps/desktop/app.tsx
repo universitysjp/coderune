@@ -758,9 +758,9 @@ const AgentDraftPanel = ({
 
     try {
       const next =
-        kind === "cv"
-          ? await app.prepareCvDraft(selected.id, agentId)
-          : await app.prepareSrsDraft(selected.id, agentId, projectId!);
+        kind === "srs" && projectId
+          ? await app.prepareSrsDraft(selected.id, agentId, projectId)
+          : await app.prepareCvDraft(selected.id, agentId);
 
       setPreview(next);
       setShareConfirmed(false);
@@ -778,6 +778,12 @@ const AgentDraftPanel = ({
       return;
     }
 
+    if (kind === "srs" && !projectId) {
+      setError("Select a project before requesting an SRS draft.");
+
+      return;
+    }
+
     const nextController = new AbortController();
     setController(nextController);
     setBusy(true);
@@ -787,22 +793,22 @@ const AgentDraftPanel = ({
       setMessage("Waiting for the selected coding agent...");
 
       const result =
-        kind === "cv"
-          ? await app.requestCvDraft(selected.id, preview.agent.id, {
-              confirmed: true,
-              signal: nextController.signal,
-              onProgress: (text) => setMessage(text),
-            })
-          : await app.requestSrsDraft(
+        kind === "srs" && projectId
+          ? await app.requestSrsDraft(
               selected.id,
               preview.agent.id,
-              projectId!,
+              projectId,
               {
                 confirmed: true,
                 signal: nextController.signal,
                 onProgress: (text) => setMessage(text),
               }
-            );
+            )
+          : await app.requestCvDraft(selected.id, preview.agent.id, {
+              confirmed: true,
+              signal: nextController.signal,
+              onProgress: (text) => setMessage(text),
+            });
 
       setDraftJson(JSON.stringify(result.draft, null, 2));
       setDraftAgent(result.agent.name);
@@ -822,18 +828,24 @@ const AgentDraftPanel = ({
       return;
     }
 
+    if (kind === "srs" && !projectId) {
+      setError("Select a project before saving an SRS draft.");
+
+      return;
+    }
+
     setBusy(true);
     clear();
 
     try {
       const parsed = JSON.parse(draftJson) as unknown;
 
-      if (kind === "cv") {
-        await app.applyCvDraft(selected.id, parsed, { confirmed: true });
-      } else {
-        await app.applySrsDraft(projectId!, selected.id, parsed, {
+      if (kind === "srs" && projectId) {
+        await app.applySrsDraft(projectId, selected.id, parsed, {
           confirmed: true,
         });
+      } else {
+        await app.applyCvDraft(selected.id, parsed, { confirmed: true });
       }
 
       setMessage("Reviewed draft saved.");
