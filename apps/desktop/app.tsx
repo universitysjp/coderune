@@ -1860,6 +1860,8 @@ const CapturePanel = ({
   );
 };
 
+// The workspace fields are refreshed together but are also edited independently by child panels.
+// oxlint-disable-next-line react-doctor/prefer-useReducer
 export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   const app = runtime.operations;
   const { width } = useWindowSize();
