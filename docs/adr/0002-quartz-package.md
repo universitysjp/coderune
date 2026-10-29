@@ -1,7 +1,7 @@
 # Quartz as a workspace package
 
 Date: 2026-10-28
-Status: proposed; not implemented
+Status: accepted; implemented
 Related: [0001-native-quartz.md](./0001-native-quartz.md)
 
 ## Context

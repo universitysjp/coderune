@@ -4,7 +4,7 @@
 The native desktop interface uses ad hoc purple styling instead of Quartz. The developer wants a black-and-white desktop workspace with blue accents, Geist UI text, and Paper Mono code, paths, and IDs.
 
 ## Solution
-Keep the native GPUIX renderer and application operations, adapt the installed Quartz workspace block and controls to native host elements, and share desktop tokens and bundled font assets through the tokens package. Install the official DOM registry in the web workspace for reuse without porting the marketing site in this task.
+Keep the native GPUIX renderer and application operations, adapt the installed Quartz workspace block and controls to native host elements, and share desktop tokens through the Quartz package with bundled font assets in the tokens package. Install the official DOM registry in the Quartz package's web entry for reuse without porting the marketing site in this task.
 
 ## User stories
 1. As a developer, I can confirm or resume my developer baseline in a clear onboarding form.
