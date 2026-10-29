@@ -146,8 +146,8 @@ const ProfileEditor = ({
 
     try {
       await action(buildInput());
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -396,8 +396,8 @@ const ProjectEditor = ({
       } else {
         await onCreate(input());
       }
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -707,8 +707,8 @@ const AgentDraftPanel = ({
           `${result.error.message} You can keep entering the ${kind.toUpperCase()} manually.`
         );
       }
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -733,8 +733,8 @@ const AgentDraftPanel = ({
       setDocumentPath("");
       await onDocumentsChanged();
       setMessage("Document text saved locally after review.");
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -766,8 +766,8 @@ const AgentDraftPanel = ({
       setShareConfirmed(false);
       setDraftJson("");
       setApplyConfirmed(false);
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -809,8 +809,8 @@ const AgentDraftPanel = ({
       setMessage(
         `${result.agent.name} returned a schema-valid draft. Review and correct every field below.`
       );
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setController(null);
       setBusy(false);
@@ -841,8 +841,8 @@ const AgentDraftPanel = ({
       setDraftJson("");
       setApplyConfirmed(false);
       await onSaved();
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -1298,8 +1298,8 @@ const CapturePanel = ({
 
       setPreview(next);
       setConfirmed(false);
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -1321,8 +1321,8 @@ const CapturePanel = ({
       setConfirmed(false);
       await loadCaptures();
       await onChanged();
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -1345,8 +1345,8 @@ const CapturePanel = ({
       }
 
       await loadCaptures();
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setBusy(false);
     }
@@ -1661,8 +1661,8 @@ const CapturePanel = ({
                         setDeleteId("");
                         setMessage("Capture deleted.");
                         await loadCaptures();
-                      } catch (error) {
-                        setError(errorText(error));
+                      } catch (cause) {
+                        setError(errorText(cause));
                       } finally {
                         setBusy(false);
                       }
@@ -1852,8 +1852,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
       await Bun.write(target, text);
       setExportPath(target);
       setMessage(`JSON export written to ${target}`);
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     }
   };
 
@@ -1881,8 +1881,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
 
         return projectList[0]?.id ?? null;
       });
-    } catch (error) {
-      setError(errorText(error));
+    } catch (cause) {
+      setError(errorText(cause));
     } finally {
       setLoading(false);
     }
@@ -2354,8 +2354,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                                   "Project and its captures deleted. Profile and other projects remain."
                                 );
                                 await refresh();
-                              } catch (error) {
-                                setError(errorText(error));
+                              } catch (cause) {
+                                setError(errorText(cause));
                               }
                             })();
                           }}
@@ -2592,8 +2592,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                           const data = await app.exportData();
                           setExportText(JSON.stringify(data, null, 2));
                           notify("Export prepared locally.");
-                        } catch (error) {
-                          setError(errorText(error));
+                        } catch (cause) {
+                          setError(errorText(cause));
                         }
                       })();
                     }}
@@ -2675,8 +2675,8 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                             setSelectedProjectId(null);
                             notify("All application data deleted.");
                             await refresh();
-                          } catch (error) {
-                            setError(errorText(error));
+                          } catch (cause) {
+                            setError(errorText(cause));
                           }
                         })();
                       }}

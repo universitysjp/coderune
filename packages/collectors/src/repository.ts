@@ -195,16 +195,21 @@ const isConfiguration = (name: string): boolean => {
   );
 };
 
-const isTestPath = (path: string): boolean =>
-  /(?<prefix>^|\/)(?<directory>__tests__|tests?)\//iu.test(path) ||
-  /\.(?<kind>test|spec)\.[^.]+$/iu.test(path) ||
-  /(?<prefix>^|\/)test_[^/]+\.py$/iu.test(path) ||
-  /_test\.py$/iu.test(path);
+const isTestPath = (relativePath: string): boolean =>
+  /(?<prefix>^|\/)(?<directory>__tests__|tests?)\//iu.test(relativePath) ||
+  /\.(?<kind>test|spec)\.[^.]+$/iu.test(relativePath) ||
+  /(?<prefix>^|\/)test_[^/]+\.py$/iu.test(relativePath) ||
+  /_test\.py$/iu.test(relativePath);
 
 type IgnoreMatcher = (relativePath: string, isDirectory: boolean) => boolean;
 
-const normalizeRelative = function normalizeRelative(path: string): string {
-  return path.replaceAll("\\", "/").replace(/^\.\//u, "").replace(/^\/+/u, "");
+const normalizeRelative = function normalizeRelative(
+  relativePath: string
+): string {
+  return relativePath
+    .replaceAll("\\", "/")
+    .replace(/^\.\//u, "")
+    .replace(/^\/+/u, "");
 };
 
 const matchesPattern = function matchesPattern(
@@ -820,7 +825,7 @@ export class LocalRepositoryCollector implements RepositoryCollector {
     files.sort((left, right) => left.path.localeCompare(right.path));
 
     const skippedFiles = [...skipped.entries()]
-      .map(([path, reason]) => ({ path, reason }))
+      .map(([relativePath, reason]) => ({ path: relativePath, reason }))
       .toSorted((left, right) => left.path.localeCompare(right.path));
 
     const fingerprint = new Bun.CryptoHasher("sha256")
