@@ -235,13 +235,11 @@ const matchesPattern = function matchesPattern(
     return candidate.split("/").includes(cleanPattern);
   }
 
-  if (cleanPattern.includes("/")) {
-    if (
-      candidate === cleanPattern ||
-      candidate.startsWith(`${cleanPattern}/`)
-    ) {
-      return true;
-    }
+  if (
+    cleanPattern.includes("/") &&
+    (candidate === cleanPattern || candidate.startsWith(`${cleanPattern}/`))
+  ) {
+    return true;
   }
 
   if (/[*?[\]{}]/u.test(cleanPattern)) {
