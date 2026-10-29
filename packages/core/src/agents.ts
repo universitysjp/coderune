@@ -1,8 +1,7 @@
 import type { CvDraft, SrsDraft } from "./drafts";
+import type { DocumentKind, ImportedDocument, Project } from "./types";
 
 export { type AgentDraft } from "./drafts";
-
-import type { DocumentKind, ImportedDocument, Project } from "./types";
 
 export const CODING_AGENT_IDS = [
   "codex",
