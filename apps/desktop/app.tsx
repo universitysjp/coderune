@@ -94,7 +94,7 @@ const ProfileEditor = ({
   );
 
   const [busy, setBusy] = useState(false);
-  const [errorMessage, setError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const draftHandler = useRef(onDraft);
 
   draftHandler.current = onDraft;
@@ -142,12 +142,12 @@ const ProfileEditor = ({
     action: (input: DeveloperProfileInput) => Promise<void>
   ) => {
     setBusy(true);
-    setError("");
+    setErrorMessage("");
 
     try {
       await action(buildInput());
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -362,7 +362,7 @@ const ProjectEditor = ({
   );
 
   const [busy, setBusy] = useState(false);
-  const [errorMessage, setError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const input = (): ProjectInput => ({
     name,
@@ -388,7 +388,7 @@ const ProjectEditor = ({
 
   const submit = async () => {
     setBusy(true);
-    setError("");
+    setErrorMessage("");
 
     try {
       if (project) {
@@ -397,7 +397,7 @@ const ProjectEditor = ({
         await onCreate(input());
       }
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -677,7 +677,7 @@ const AgentDraftPanel = ({
   const [applyConfirmed, setApplyConfirmed] = useState(false);
   const [controller, setController] = useState<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
-  const [errorMessage, setError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
 
   const selected = availableDocs.find(
@@ -685,7 +685,7 @@ const AgentDraftPanel = ({
   );
 
   const clear = () => {
-    setError("");
+    setErrorMessage("");
     setMessage("");
   };
 
@@ -703,12 +703,12 @@ const AgentDraftPanel = ({
       setExtraction(result);
 
       if (!result.ok) {
-        setError(
+        setErrorMessage(
           `${result.error.message} You can keep entering the ${kind.toUpperCase()} manually.`
         );
       }
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -734,7 +734,7 @@ const AgentDraftPanel = ({
       await onDocumentsChanged();
       setMessage("Document text saved locally after review.");
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -742,13 +742,13 @@ const AgentDraftPanel = ({
 
   const prepare = async () => {
     if (!selected || !agentId) {
-      setError("Select an imported document and a coding agent.");
+      setErrorMessage("Select an imported document and a coding agent.");
 
       return;
     }
 
     if (kind === "srs" && !projectId) {
-      setError("Select a project before preparing an SRS draft.");
+      setErrorMessage("Select a project before preparing an SRS draft.");
 
       return;
     }
@@ -767,7 +767,7 @@ const AgentDraftPanel = ({
       setDraftJson("");
       setApplyConfirmed(false);
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -779,7 +779,7 @@ const AgentDraftPanel = ({
     }
 
     if (kind === "srs" && !projectId) {
-      setError("Select a project before requesting an SRS draft.");
+      setErrorMessage("Select a project before requesting an SRS draft.");
 
       return;
     }
@@ -816,7 +816,7 @@ const AgentDraftPanel = ({
         `${result.agent.name} returned a schema-valid draft. Review and correct every field below.`
       );
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setController(null);
       setBusy(false);
@@ -829,7 +829,7 @@ const AgentDraftPanel = ({
     }
 
     if (kind === "srs" && !projectId) {
-      setError("Select a project before saving an SRS draft.");
+      setErrorMessage("Select a project before saving an SRS draft.");
 
       return;
     }
@@ -854,7 +854,7 @@ const AgentDraftPanel = ({
       setApplyConfirmed(false);
       await onSaved();
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -1274,7 +1274,7 @@ const CapturePanel = ({
   const [confirmed, setConfirmed] = useState(false);
   const [deleteId, setDeleteId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [errorMessage, setError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
 
   const loadCaptures = async () => {
@@ -1292,7 +1292,7 @@ const CapturePanel = ({
 
   const runPreview = async () => {
     setBusy(true);
-    setError("");
+    setErrorMessage("");
     setMessage("");
 
     try {
@@ -1311,7 +1311,7 @@ const CapturePanel = ({
       setPreview(next);
       setConfirmed(false);
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -1323,7 +1323,7 @@ const CapturePanel = ({
     }
 
     setBusy(true);
-    setError("");
+    setErrorMessage("");
     setMessage("");
 
     try {
@@ -1334,7 +1334,7 @@ const CapturePanel = ({
       await loadCaptures();
       await onChanged();
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -1342,7 +1342,7 @@ const CapturePanel = ({
 
   const refresh = async () => {
     setBusy(true);
-    setError("");
+    setErrorMessage("");
     setMessage("");
 
     try {
@@ -1358,7 +1358,7 @@ const CapturePanel = ({
 
       await loadCaptures();
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -1674,7 +1674,7 @@ const CapturePanel = ({
                         setMessage("Capture deleted.");
                         await loadCaptures();
                       } catch (error) {
-                        setError(errorText(error));
+                        setErrorMessage(errorText(error));
                       } finally {
                         setBusy(false);
                       }
@@ -1840,7 +1840,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   );
 
   const [section, setSection] = useState("Profile");
-  const [errorMessage, setError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
   const [exportText, setExportText] = useState("");
   const [exportPath, setExportPath] = useState("");
@@ -1852,7 +1852,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     projects.find((project) => project.id === selectedProjectId) ?? null;
 
   const saveExportFile = async () => {
-    setError("");
+    setErrorMessage("");
 
     try {
       const text =
@@ -1865,12 +1865,12 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
       setExportPath(target);
       setMessage(`JSON export written to ${target}`);
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     }
   };
 
   const refresh = async () => {
-    setError("");
+    setErrorMessage("");
 
     try {
       const [onboarding, projectList, exportBundle, agentList] =
@@ -1894,7 +1894,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
         return projectList[0]?.id ?? null;
       });
     } catch (error) {
-      setError(errorText(error));
+      setErrorMessage(errorText(error));
     } finally {
       setLoading(false);
     }
@@ -1905,7 +1905,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   }, []);
 
   const notify = (text: string) => {
-    setError("");
+    setErrorMessage("");
     setMessage(text);
   };
 
@@ -2367,7 +2367,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                                 );
                                 await refresh();
                               } catch (error) {
-                                setError(errorText(error));
+                                setErrorMessage(errorText(error));
                               }
                             })();
                           }}
@@ -2605,7 +2605,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                           setExportText(JSON.stringify(data, null, 2));
                           notify("Export prepared locally.");
                         } catch (error) {
-                          setError(errorText(error));
+                          setErrorMessage(errorText(error));
                         }
                       })();
                     }}
@@ -2688,7 +2688,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                             notify("All application data deleted.");
                             await refresh();
                           } catch (error) {
-                            setError(errorText(error));
+                            setErrorMessage(errorText(error));
                           }
                         })();
                       }}
