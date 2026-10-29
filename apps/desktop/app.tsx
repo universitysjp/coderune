@@ -29,7 +29,7 @@ import {
 import { quartz } from "@coderune/quartz/tokens";
 import { resolveApplicationDataDir } from "@coderune/storage";
 import { isTerminal, render, useWindowSize } from "@gpuix/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 
 import { createApplication } from "./src/application";
 import type { ApplicationRuntime } from "./src/application";
@@ -130,7 +130,7 @@ const ProfileEditor = ({
     draftHandler.current = onDraft;
   }, [onDraft]);
 
-  const buildInput = (): DeveloperProfileInput => {
+  const buildInput = useCallback((): DeveloperProfileInput => {
     const extra = JSON.parse(details) as Partial<DeveloperProfileInput>;
 
     return {
@@ -148,7 +148,15 @@ const ProfileEditor = ({
       learningPreferences: extra.learningPreferences ?? null,
       fieldSources: initial?.fieldSources ?? {},
     };
-  };
+  }, [
+    details,
+    displayName,
+    goals,
+    initial?.fieldSources,
+    newToCoding,
+    skills,
+    stage,
+  ]);
 
   useEffect(() => {
     const saveDraft = draftHandler.current;
@@ -169,7 +177,7 @@ const ProfileEditor = ({
     }, 700);
 
     return () => clearTimeout(timer);
-  }, [displayName, stage, newToCoding, skills, goals, details]);
+  }, [buildInput]);
 
   const run = async (
     action: (input: DeveloperProfileInput) => Promise<void>
@@ -1301,9 +1309,9 @@ const CapturePanel = ({
   const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
 
-  const loadCaptures = async () => {
+  const loadCaptures = useCallback(async () => {
     setCaptures(await app.listCaptures(project.id));
-  };
+  }, [app, project]);
 
   const inspectCapture = async (captureId: string) => {
     setViewFile(null);
@@ -1312,7 +1320,7 @@ const CapturePanel = ({
 
   useEffect(() => {
     void loadCaptures();
-  }, [project.id, project.version]);
+  }, [loadCaptures]);
 
   const runPreview = async () => {
     setBusy(true);
@@ -1893,7 +1901,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     }
   };
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setErrorMessage("");
 
     try {
@@ -1922,11 +1930,11 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     }
 
     setLoading(false);
-  };
+  }, [app]);
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
 
   const notify = (text: string) => {
     setErrorMessage("");
