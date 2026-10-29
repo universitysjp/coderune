@@ -129,7 +129,7 @@ const ProfileEditor = ({
     const timer = setTimeout(() => {
       try {
         const input = buildInput();
-        saveDraft(input).catch(() => {});
+        saveDraft(input).catch(() => undefined);
       } catch {
         // Keep typing while optional JSON is temporarily incomplete.
       }
