@@ -245,12 +245,15 @@ const matchesPattern = function matchesPattern(
   if (/[*?[\]{}]/u.test(cleanPattern)) {
     const glob = new Bun.Glob(cleanPattern);
 
+    // Bun.Glob#match is a glob API, not RegExp#match.
+    // oxlint-disable-next-line unicorn/prefer-regexp-test
     if (glob.match(candidate)) {
       return true;
     }
 
     const name = path.basename(candidate);
 
+    // oxlint-disable-next-line unicorn/prefer-regexp-test
     if (!cleanPattern.includes("/") && glob.match(name)) {
       return true;
     }
