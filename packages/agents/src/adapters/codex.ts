@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { ApplicationError, draftJsonSchema } from "@coderune/core";
-import type { AgentDraftRequest } from "@coderune/core";
+import type { AgentDraftRequest, JsonObject } from "@coderune/core";
 
 import { AGENT_DEFINITIONS } from "../definitions";
 import { invalidOutput, parseJsonObject } from "../parse";
@@ -30,7 +30,9 @@ interface ItemCompleted {
   item?: { type?: string; text?: string };
 }
 
-const approvalResponse = function approvalResponse(request: JsonRpcRequest) {
+const approvalResponse = function approvalResponse(
+  request: JsonRpcRequest
+): JsonObject {
   if (
     request.method === "item/commandExecution/requestApproval" ||
     request.method === "item/fileChange/requestApproval"
@@ -52,7 +54,7 @@ const approvalResponse = function approvalResponse(request: JsonRpcRequest) {
 export const draftWithCodex = async function draftWithCodex(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
-): Promise<unknown> {
+): Promise<JsonObject> {
   const definition = AGENT_DEFINITIONS.codex;
   const cwd = mkdtempSync(path.join(tmpdir(), "coderune-codex-"));
   const timeoutMs = options.timeoutMs ?? 120_000;

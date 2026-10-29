@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { ApplicationError, draftJsonSchema } from "@coderune/core";
-import type { AgentDraftRequest } from "@coderune/core";
+import type { AgentDraftRequest, JsonObject, JsonValue } from "@coderune/core";
 
 import { AGENT_DEFINITIONS } from "../definitions";
 import { invalidOutput, parseJsonObject, requireSuccess } from "../parse";
@@ -14,19 +14,19 @@ interface AntigravityEnvelope {
   status?: string;
   error?: string;
   response?: string;
-  structured_output?: unknown;
+  structured_output?: JsonValue;
   result?: {
     status?: string;
     error?: string;
     response?: string;
-    structured_output?: unknown;
+    structured_output?: JsonValue;
   };
 }
 
 export const draftWithAntigravity = async function draftWithAntigravity(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
-): Promise<unknown> {
+): Promise<JsonObject> {
   const definition = AGENT_DEFINITIONS.antigravity;
   const cwd = mkdtempSync(path.join(tmpdir(), "coderune-antigravity-"));
 
@@ -102,7 +102,7 @@ export const draftWithAntigravity = async function draftWithAntigravity(
     }
 
     if (final.structured_output !== undefined) {
-      return final.structured_output;
+      return parseJsonObject(final.structured_output);
     }
 
     if (final.response !== undefined) {

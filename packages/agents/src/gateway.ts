@@ -4,6 +4,7 @@ import type {
   CodingAgentGateway,
   CodingAgentId,
   CodingAgentStatus,
+  JsonObject,
 } from "@coderune/core";
 
 import { draftWithAntigravity } from "./adapters/antigravity";
@@ -51,7 +52,7 @@ export class LocalCodingAgentGateway implements CodingAgentGateway {
       signal?: AbortSignal;
       onProgress?: (message: string) => void;
     } = {}
-  ): Promise<unknown> {
+  ): Promise<JsonObject> {
     const status = this.#status(request.agentId);
 
     if (status.availability !== "ready") {

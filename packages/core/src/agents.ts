@@ -1,5 +1,10 @@
 import type { CvDraft, SrsDraft } from "./drafts";
-import type { DocumentKind, ImportedDocument, Project } from "./types";
+import type {
+  DocumentKind,
+  ImportedDocument,
+  JsonObject,
+  Project,
+} from "./types";
 
 export { type AgentDraft } from "./drafts";
 
@@ -79,5 +84,5 @@ export interface CodingAgentGateway {
   draft: (
     request: AgentDraftRequest,
     options?: AgentDraftRunOptions
-  ) => Promise<unknown>;
+  ) => Promise<JsonObject>;
 }

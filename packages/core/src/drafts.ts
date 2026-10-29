@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 import { EXPERIENCE_STAGES, SKILL_RATINGS } from "./types";
-import type { DocumentKind, ImportedDocument, Project } from "./types";
+import type {
+  DocumentKind,
+  ImportedDocument,
+  JsonObject,
+  JsonValue,
+  Project,
+} from "./types";
 
 const educationEntrySchema = z
   .object({
@@ -120,18 +126,18 @@ export type AgentDraft = z.infer<typeof agentDraftSchema>;
 export type DraftSource = z.infer<typeof draftSourceSchema>;
 
 export const parseAgentDraft = function parseAgentDraft(
-  value: unknown
+  value: JsonValue
 ): AgentDraft {
   return agentDraftSchema.parse(value);
 };
 
 export const draftJsonSchema = function draftJsonSchema(
   kind: DocumentKind
-): Record<string, unknown> {
+): JsonObject {
   // SAFETY: z.toJSONSchema returns the JSON Schema shape for the selected Zod draft schema.
   return z.toJSONSchema(
     kind === "cv" ? cvDraftSchema : srsDraftSchema
-  ) as Record<string, unknown>;
+  ) as JsonObject;
 };
 
 const CV_INSTRUCTIONS = `Create a structured CV draft for the developer.

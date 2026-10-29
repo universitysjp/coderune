@@ -33,6 +33,8 @@ import type {
   ExtractedDocument,
   FieldSource,
   ImportedDocument,
+  JsonObject,
+  JsonValue,
   OnboardingDraft,
   OnboardingState,
   Project,
@@ -299,7 +301,7 @@ export class ApplicationOperations {
 
   applyCvDraft(
     documentId: string,
-    value: unknown,
+    value: JsonValue,
     options: { confirmed: boolean }
   ): DeveloperProfile {
     if (!options.confirmed) {
@@ -410,7 +412,7 @@ export class ApplicationOperations {
   applySrsDraft(
     projectId: string,
     documentId: string,
-    value: unknown,
+    value: JsonValue,
     options: { confirmed: boolean }
   ): Project {
     if (!options.confirmed) {
@@ -931,7 +933,7 @@ export class ApplicationOperations {
         : null,
     };
 
-    let value: unknown;
+    let value: JsonObject;
 
     options.onProgress?.("Sending the reviewed text to the selected agent...");
 
@@ -971,7 +973,7 @@ export class ApplicationOperations {
     };
   }
 
-  static #parseDraft(value: unknown, kind: DocumentKind): CvDraft | SrsDraft {
+  static #parseDraft(value: JsonValue, kind: DocumentKind): CvDraft | SrsDraft {
     let draft: CvDraft | SrsDraft;
 
     try {

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { ApplicationError } from "@coderune/core";
-import type { AgentDraftRequest } from "@coderune/core";
+import type { AgentDraftRequest, JsonObject } from "@coderune/core";
 
 import { AGENT_DEFINITIONS } from "../definitions";
 import { invalidOutput, parseJsonObject } from "../parse";
@@ -41,7 +41,7 @@ interface PermissionRequest {
 
 const permissionResponse = function permissionResponse(
   request: JsonRpcRequest
-) {
+): JsonObject {
   if (request.method !== "session/request_permission") {
     throw new Error(`Unsupported agent request: ${request.method}`);
   }
@@ -65,7 +65,7 @@ const permissionResponse = function permissionResponse(
 export const draftWithOpencode = async function draftWithOpencode(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
-): Promise<unknown> {
+): Promise<JsonObject> {
   const definition = AGENT_DEFINITIONS.opencode;
   const cwd = mkdtempSync(path.join(tmpdir(), "coderune-opencode-"));
   const timeoutMs = options.timeoutMs ?? 120_000;

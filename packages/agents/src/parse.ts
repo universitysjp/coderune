@@ -1,4 +1,24 @@
 import { ApplicationError } from "@coderune/core";
+import type { JsonObject, JsonValue } from "@coderune/core";
+import { z } from "zod";
+
+const stringSchema = z.string();
+
+export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
+  ])
+);
+
+export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(
+  z.string(),
+  jsonValueSchema
+);
 
 export const invalidOutput = function invalidOutput(): ApplicationError {
   return new ApplicationError(
@@ -7,19 +27,30 @@ export const invalidOutput = function invalidOutput(): ApplicationError {
   );
 };
 
+export const parseJsonString = function parseJsonString(
+  value: JsonValue | undefined
+): string | null {
+  const parsed = stringSchema.safeParse(value);
+
+  return parsed.success ? parsed.data : null;
+};
+
 export const parseJsonObject = function parseJsonObject(
-  value: unknown
-): Record<string, unknown> {
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    // SAFETY: The guard above proves the value is a non-null, non-array object.
-    return value as Record<string, unknown>;
+  value: JsonValue
+): JsonObject {
+  const direct = jsonObjectSchema.safeParse(value);
+
+  if (direct.success) {
+    return direct.data;
   }
 
-  if (typeof value !== "string") {
+  const parsedString = stringSchema.safeParse(value);
+
+  if (!parsedString.success) {
     throw invalidOutput();
   }
 
-  const trimmed = value.trim();
+  const trimmed = parsedString.data.trim();
 
   const unfenced = trimmed
     .replace(/^```(?:json)?\s*/iu, "")

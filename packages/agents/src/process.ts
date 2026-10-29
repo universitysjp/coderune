@@ -1,4 +1,8 @@
 import { ApplicationError } from "@coderune/core";
+import type { JsonObject, JsonValue } from "@coderune/core";
+import { z } from "zod";
+
+import { jsonObjectSchema, jsonValueSchema } from "./parse";
 
 export interface ProcessOptions {
   cwd: string;
@@ -14,6 +18,17 @@ export interface ProcessResult {
 }
 
 const DEFAULT_TIMEOUT_MS = 120_000;
+
+const jsonRpcIdSchema = z.union([z.string(), z.number()]);
+const jsonRpcErrorSchema = z.object({ message: z.string().optional() });
+
+const jsonRpcMessageSchema = z.object({
+  id: jsonRpcIdSchema.optional(),
+  method: z.string().optional(),
+  params: jsonObjectSchema.optional(),
+  result: jsonValueSchema.optional(),
+  error: jsonRpcErrorSchema.optional(),
+});
 
 export const runProcess = async function runProcess(
   command: string[],
@@ -89,17 +104,17 @@ export const runProcess = async function runProcess(
 
 export interface JsonRpcNotification {
   method: string;
-  params?: Record<string, unknown>;
+  params?: JsonObject;
 }
 
 export interface JsonRpcRequest {
   id: number | string;
   method: string;
-  params?: Record<string, unknown>;
+  params?: JsonObject;
 }
 
 interface PendingRequest {
-  resolve: (value: unknown) => void;
+  resolve: (value: JsonValue | undefined) => void;
   reject: (reason: Error) => void;
   timer: ReturnType<typeof setTimeout>;
 }
@@ -109,8 +124,6 @@ export interface JsonRpcPeerOptions {
   timeoutMs?: number;
   signal?: AbortSignal;
 }
-
-type Message = Record<string, unknown>;
 
 export class JsonRpcPeer {
   readonly #process: Bun.Subprocess<"pipe", "pipe", "pipe">;
@@ -122,7 +135,7 @@ export class JsonRpcPeer {
   >();
   readonly #requestHandler: (
     request: JsonRpcRequest
-  ) => Promise<unknown> | unknown;
+  ) => Promise<JsonValue | undefined> | JsonValue | undefined;
   #nextId = 1;
   #closed = false;
   #readError: Error | null = null;
@@ -131,7 +144,9 @@ export class JsonRpcPeer {
   constructor(
     command: string[],
     options: JsonRpcPeerOptions,
-    requestHandler: (request: JsonRpcRequest) => Promise<unknown> | unknown
+    requestHandler: (
+      request: JsonRpcRequest
+    ) => Promise<JsonValue | undefined> | JsonValue | undefined
   ) {
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.#signal = options.signal;
@@ -176,9 +191,9 @@ export class JsonRpcPeer {
 
   request(
     method: string,
-    params: Record<string, unknown>,
+    params: JsonObject,
     timeoutMs = this.#timeoutMs
-  ): Promise<unknown> {
+  ): Promise<JsonValue | undefined> {
     if (this.#closed) {
       throw (
         this.#readError ??
@@ -192,7 +207,7 @@ export class JsonRpcPeer {
     const id = this.#nextId;
     this.#nextId += 1;
 
-    const result = Promise.withResolvers<unknown>();
+    const result = Promise.withResolvers<JsonValue | undefined>();
 
     const timer = setTimeout(() => {
       this.#pending.delete(id);
@@ -215,7 +230,7 @@ export class JsonRpcPeer {
     return result.promise;
   }
 
-  notify(method: string, params: Record<string, unknown> = {}): void {
+  notify(method: string, params: JsonObject = {}): void {
     this.#send({ jsonrpc: "2.0", method, params });
   }
 
@@ -239,7 +254,7 @@ export class JsonRpcPeer {
     return this.#stderr;
   }
 
-  #send(message: Record<string, unknown>): void {
+  #send(message: JsonObject): void {
     try {
       this.#process.stdin.write(`${JSON.stringify(message)}\n`);
     } catch {
@@ -308,23 +323,24 @@ export class JsonRpcPeer {
   }
 
   #handleLine(line: string): void {
-    let message: Message;
+    let raw: unknown;
 
     try {
-      // SAFETY: The line is parsed JSON from the JSON-RPC peer; malformed lines are ignored below.
-      message = JSON.parse(line) as Message;
+      raw = JSON.parse(line);
     } catch {
       return;
     }
 
-    // SAFETY: JSON-RPC ids are constrained to the protocol's string or number form.
-    const id = message.id as number | string | undefined;
-    const method = typeof message.method === "string" ? message.method : null;
+    const parsed = jsonRpcMessageSchema.safeParse(raw);
 
-    if (method && id !== undefined && id !== null) {
-      // SAFETY: The method and id checks establish a JSON-RPC request; params is forwarded as the opaque request payload.
-      const params = message.params as Record<string, unknown> | undefined;
+    if (!parsed.success) {
+      return;
+    }
 
+    const message = parsed.data;
+    const { id, method, params } = message;
+
+    if (method && id !== undefined) {
       const handleRequest = async (): Promise<void> => {
         try {
           const result = await this.#requestHandler({
@@ -333,7 +349,7 @@ export class JsonRpcPeer {
             params,
           });
 
-          this.#send({ jsonrpc: "2.0", id, result });
+          this.#send({ jsonrpc: "2.0", id, result: result ?? null });
         } catch (error) {
           this.#send({
             jsonrpc: "2.0",
@@ -352,7 +368,7 @@ export class JsonRpcPeer {
       return;
     }
 
-    if (id !== undefined && id !== null) {
+    if (id !== undefined) {
       const pending = this.#pending.get(id);
 
       if (!pending) {
@@ -363,13 +379,10 @@ export class JsonRpcPeer {
       this.#pending.delete(id);
 
       if (message.error) {
-        // SAFETY: JSON-RPC error payloads are checked for a string message before being converted.
-        const errorMessage = (message.error as { message?: unknown }).message;
-
         pending.reject(
           new ApplicationError(
             "agent-failed",
-            String(errorMessage ?? "The coding agent rejected the request.")
+            message.error.message ?? "The coding agent rejected the request."
           )
         );
       } else {
@@ -382,8 +395,7 @@ export class JsonRpcPeer {
     if (method) {
       const notification: JsonRpcNotification = {
         method,
-        // SAFETY: Notification params come from a validated JSON-RPC message.
-        params: message.params as Record<string, unknown> | undefined,
+        params,
       };
 
       for (const listener of this.#notificationListeners) {

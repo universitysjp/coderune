@@ -8,6 +8,7 @@ import type {
   DocumentExtractionResult,
   ExperienceStage,
   ImportedDocument,
+  JsonValue,
   Project,
   ProjectInput,
   CapturePreview,
@@ -881,7 +882,7 @@ const AgentDraftPanel = ({
     clear();
 
     try {
-      const parsed: unknown = JSON.parse(draftJson);
+      const parsed: JsonValue = JSON.parse(draftJson);
 
       await (kind === "srs" && projectId
         ? app.applySrsDraft(projectId, selected.id, parsed, {

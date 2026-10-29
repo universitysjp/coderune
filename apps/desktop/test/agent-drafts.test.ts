@@ -10,6 +10,7 @@ import type {
   CodingAgentId,
   CodingAgentStatus,
   ImportedDocument,
+  JsonObject,
 } from "@coderune/core";
 
 import { captureError, createTestHarness } from "./helpers";
@@ -61,10 +62,10 @@ function agentStatus(
 class ScriptedAgentGateway implements CodingAgentGateway {
   readonly calls: AgentDraftRequest[] = [];
   readonly statuses: CodingAgentStatus[];
-  response: unknown;
-  handler: (() => Promise<unknown>) | null = null;
+  response: JsonObject;
+  handler: (() => Promise<JsonObject>) | null = null;
 
-  constructor(statuses: CodingAgentStatus[], response: unknown) {
+  constructor(statuses: CodingAgentStatus[], response: JsonObject) {
     this.statuses = statuses;
     this.response = response;
   }
@@ -77,7 +78,7 @@ class ScriptedAgentGateway implements CodingAgentGateway {
     return this.statuses.find((agent) => agent.id === id) ?? null;
   }
 
-  async draft(request: AgentDraftRequest): Promise<unknown> {
+  async draft(request: AgentDraftRequest): Promise<JsonObject> {
     this.calls.push(request);
 
     if (this.handler) {
@@ -236,7 +237,10 @@ describe("coding-agent CV drafts", () => {
     expect((invalid as ApplicationError).code).toBe("agent-invalid-output");
     expect(await harness.app.getProfile()).toBeNull();
 
-    gateway.response = { ...cvDraft, learningGoals: undefined };
+    gateway.response = {
+      ...cvDraft,
+      learningGoals: undefined,
+    } as unknown as JsonObject;
 
     const missingGoal = await harness.app.requestCvDraft(
       document.id,

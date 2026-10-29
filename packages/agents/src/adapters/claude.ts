@@ -3,16 +3,21 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { ApplicationError, draftJsonSchema } from "@coderune/core";
-import type { AgentDraftRequest } from "@coderune/core";
+import type { AgentDraftRequest, JsonObject } from "@coderune/core";
 
 import { AGENT_DEFINITIONS } from "../definitions";
-import { invalidOutput, parseJsonObject, requireSuccess } from "../parse";
+import {
+  invalidOutput,
+  parseJsonObject,
+  parseJsonString,
+  requireSuccess,
+} from "../parse";
 import { runProcess } from "../process";
 
 export const draftWithClaude = async function draftWithClaude(
   request: AgentDraftRequest,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
-): Promise<unknown> {
+): Promise<JsonObject> {
   const definition = AGENT_DEFINITIONS["claude-code"];
   const cwd = mkdtempSync(path.join(tmpdir(), "coderune-claude-"));
 
@@ -47,9 +52,8 @@ export const draftWithClaude = async function draftWithClaude(
 
     if (envelope.is_error === true) {
       const detail =
-        typeof envelope.result === "string"
-          ? envelope.result
-          : "Claude Code could not complete the draft.";
+        parseJsonString(envelope.result) ??
+        "Claude Code could not complete the draft.";
 
       throw new ApplicationError(
         detail.toLowerCase().includes("auth") ||
@@ -61,7 +65,7 @@ export const draftWithClaude = async function draftWithClaude(
     }
 
     if (envelope.structured_output !== undefined) {
-      return envelope.structured_output;
+      return parseJsonObject(envelope.structured_output);
     }
 
     if (envelope.result !== undefined) {
