@@ -676,7 +676,7 @@ const ProjectEditor = ({
 };
 
 // Draft review keeps the document, agent, and preview state in one workflow.
-// oxlint-disable-next-line react-doctor/no-giant-component
+// oxlint-disable-next-line react-doctor/no-giant-component, eslint/complexity
 const AgentDraftPanel = ({
   app,
   kind,
@@ -1284,7 +1284,7 @@ const AgentDraftPanel = ({
 };
 
 // Capture keeps its preview, selection, and save state in one review surface.
-// oxlint-disable-next-line react-doctor/no-giant-component
+// oxlint-disable-next-line react-doctor/no-giant-component, eslint/complexity
 const CapturePanel = ({
   app,
   project,
@@ -1878,7 +1878,7 @@ const CapturePanel = ({
 
 // The app shell keeps section routing and shared workspace state together.
 // The workspace fields are refreshed together but are also edited independently by child panels.
-// oxlint-disable-next-line react-doctor/no-giant-component, react-doctor/prefer-useReducer
+// oxlint-disable-next-line react-doctor/no-giant-component, react-doctor/prefer-useReducer, eslint/complexity
 export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   const app = runtime.operations;
   const { width } = useWindowSize();
