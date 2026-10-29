@@ -761,7 +761,7 @@ export class ApplicationOperations {
       );
     }
 
-    const existing = this.#store.listCaptures(project.id)[0];
+    const [existing] = this.#store.listCaptures(project.id);
 
     if (existing?.fingerprint === entry.preview.fingerprint) {
       this.#previews.delete(previewId);

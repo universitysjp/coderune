@@ -733,7 +733,7 @@ export class LocalRepositoryCollector implements RepositoryCollector {
         let size: number;
 
         try {
-          size = statSync(absolutePath).size;
+          ({ size } = statSync(absolutePath));
         } catch {
           skipped.set(relativePath, "not-readable");
           continue;
