@@ -158,9 +158,11 @@ export const normalizeProfileFields = function normalizeProfileFields(
     skillsStatement: input.newToCoding
       ? (input.skillsStatement ?? "").trim() || NEW_TO_CODING_STATEMENT
       : (input.skillsStatement ?? "").trim(),
-    learningGoals: input.learningGoals
-      .map((goal) => goal.trim())
-      .filter(Boolean),
+    learningGoals: input.learningGoals.flatMap((goal) => {
+      const trimmed = goal.trim();
+
+      return trimmed ? [trimmed] : [];
+    }),
     selfReportedSkills: (input.selfReportedSkills ?? [])
       .map((skill) => ({
         topic: skill.topic.trim(),
