@@ -177,29 +177,6 @@ const isGeneratedDirectory = (name: string): boolean =>
 const isBinaryExtension = (extension: string): boolean =>
   BINARY_EXTENSIONS.has(extension);
 
-function protectedPathReason(
-  relativePath: string,
-  isDirectory: boolean
-): CaptureSkipReason | null {
-  const segments = normalizeRelative(relativePath).split("/").filter(Boolean);
-
-  for (const segment of isDirectory ? segments : segments.slice(0, -1)) {
-    if (isSensitiveName(segment)) {
-      return "environment-file";
-    }
-
-    if (isGeneratedDirectory(segment)) {
-      return "generated-output";
-    }
-
-    if (isDependencyDirectory(segment)) {
-      return "dependency-directory";
-    }
-  }
-
-  return null;
-}
-
 const isManifest = (name: string): boolean => {
   const lower = name.toLowerCase();
 
@@ -223,6 +200,406 @@ const isTestPath = (path: string): boolean =>
   /\.(test|spec)\.[^.]+$/i.test(path) ||
   /(^|\/)test_[^/]+\.py$/i.test(path) ||
   /_test\.py$/i.test(path);
+
+type IgnoreMatcher = (relativePath: string, isDirectory: boolean) => boolean;
+
+function normalizeRelative(path: string): string {
+  return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
+}
+
+function matchesPattern(
+  pattern: string,
+  relativePath: string,
+  isDirectory: boolean
+): boolean {
+  if (!pattern) {
+    return false;
+  }
+
+  const directoryPattern = pattern.endsWith("/");
+  const cleanPattern = pattern.replace(/\/+$/, "");
+  const candidate = normalizeRelative(relativePath);
+
+  if (directoryPattern) {
+    return (
+      candidate === cleanPattern || candidate.startsWith(`${cleanPattern}/`)
+    );
+  }
+
+  if (!cleanPattern.includes("/") && !/[*?[\]{}]/.test(cleanPattern)) {
+    return candidate.split("/").includes(cleanPattern);
+  }
+
+  if (cleanPattern.includes("/")) {
+    if (
+      candidate === cleanPattern ||
+      candidate.startsWith(`${cleanPattern}/`)
+    ) {
+      return true;
+    }
+  }
+
+  if (/[*?[\]{}]/.test(cleanPattern)) {
+    const glob = new Bun.Glob(cleanPattern);
+
+    if (glob.match(candidate)) {
+      return true;
+    }
+
+    const name = basename(candidate);
+
+    if (!cleanPattern.includes("/") && glob.match(name)) {
+      return true;
+    }
+  }
+
+  return isDirectory && candidate.startsWith(`${cleanPattern}/`);
+}
+
+function isExcluded(
+  relativePath: string,
+  isDirectory: boolean,
+  scope: CollectionScope,
+  ignoreMatcher: IgnoreMatcher,
+  extraExclusions: string[]
+): boolean {
+  const normalized = normalizeRelative(relativePath);
+
+  const excludedByScope = [...scope.excludePaths, ...extraExclusions].some(
+    (pattern) =>
+      matchesPattern(normalizeRelative(pattern), normalized, isDirectory)
+  );
+
+  if (excludedByScope) {
+    return true;
+  }
+
+  if (scope.respectGitignore && ignoreMatcher(normalized, isDirectory)) {
+    return true;
+  }
+
+  return false;
+}
+
+function ignoreReason(
+  relativePath: string,
+  scope: CollectionScope,
+  ignoreMatcher: IgnoreMatcher,
+  extraExclusions: string[]
+): CaptureSkipReason {
+  const normalized = normalizeRelative(relativePath);
+
+  const excludedByScope = [...scope.excludePaths, ...extraExclusions].some(
+    (pattern) => matchesPattern(normalizeRelative(pattern), normalized, false)
+  );
+
+  if (excludedByScope) {
+    return "excluded";
+  }
+
+  if (scope.respectGitignore && ignoreMatcher(normalized, false)) {
+    return "ignored";
+  }
+
+  return "excluded";
+}
+
+function loadIgnoreMatcher(root: string): IgnoreMatcher {
+  const rules: { pattern: string; negated: boolean }[] = [];
+
+  try {
+    const text = readFileSync(resolve(root, ".gitignore"), "utf-8");
+
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
+
+      rules.push({
+        pattern: normalizeRelative(trimmed.replace(/^!/, "")),
+        negated: trimmed.startsWith("!"),
+      });
+    }
+  } catch {
+    // A repository does not need a .gitignore.
+  }
+
+  return (relativePath, isDirectory) => {
+    let ignored = false;
+
+    for (const rule of rules) {
+      if (matchesPattern(rule.pattern, relativePath, isDirectory)) {
+        ignored = !rule.negated;
+      }
+    }
+
+    return ignored;
+  };
+}
+
+function toRelativePath(root: string, absolutePath: string): string {
+  const relativePath = relative(root, absolutePath);
+
+  return relativePath.split(sep).join("/") || ".";
+}
+
+function looksBinary(bytes: Uint8Array): boolean {
+  const sample = bytes.subarray(0, Math.min(bytes.byteLength, 8000));
+
+  return sample.includes(0);
+}
+
+function categorize(relativePath: string, name: string): CaptureFileCategory {
+  if (name.toLowerCase() === "agents.md") {
+    return "agent-instructions";
+  }
+
+  if (/^readme(\..+)?$/i.test(name)) {
+    return "readme";
+  }
+
+  if (isManifest(name)) {
+    return "manifest";
+  }
+
+  if (isConfiguration(name)) {
+    return "configuration";
+  }
+
+  if (isTestPath(relativePath)) {
+    return "test";
+  }
+
+  if (SOURCE_EXTENSIONS.has(extname(name).toLowerCase())) {
+    return "source";
+  }
+
+  if (DOCUMENTATION_EXTENSIONS.has(extname(name).toLowerCase())) {
+    return "documentation";
+  }
+
+  return "other";
+}
+
+function classifySkip(
+  relativePath: string,
+  name: string,
+  absolutePath: string,
+  limits: RepositoryCollectionRequest["limits"],
+  scope: CollectionScope,
+  ignoreMatcher: IgnoreMatcher,
+  extraExclusions: string[]
+): CaptureSkipReason | null {
+  if (/\.(pem|key|p12|pfx)$/iu.test(name)) {
+    return "private-key";
+  }
+
+  if (isSensitiveName(name)) {
+    return "environment-file";
+  }
+
+  if (isExcluded(relativePath, false, scope, ignoreMatcher, extraExclusions)) {
+    return ignoreReason(relativePath, scope, ignoreMatcher, extraExclusions);
+  }
+
+  const extension = extname(name).toLowerCase();
+
+  if (isBinaryExtension(extension)) {
+    return "binary";
+  }
+
+  const allowed =
+    isManifest(name) ||
+    isConfiguration(name) ||
+    name.toLowerCase() === "agents.md" ||
+    /^readme(\..+)?$/i.test(name) ||
+    DOCUMENTATION_EXTENSIONS.has(extension) ||
+    SOURCE_EXTENSIONS.has(extension);
+
+  if (!allowed) {
+    return "unsupported-type";
+  }
+
+  try {
+    if (!lstatSync(absolutePath).isFile()) {
+      return "not-readable";
+    }
+  } catch {
+    return "not-readable";
+  }
+
+  if (limits.maxFileBytes <= 0) {
+    return "file-too-large";
+  }
+
+  return null;
+}
+
+function addSingleFile(
+  root: string,
+  absolutePath: string,
+  request: RepositoryCollectionRequest,
+  ignoreMatcher: IgnoreMatcher,
+  extraExclusions: string[],
+  files: CollectedFile[],
+  skipped: Map<string, CaptureSkipReason>,
+  getTotalBytes: () => number,
+  addBytes: (size: number) => void
+): void {
+  const name = basename(absolutePath);
+  const relativePath = toRelativePath(root, absolutePath);
+
+  const skip = classifySkip(
+    relativePath,
+    name,
+    absolutePath,
+    request.limits,
+    request.scope,
+    ignoreMatcher,
+    extraExclusions
+  );
+
+  if (skip) {
+    skipped.set(relativePath, skip);
+
+    return;
+  }
+
+  const { size } = statSync(absolutePath);
+
+  if (size > request.limits.maxFileBytes) {
+    skipped.set(relativePath, "file-too-large");
+
+    return;
+  }
+
+  if (getTotalBytes() + size > request.limits.maxCaptureBytes) {
+    skipped.set(relativePath, "capture-limit");
+
+    return;
+  }
+
+  const bytes = new Uint8Array(readFileSync(absolutePath));
+
+  if (looksBinary(bytes)) {
+    skipped.set(relativePath, "binary");
+
+    return;
+  }
+
+  files.push({
+    path: relativePath,
+    size,
+    hash: new Bun.CryptoHasher("sha256").update(bytes).digest("hex"),
+    category: categorize(relativePath, name),
+    content: new TextDecoder("utf-8", { fatal: false }).decode(bytes),
+  });
+  addBytes(size);
+}
+
+function resolveScopeRoots(
+  root: string,
+  scope: CollectionScope
+): (string | null)[] {
+  if (scope.includePaths.length === 0) {
+    return [root];
+  }
+
+  return scope.includePaths.map((includePath) => {
+    const absolute = resolve(root, includePath);
+    const rel = relative(root, absolute);
+
+    if (rel.startsWith("..") || rel === "..") {
+      return null;
+    }
+
+    try {
+      const real = realpathSync(absolute);
+      const realRel = relative(root, real);
+
+      return realRel.startsWith("..") ? null : real;
+    } catch {
+      return absolute;
+    }
+  });
+}
+
+async function readGitState(root: string): Promise<GitState | null> {
+  try {
+    const inside = Bun.spawnSync(
+      ["git", "-C", root, "rev-parse", "--is-inside-work-tree"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+      }
+    );
+
+    if (inside.exitCode !== 0 || inside.stdout.toString().trim() !== "true") {
+      return null;
+    }
+
+    const headResult = Bun.spawnSync(["git", "-C", root, "rev-parse", "HEAD"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    const branchResult = Bun.spawnSync(
+      ["git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD"],
+      { stdout: "pipe", stderr: "pipe" }
+    );
+
+    const statusResult = Bun.spawnSync(
+      ["git", "-C", root, "status", "--porcelain=v1"],
+      { stdout: "pipe", stderr: "pipe" }
+    );
+
+    const status = statusResult.stdout
+      .toString()
+      .split(/\r?\n/)
+      .filter(Boolean);
+
+    return {
+      head:
+        headResult.exitCode === 0
+          ? headResult.stdout.toString().trim() || null
+          : null,
+      branch:
+        branchResult.exitCode === 0
+          ? branchResult.stdout.toString().trim() || null
+          : null,
+      dirty: status.length > 0,
+      status,
+      capturedAt: new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function protectedPathReason(
+  relativePath: string,
+  isDirectory: boolean
+): CaptureSkipReason | null {
+  const segments = normalizeRelative(relativePath).split("/").filter(Boolean);
+
+  for (const segment of isDirectory ? segments : segments.slice(0, -1)) {
+    if (isSensitiveName(segment)) {
+      return "environment-file";
+    }
+
+    if (isGeneratedDirectory(segment)) {
+      return "generated-output";
+    }
+
+    if (isDependencyDirectory(segment)) {
+      return "dependency-directory";
+    }
+  }
+
+  return null;
+}
 
 export class LocalRepositoryCollector implements RepositoryCollector {
   validateRoot(rootPath: string): void {
@@ -457,381 +834,4 @@ export class LocalRepositoryCollector implements RepositoryCollector {
       fingerprint,
     };
   }
-}
-
-function addSingleFile(
-  root: string,
-  absolutePath: string,
-  request: RepositoryCollectionRequest,
-  ignoreMatcher: IgnoreMatcher,
-  extraExclusions: string[],
-  files: CollectedFile[],
-  skipped: Map<string, CaptureSkipReason>,
-  getTotalBytes: () => number,
-  addBytes: (size: number) => void
-): void {
-  const name = basename(absolutePath);
-  const relativePath = toRelativePath(root, absolutePath);
-
-  const skip = classifySkip(
-    relativePath,
-    name,
-    absolutePath,
-    request.limits,
-    request.scope,
-    ignoreMatcher,
-    extraExclusions
-  );
-
-  if (skip) {
-    skipped.set(relativePath, skip);
-
-    return;
-  }
-
-  const { size } = statSync(absolutePath);
-
-  if (size > request.limits.maxFileBytes) {
-    skipped.set(relativePath, "file-too-large");
-
-    return;
-  }
-
-  if (getTotalBytes() + size > request.limits.maxCaptureBytes) {
-    skipped.set(relativePath, "capture-limit");
-
-    return;
-  }
-
-  const bytes = new Uint8Array(readFileSync(absolutePath));
-
-  if (looksBinary(bytes)) {
-    skipped.set(relativePath, "binary");
-
-    return;
-  }
-
-  files.push({
-    path: relativePath,
-    size,
-    hash: new Bun.CryptoHasher("sha256").update(bytes).digest("hex"),
-    category: categorize(relativePath, name),
-    content: new TextDecoder("utf-8", { fatal: false }).decode(bytes),
-  });
-  addBytes(size);
-}
-
-function resolveScopeRoots(
-  root: string,
-  scope: CollectionScope
-): (string | null)[] {
-  if (scope.includePaths.length === 0) {
-    return [root];
-  }
-
-  return scope.includePaths.map((includePath) => {
-    const absolute = resolve(root, includePath);
-    const rel = relative(root, absolute);
-
-    if (rel.startsWith("..") || rel === "..") {
-      return null;
-    }
-
-    try {
-      const real = realpathSync(absolute);
-      const realRel = relative(root, real);
-
-      return realRel.startsWith("..") ? null : real;
-    } catch {
-      return absolute;
-    }
-  });
-}
-
-function classifySkip(
-  relativePath: string,
-  name: string,
-  absolutePath: string,
-  limits: RepositoryCollectionRequest["limits"],
-  scope: CollectionScope,
-  ignoreMatcher: IgnoreMatcher,
-  extraExclusions: string[]
-): CaptureSkipReason | null {
-  if (/\.(pem|key|p12|pfx)$/iu.test(name)) {
-    return "private-key";
-  }
-
-  if (isSensitiveName(name)) {
-    return "environment-file";
-  }
-
-  if (isExcluded(relativePath, false, scope, ignoreMatcher, extraExclusions)) {
-    return ignoreReason(relativePath, scope, ignoreMatcher, extraExclusions);
-  }
-
-  const extension = extname(name).toLowerCase();
-
-  if (isBinaryExtension(extension)) {
-    return "binary";
-  }
-
-  const allowed =
-    isManifest(name) ||
-    isConfiguration(name) ||
-    name.toLowerCase() === "agents.md" ||
-    /^readme(\..+)?$/i.test(name) ||
-    DOCUMENTATION_EXTENSIONS.has(extension) ||
-    SOURCE_EXTENSIONS.has(extension);
-
-  if (!allowed) {
-    return "unsupported-type";
-  }
-
-  try {
-    if (!lstatSync(absolutePath).isFile()) {
-      return "not-readable";
-    }
-  } catch {
-    return "not-readable";
-  }
-
-  if (limits.maxFileBytes <= 0) {
-    return "file-too-large";
-  }
-
-  return null;
-}
-
-function isExcluded(
-  relativePath: string,
-  isDirectory: boolean,
-  scope: CollectionScope,
-  ignoreMatcher: IgnoreMatcher,
-  extraExclusions: string[]
-): boolean {
-  const normalized = normalizeRelative(relativePath);
-
-  const excludedByScope = [...scope.excludePaths, ...extraExclusions].some(
-    (pattern) =>
-      matchesPattern(normalizeRelative(pattern), normalized, isDirectory)
-  );
-
-  if (excludedByScope) {
-    return true;
-  }
-
-  if (scope.respectGitignore && ignoreMatcher(normalized, isDirectory)) {
-    return true;
-  }
-
-  return false;
-}
-
-function ignoreReason(
-  relativePath: string,
-  scope: CollectionScope,
-  ignoreMatcher: IgnoreMatcher,
-  extraExclusions: string[]
-): CaptureSkipReason {
-  const normalized = normalizeRelative(relativePath);
-
-  const excludedByScope = [...scope.excludePaths, ...extraExclusions].some(
-    (pattern) => matchesPattern(normalizeRelative(pattern), normalized, false)
-  );
-
-  if (excludedByScope) {
-    return "excluded";
-  }
-
-  if (scope.respectGitignore && ignoreMatcher(normalized, false)) {
-    return "ignored";
-  }
-
-  return "excluded";
-}
-
-type IgnoreMatcher = (relativePath: string, isDirectory: boolean) => boolean;
-
-function loadIgnoreMatcher(root: string): IgnoreMatcher {
-  const rules: { pattern: string; negated: boolean }[] = [];
-
-  try {
-    const text = readFileSync(resolve(root, ".gitignore"), "utf-8");
-
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-
-      if (!trimmed || trimmed.startsWith("#")) {
-        continue;
-      }
-
-      rules.push({
-        pattern: normalizeRelative(trimmed.replace(/^!/, "")),
-        negated: trimmed.startsWith("!"),
-      });
-    }
-  } catch {
-    // A repository does not need a .gitignore.
-  }
-
-  return (relativePath, isDirectory) => {
-    let ignored = false;
-
-    for (const rule of rules) {
-      if (matchesPattern(rule.pattern, relativePath, isDirectory)) {
-        ignored = !rule.negated;
-      }
-    }
-
-    return ignored;
-  };
-}
-
-function matchesPattern(
-  pattern: string,
-  relativePath: string,
-  isDirectory: boolean
-): boolean {
-  if (!pattern) {
-    return false;
-  }
-
-  const directoryPattern = pattern.endsWith("/");
-  const cleanPattern = pattern.replace(/\/+$/, "");
-  const candidate = normalizeRelative(relativePath);
-
-  if (directoryPattern) {
-    return (
-      candidate === cleanPattern || candidate.startsWith(`${cleanPattern}/`)
-    );
-  }
-
-  if (!cleanPattern.includes("/") && !/[*?[\]{}]/.test(cleanPattern)) {
-    return candidate.split("/").includes(cleanPattern);
-  }
-
-  if (cleanPattern.includes("/")) {
-    if (
-      candidate === cleanPattern ||
-      candidate.startsWith(`${cleanPattern}/`)
-    ) {
-      return true;
-    }
-  }
-
-  if (/[*?[\]{}]/.test(cleanPattern)) {
-    const glob = new Bun.Glob(cleanPattern);
-
-    if (glob.match(candidate)) {
-      return true;
-    }
-
-    const name = basename(candidate);
-
-    if (!cleanPattern.includes("/") && glob.match(name)) {
-      return true;
-    }
-  }
-
-  return isDirectory && candidate.startsWith(`${cleanPattern}/`);
-}
-
-function categorize(relativePath: string, name: string): CaptureFileCategory {
-  if (name.toLowerCase() === "agents.md") {
-    return "agent-instructions";
-  }
-
-  if (/^readme(\..+)?$/i.test(name)) {
-    return "readme";
-  }
-
-  if (isManifest(name)) {
-    return "manifest";
-  }
-
-  if (isConfiguration(name)) {
-    return "configuration";
-  }
-
-  if (isTestPath(relativePath)) {
-    return "test";
-  }
-
-  if (SOURCE_EXTENSIONS.has(extname(name).toLowerCase())) {
-    return "source";
-  }
-
-  if (DOCUMENTATION_EXTENSIONS.has(extname(name).toLowerCase())) {
-    return "documentation";
-  }
-
-  return "other";
-}
-
-function looksBinary(bytes: Uint8Array): boolean {
-  const sample = bytes.subarray(0, Math.min(bytes.byteLength, 8000));
-
-  return sample.includes(0);
-}
-
-async function readGitState(root: string): Promise<GitState | null> {
-  try {
-    const inside = Bun.spawnSync(
-      ["git", "-C", root, "rev-parse", "--is-inside-work-tree"],
-      {
-        stdout: "pipe",
-        stderr: "pipe",
-      }
-    );
-
-    if (inside.exitCode !== 0 || inside.stdout.toString().trim() !== "true") {
-      return null;
-    }
-
-    const headResult = Bun.spawnSync(["git", "-C", root, "rev-parse", "HEAD"], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const branchResult = Bun.spawnSync(
-      ["git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD"],
-      { stdout: "pipe", stderr: "pipe" }
-    );
-
-    const statusResult = Bun.spawnSync(
-      ["git", "-C", root, "status", "--porcelain=v1"],
-      { stdout: "pipe", stderr: "pipe" }
-    );
-
-    const status = statusResult.stdout
-      .toString()
-      .split(/\r?\n/)
-      .filter(Boolean);
-
-    return {
-      head:
-        headResult.exitCode === 0
-          ? headResult.stdout.toString().trim() || null
-          : null,
-      branch:
-        branchResult.exitCode === 0
-          ? branchResult.stdout.toString().trim() || null
-          : null,
-      dirty: status.length > 0,
-      status,
-      capturedAt: new Date().toISOString(),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function normalizeRelative(path: string): string {
-  return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
-}
-
-function toRelativePath(root: string, absolutePath: string): string {
-  const relativePath = relative(root, absolutePath);
-
-  return relativePath.split(sep).join("/") || ".";
 }

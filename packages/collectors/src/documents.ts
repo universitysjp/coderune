@@ -29,6 +29,68 @@ const supportedExtension = (
 ): extension is SupportedDocumentExtension =>
   (SUPPORTED_DOCUMENT_EXTENSIONS as readonly string[]).includes(extension);
 
+interface ExtractedText {
+  text: string;
+  pageCount: number | null;
+}
+
+async function extractTextFor(
+  extension: SupportedDocumentExtension,
+  bytes: Uint8Array,
+  path: string
+): Promise<ExtractedText | null> {
+  if (
+    extension === ".md" ||
+    extension === ".markdown" ||
+    extension === ".txt"
+  ) {
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+
+    if (text.includes("\u0000")) {
+      throw new Error("Binary content in a text document.");
+    }
+
+    return text.trim() ? { text, pageCount: null } : null;
+  }
+
+  if (extension === ".docx") {
+    const result = await mammoth.extractRawText({
+      buffer: Buffer.from(bytes),
+    });
+
+    const text = result.value.trim();
+
+    return text ? { text: result.value, pageCount: null } : null;
+  }
+
+  if (extension === ".pdf") {
+    const document = await getDocumentProxy(bytes);
+    const result = await extractText(document, { mergePages: false });
+    const pages = Array.isArray(result.text) ? result.text : [result.text];
+    const text = pages.join("\n\n");
+
+    if (!text.trim()) {
+      return null;
+    }
+
+    return { text, pageCount: result.totalPages };
+  }
+
+  throw new Error(`No extractor for ${path}`);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+  }
+
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(1)} KiB`;
+  }
+
+  return `${bytes} B`;
+}
+
 export class LocalDocumentExtractor implements DocumentExtractor {
   async extract(
     request: DocumentExtractionRequest
@@ -101,66 +163,4 @@ export class LocalDocumentExtractor implements DocumentExtractor {
       );
     }
   }
-}
-
-interface ExtractedText {
-  text: string;
-  pageCount: number | null;
-}
-
-async function extractTextFor(
-  extension: SupportedDocumentExtension,
-  bytes: Uint8Array,
-  path: string
-): Promise<ExtractedText | null> {
-  if (
-    extension === ".md" ||
-    extension === ".markdown" ||
-    extension === ".txt"
-  ) {
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-
-    if (text.includes("\u0000")) {
-      throw new Error("Binary content in a text document.");
-    }
-
-    return text.trim() ? { text, pageCount: null } : null;
-  }
-
-  if (extension === ".docx") {
-    const result = await mammoth.extractRawText({
-      buffer: Buffer.from(bytes),
-    });
-
-    const text = result.value.trim();
-
-    return text ? { text: result.value, pageCount: null } : null;
-  }
-
-  if (extension === ".pdf") {
-    const document = await getDocumentProxy(bytes);
-    const result = await extractText(document, { mergePages: false });
-    const pages = Array.isArray(result.text) ? result.text : [result.text];
-    const text = pages.join("\n\n");
-
-    if (!text.trim()) {
-      return null;
-    }
-
-    return { text, pageCount: result.totalPages };
-  }
-
-  throw new Error(`No extractor for ${path}`);
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
-  }
-
-  if (bytes >= 1024) {
-    return `${(bytes / 1024).toFixed(1)} KiB`;
-  }
-
-  return `${bytes} B`;
 }
