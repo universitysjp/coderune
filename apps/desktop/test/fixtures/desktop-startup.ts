@@ -3,7 +3,9 @@ import { createApplication } from "../../src/application";
 
 const dataDir = process.argv[2];
 
-if (!dataDir) {throw new Error("Disposable application data directory required");}
+if (!dataDir) {
+  throw new Error("Disposable application data directory required");
+}
 
 const runtime = await createApplication({
   dataDir,

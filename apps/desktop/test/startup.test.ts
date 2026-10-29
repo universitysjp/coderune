@@ -39,8 +39,9 @@ nativeTest(
         feed: (listener) => {
           const decoder = new TextDecoder();
           void (async () => {
-            for await (const chunk of child.stdout)
-              {listener(decoder.decode(chunk, { stream: true }));}
+            for await (const chunk of child.stdout) {
+              listener(decoder.decode(chunk, { stream: true }));
+            }
           })();
         },
       });
