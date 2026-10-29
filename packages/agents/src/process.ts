@@ -192,23 +192,26 @@ export class JsonRpcPeer {
     const id = this.#nextId;
     this.#nextId += 1;
 
-    const result = new Promise<unknown>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.#pending.delete(id);
-        reject(
-          new ApplicationError(
-            "agent-timeout",
-            "The coding agent did not respond within the allowed time."
-          )
-        );
-      }, timeoutMs);
+    const result = Promise.withResolvers<unknown>();
+    const timer = setTimeout(() => {
+      this.#pending.delete(id);
+      result.reject(
+        new ApplicationError(
+          "agent-timeout",
+          "The coding agent did not respond within the allowed time."
+        )
+      );
+    }, timeoutMs);
 
-      this.#pending.set(id, { resolve, reject, timer });
+    this.#pending.set(id, {
+      resolve: result.resolve,
+      reject: result.reject,
+      timer,
     });
 
     this.#send({ jsonrpc: "2.0", id, method, params });
 
-    return result;
+    return result.promise;
   }
 
   notify(method: string, params: Record<string, unknown> = {}): void {

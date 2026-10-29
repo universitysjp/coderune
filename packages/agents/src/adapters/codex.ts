@@ -66,14 +66,10 @@ export const draftWithCodex = async function draftWithCodex(
   let finalText: string | null = null;
   let turnId: string | null = null;
 
-  let settle: ((result: { status: string; error?: string }) => void) | null =
-    null;
-
-  const turnCompleted = new Promise<{ status: string; error?: string }>(
-    (resolve) => {
-      settle = resolve;
-    }
-  );
+  const turnCompleted = Promise.withResolvers<{
+    status: string;
+    error?: string;
+  }>();
 
   const off = peer.onNotification((notification) => {
     if (notification.method === "item/completed") {
@@ -96,7 +92,7 @@ export const draftWithCodex = async function draftWithCodex(
         return;
       }
 
-      settle?.({
+      turnCompleted.resolve({
         status: turn?.status ?? "completed",
         error: turn?.error?.message,
       });
@@ -144,18 +140,21 @@ export const draftWithCodex = async function draftWithCodex(
 
     turnId = started.turn?.id ?? null;
 
-    const timedOut = new Promise<never>((_resolve, reject) => {
-      timeout = setTimeout(() => {
-        reject(
-          new ApplicationError(
-            "agent-timeout",
-            "Codex did not finish the draft within the allowed time."
-          )
-        );
-      }, timeoutMs);
-    });
+    const timedOut = Promise.withResolvers<never>();
 
-    const completion = await Promise.race([turnCompleted, timedOut]);
+    timeout = setTimeout(() => {
+      timedOut.reject(
+        new ApplicationError(
+          "agent-timeout",
+          "Codex did not finish the draft within the allowed time."
+        )
+      );
+    }, timeoutMs);
+
+    const completion = await Promise.race([
+      turnCompleted.promise,
+      timedOut.promise,
+    ]);
 
     if (completion.status === "failed") {
       throw new ApplicationError(
