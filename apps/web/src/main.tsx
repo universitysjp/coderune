@@ -1,9 +1,10 @@
+import { QuartzPortalProvider } from "@coderune/quartz/web";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
 
 import "./index.css";
-import { QuartzPortalProvider } from "./lib/quartz/portal";
+import { createRoot } from "react-dom/client";
+
 import { router } from "./router";
 
 const root = document.querySelector("#root");

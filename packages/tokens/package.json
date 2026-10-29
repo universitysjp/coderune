@@ -9,7 +9,6 @@
   ],
   "exports": {
     ".": "./src/tokens.css",
-    "./quartz": "./src/quartz.ts",
     "./tokens.css": "./src/tokens.css",
     "./fonts/paper-mono-variable.woff2": "./fonts/PaperMono-Variable.woff2",
     "./fonts/geist-variable.ttf": "./fonts/Geist-Variable.ttf",

@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 
+import { registerQuartzFonts } from "@coderune/quartz/native";
 import { connectTest } from "@gpuix/react/automation";
 import { createTestRoot, hasNativeTestRenderer } from "@gpuix/react/testing";
 
 import { App } from "../app";
-import { registerQuartzFonts } from "../src/quartz";
 import { createTestHarness } from "./helpers";
 
 const nativeTest = hasNativeTestRenderer ? test : test.skip;

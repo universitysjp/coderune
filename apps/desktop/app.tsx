@@ -12,13 +12,6 @@ import type {
   ProjectInput,
   CapturePreview,
 } from "@coderune/core";
-import { resolveApplicationDataDir } from "@coderune/storage";
-import { quartz } from "@coderune/tokens/quartz";
-import { isTerminal, render, useWindowSize } from "@gpuix/react";
-import { useEffect, useRef, useState } from "react";
-
-import { createApplication } from "./src/application";
-import type { ApplicationRuntime } from "./src/application";
 import {
   Alert as Notice,
   Badge,
@@ -27,14 +20,21 @@ import {
   Field as Labeled,
   Input,
   PageHeader,
+  QuartzFonts,
   Sidebar,
   Text,
   Textarea,
   View,
-  QuartzFonts,
-} from "./src/quartz";
+} from "@coderune/quartz/native";
+import { quartz } from "@coderune/quartz/tokens";
+import { resolveApplicationDataDir } from "@coderune/storage";
+import { isTerminal, render, useWindowSize } from "@gpuix/react";
+import { useEffect, useRef, useState } from "react";
 
-const {colors} = quartz;
+import { createApplication } from "./src/application";
+import type { ApplicationRuntime } from "./src/application";
+
+const { colors } = quartz;
 
 const terminalWarning =
   isTerminal() && (process.platform === "win32" || Boolean(process.env.TMUX))

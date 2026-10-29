@@ -5,5 +5,5 @@
     "jsxImportSource": "@gpuix/react",
     "types": ["bun"]
   },
-  "include": ["app.tsx", "src", "test"]
+  "include": ["app.tsx", "src", "test", "../../packages/quartz/src/assets.d.ts"]
 }
