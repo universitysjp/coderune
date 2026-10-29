@@ -393,11 +393,7 @@ const ProjectEditor = ({
     setErrorMessage("");
 
     try {
-      if (project) {
-        await onUpdate(project.id, input());
-      } else {
-        await onCreate(input());
-      }
+      await (project ? onUpdate(project.id, input()) : onCreate(input()));
     } catch (error) {
       setErrorMessage(errorText(error));
     } finally {
@@ -842,13 +838,11 @@ const AgentDraftPanel = ({
     try {
       const parsed = JSON.parse(draftJson) as unknown;
 
-      if (kind === "srs" && projectId) {
-        await app.applySrsDraft(projectId, selected.id, parsed, {
-          confirmed: true,
-        });
-      } else {
-        await app.applyCvDraft(selected.id, parsed, { confirmed: true });
-      }
+      await (kind === "srs" && projectId
+        ? app.applySrsDraft(projectId, selected.id, parsed, {
+            confirmed: true,
+          })
+        : app.applyCvDraft(selected.id, parsed, { confirmed: true }));
 
       setMessage("Reviewed draft saved.");
       setPreview(null);
