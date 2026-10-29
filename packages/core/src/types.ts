@@ -163,12 +163,11 @@ export const normalizeProfileFields = function normalizeProfileFields(
 
       return trimmed ? [trimmed] : [];
     }),
-    selfReportedSkills: (input.selfReportedSkills ?? [])
-      .map((skill) => ({
-        topic: skill.topic.trim(),
-        rating: skill.rating ?? null,
-      }))
-      .filter((skill) => skill.topic),
+    selfReportedSkills: (input.selfReportedSkills ?? []).flatMap((skill) => {
+      const topic = skill.topic.trim();
+
+      return topic ? [{ topic, rating: skill.rating ?? null }] : [];
+    }),
     education: input.education ?? [],
     employment: input.employment ?? [],
     projects: input.projects ?? [],
