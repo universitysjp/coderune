@@ -1,6 +1,6 @@
 # Coderune
 
-Shared vocabulary for collecting developer and project context for AI coding assistants.
+Shared vocabulary for Coderune's developer and project context, agent skills, verification, and learning.
 
 ## Language
 
@@ -12,6 +12,20 @@ Shared vocabulary for collecting developer and project context for AI coding ass
 
 **Coding agent**: An external assistant selected by the developer to carry out coding-related work using its own configured models and tools. _Avoid_: Model provider, developer profile
 
+**Agent connection**: A developer-configured connection to a coding agent and the models available through it. _Avoid_: Subscription, model provider
+
+**Defined subagent**: A reusable specialist with a defined purpose and a configured default model assignment. _Avoid_: Individual task, agent skill
+
+**Subagent run**: One execution of a task assigned to a defined subagent, inheriting that subagent's configured default model. _Avoid_: Subagent definition, individual model choice
+
+**Model assignment**: The agent connection and model configured for a defined subagent, independently of the main coding model selected by the developer. _Avoid_: Per-task override, agent skill selection
+
+**Agent skill**: Reusable instructions and supporting resources that guide a coding agent through a particular kind of work. _Avoid_: Developer skill, self-reported skill
+
+**Skill library**: The collection of agent skills available through Coderune, including Coderune-authored, third-party, and developer-added skills. _Avoid_: Developer profile, skill assessment
+
+**Skill collection**: A group of agent skills from the same source within Coderune's skill library. _Avoid_: Developer skill set
+
 **Project context**: A project's requirements, business logic, goals, constraints, acceptance criteria, and knowledge supplied by the developer. _Avoid_: Developer profile
 
 **Repository context**: Information obtained from a selected project repository that describes its contents and state. _Avoid_: Developer profile
@@ -21,3 +35,25 @@ Shared vocabulary for collecting developer and project context for AI coding ass
 **Collection scope**: The repository paths and information types that a developer permits the system to collect for a project. _Avoid_: Entire workspace
 
 **Context capture**: A saved, versioned record of repository context observed during a collection, together with its provenance. _Avoid_: Live workspace, graph index
+
+**Verification brief**: The agreed scope, requirements, candidate claims, and checks for verifying one exact code snapshot and diff. _Avoid_: Verification result
+
+**Canonical check**: A project-configured verification check whose observed execution result is shared evidence for the reviewed code snapshot. _Avoid_: Agent assertion
+
+**Verification result**: The recorded findings and verdicts from verification, including observed evidence, check outcomes, unresolved gaps, and the source of the findings. _Avoid_: Verification brief
+
+**Verification finding**: An observation reported by a verification subagent about a code change, together with its evidence and source. _Avoid_: Verified fact
+
+**Verification verdict**: Coderune's assessment of a claim or code change based on code evidence and the agreed checks. _Avoid_: Agent consensus
+
+**Verified**: A claim verdict indicating that evidence supports the claim and its required checks passed. _Avoid_: Plausible, agent agreement
+
+**Contradicted**: A claim verdict indicating that observed evidence disproves the claim. _Avoid_: Check could not run
+
+**Insufficient evidence**: A claim verdict indicating that required evidence or check results are missing. _Avoid_: Verified, contradicted
+
+**Needs review**: A verification outcome indicating a disagreement that the available evidence and agreed checks have not resolved. _Avoid_: Verified, resolved
+
+**Stale**: A freshness marker indicating that a verification result applies to earlier reviewed code or requirements rather than the current state. _Avoid_: Contradicted, insufficient evidence
+
+**Learning evidence**: An evaluated developer attempt used to assess understanding of a concept and progress over time, linked to the relevant code snapshot. _Avoid_: Lesson view, self-reported skill
