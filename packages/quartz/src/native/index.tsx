@@ -14,6 +14,7 @@ import {
 import type {
   ButtonProps as NativeButtonProps,
   InputProps,
+  KeyEvent,
   Props,
   StyleDesc,
   TextareaProps,
@@ -239,6 +240,16 @@ export function DropdownMenu({
     if (instance) renderer.focusElement?.(instance.id);
   };
 
+  const leaveMenu = (event: KeyEvent) => {
+    if (event.key !== "tab" || event.defaultPrevented) return;
+    event.preventDefault();
+    restoreFocus.current = false;
+    setOpen(false);
+    if (trigger.current) renderer.focusElement?.(trigger.current.id);
+    if (event.modifiers?.shift) renderer.focusPrevious?.();
+    else renderer.focusNext?.();
+  };
+
   return (
     <View style={{ position: "relative", display: "flex" }}>
       <Button
@@ -287,12 +298,7 @@ export function DropdownMenu({
             side="bottom"
             align="end"
             sideOffset={space[1]}
-            onKeyDown={(event) => {
-              if (event.key === "tab") {
-                restoreFocus.current = false;
-                setOpen(false);
-              }
-            }}
+            onKeyDown={leaveMenu}
             onMouseDownOutside={() => {
               restoreFocus.current = false;
               dismissedOutside.current = true;
@@ -330,8 +336,7 @@ export function DropdownMenu({
                     },
                     onKeyDown: (event) => {
                       if (event.key === "tab") {
-                        restoreFocus.current = false;
-                        setOpen(false);
+                        leaveMenu(event);
                         return;
                       }
                       const next =

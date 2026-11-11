@@ -17,6 +17,7 @@ export interface CreateApplicationOptions {
 }
 
 export interface ApplicationRuntime {
+  dataDir: string;
   operations: ApplicationOperations;
   store: ContextStore;
   close: () => void;
@@ -43,6 +44,7 @@ export const createApplication = (
   });
 
   return {
+    dataDir: options.dataDir,
     operations,
     store,
     close: () => store.close(),

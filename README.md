@@ -17,6 +17,14 @@ it locally. Architecture and the work breakdown structure will be developed thro
 bun install
 ```
 
+To make the desktop command available on your PATH while developing, run
+`bun link` in `apps/desktop` and ensure Bun's global bin directory is on your
+PATH. Then run `coderune .` to open the current directory, or `coderune` to
+open the workspace. The editor chooser detects the `code`, `cursor`,
+`antigravity`, and `zed` commands on PATH, and standard installations under
+`/Applications` on macOS. Install the editor's shell command if it does not
+appear.
+
 Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/skills`
 and recorded in `skills-lock.json`.
 

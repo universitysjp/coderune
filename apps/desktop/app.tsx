@@ -1,3 +1,7 @@
+#!/usr/bin/env bun
+import { rm } from "node:fs/promises";
+import path from "node:path";
+
 import type {
   ApplicationOperations,
   CodingAgentId,
@@ -15,14 +19,16 @@ import type {
 } from "@coderune/core";
 import {
   Alert as Notice,
-  Badge,
   Button,
   Card as Section,
+  DropdownMenu,
   Field as Labeled,
+  IconButton,
   Input,
   PageHeader,
   QuartzFonts,
   Sidebar,
+  Tabs,
   Text,
   Textarea,
   View,
@@ -34,6 +40,22 @@ import { useEffect, useCallback, useRef, useState } from "react";
 
 import { createApplication } from "./src/application";
 import type { ApplicationRuntime } from "./src/application";
+import {
+  directoryArgument,
+  installedEditors,
+  openEditor,
+  sameDirectory,
+} from "./src/desktop-actions";
+import {
+  agentsIcon,
+  captureIcon,
+  closeIcon,
+  documentsIcon,
+  folderIcon,
+  gearIcon,
+  houseIcon,
+  userIcon,
+} from "./src/icons";
 
 const { colors } = quartz;
 
@@ -73,6 +95,7 @@ const projectSaveLabel = function projectSaveLabel(
 };
 
 type AppSection =
+  | "Home"
   | "Profile"
   | "Projects"
   | "Documents"
@@ -90,6 +113,16 @@ const sectionTitle = function sectionTitle(section: AppSection): string {
   }
 
   return section;
+};
+
+const sectionIcons: Record<AppSection, string> = {
+  Home: houseIcon,
+  Projects: folderIcon,
+  Documents: documentsIcon,
+  Agents: agentsIcon,
+  Capture: captureIcon,
+  Data: gearIcon,
+  Profile: userIcon,
 };
 
 const ProfileEditor = ({
@@ -354,15 +387,20 @@ const ProfileEditor = ({
 // oxlint-disable-next-line react-doctor/no-giant-component
 const ProjectEditor = ({
   project,
+  initialDirectory,
   onCreate,
   onUpdate,
 }: {
   project: Project | null;
+  initialDirectory?: string | null;
   onCreate: (input: ProjectInput) => Promise<void>;
   onUpdate: (id: string, input: ProjectInput) => Promise<void>;
 }) => {
   const [name, setName] = useState(project?.name ?? "");
-  const [rootPath, setRootPath] = useState(project?.rootPath ?? "");
+
+  const [rootPath, setRootPath] = useState(
+    project?.rootPath ?? initialDirectory ?? ""
+  );
 
   const [goals, setGoals] = useState(() =>
     (project?.goals ?? []).map((item) => item.text).join("\n")
@@ -654,6 +692,7 @@ const ProjectEditor = ({
           </Text>
         </Button>
         <Button
+          testId="create-project"
           onClick={async () => {
             await submit();
           }}
@@ -1022,7 +1061,7 @@ const AgentDraftPanel = ({
 
       <Labeled
         label="Coding agent"
-        hint="Coderune never switches agents or providers after a failure."
+        hint="The selected agent and provider do not change after a failure."
       >
         <View
           style={{
@@ -1879,11 +1918,17 @@ const CapturePanel = ({
 // The app shell keeps section routing and shared workspace state together.
 // The workspace fields are refreshed together but are also edited independently by child panels.
 // oxlint-disable-next-line react-doctor/no-giant-component, react-doctor/prefer-useReducer, eslint/complexity
-export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
+export const App = ({
+  runtime,
+  initialDirectory = null,
+}: {
+  runtime: ApplicationRuntime;
+  initialDirectory?: string | null;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
+}) => {
   const app = runtime.operations;
   const { width } = useWindowSize();
   const compact = width < quartz.layout.pageHeaderMax;
-  const [navigationOpen, setNavigationOpen] = useState(false);
   const [profile, setProfile] = useState<DeveloperProfile | null>(null);
   const [draft, setDraft] = useState<Partial<DeveloperProfile> | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -1894,7 +1939,11 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     null
   );
 
-  const [section, setSection] = useState<AppSection>("Profile");
+  const [section, setSection] = useState<AppSection>("Home");
+  const [tabs, setTabs] = useState<AppSection[]>(["Home"]);
+  const [visitedTabs, setVisitedTabs] = useState<AppSection[]>(["Home"]);
+  const [preferredEditor, setPreferredEditor] = useState<string | null>(null);
+  const editors = installedEditors();
   const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
   const [exportText, setExportText] = useState("");
@@ -1905,6 +1954,31 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
 
   const selectedProject =
     projects.find((project) => project.id === selectedProjectId) ?? null;
+
+  const navigate = (next: AppSection) => {
+    setVisitedTabs((current) =>
+      current.includes(next) ? current : [...current, next]
+    );
+    setTabs((current) =>
+      current.includes(next) ? current : [...current, next]
+    );
+    setSection(next);
+  };
+
+  const closeTab = (tab: AppSection) => {
+    const index = tabs.indexOf(tab);
+
+    if (tab === "Home" || index === -1) {
+      return;
+    }
+
+    const remaining = tabs.filter((item) => item !== tab);
+    setTabs(remaining);
+
+    if (section === tab) {
+      setSection(remaining[Math.max(0, index - 1)] ?? "Home");
+    }
+  };
 
   const saveExportFile = async () => {
     setErrorMessage("");
@@ -1948,20 +2022,67 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
           return current;
         }
 
-        return projectList[0]?.id ?? null;
+        return (
+          (initialDirectory
+            ? projectList.find((project) =>
+                sameDirectory(project.rootPath, initialDirectory)
+              )?.id
+            : projectList[0]?.id) ?? null
+        );
       });
     } catch (error) {
       setErrorMessage(errorText(error));
     }
 
     setLoading(false);
-  }, [app]);
+    // React's compiler cannot infer this callback's dependencies across the state updater.
+    // oxlint-disable-next-line react/preserve-manual-memoization
+  }, [app, initialDirectory]);
 
   // Initial application data intentionally seeds the component state.
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const name = await Bun.file(
+          path.join(runtime.dataDir, "preferred-editor.txt")
+        ).text();
+
+        if (installedEditors().some((editor) => editor.name === name)) {
+          setPreferredEditor(name);
+        }
+      } catch {
+        /* No saved preference yet. */
+      }
+    })();
+  }, [runtime.dataDir]);
+
+  const launchEditor = async (
+    editor: ReturnType<typeof installedEditors>[number]
+  ) => {
+    const directory = selectedProject?.rootPath ?? initialDirectory;
+
+    if (!directory) {
+      setErrorMessage("Open or select a project folder first.");
+
+      return;
+    }
+
+    try {
+      await openEditor(editor, directory);
+      setPreferredEditor(editor.name);
+      await Bun.write(
+        path.join(runtime.dataDir, "preferred-editor.txt"),
+        editor.name
+      );
+    } catch (error) {
+      setErrorMessage(errorText(error));
+    }
+  };
 
   const notify = (text: string) => {
     setErrorMessage("");
@@ -1981,7 +2102,7 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
         }}
       >
         <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
-          Loading Coderune...
+          Loading...
         </Text>
       </View>
     );
@@ -1996,6 +2117,10 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
           overflow: "scroll",
           backgroundColor: colors.bg,
           padding: compact ? quartz.space[4] : quartz.space[8],
+          paddingTop:
+            process.platform === "darwin"
+              ? quartz.layout.topbar
+              : quartz.space[4],
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -2010,20 +2135,6 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
             gap: quartz.space[4],
           }}
         >
-          <View
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: quartz.space[2],
-              alignItems: "center",
-              paddingBottom: quartz.space[4],
-            }}
-          >
-            <Text size="headingSm" mono>
-              ₪
-            </Text>
-            <Text size="headingSm">Coderune</Text>
-          </View>
           <PageHeader
             title="Your context starts here"
             description="Confirm a developer baseline before project work. Manual entry and reviewed CV import both work without a coding-agent connection."
@@ -2052,7 +2163,9 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                 const saved = await app.confirmOnboarding(input);
                 setProfile(saved);
                 setDraft(null);
+                setErrorMessage("");
                 setMessage("Developer baseline confirmed.");
+                await refresh();
               }}
             />
           </Section>
@@ -2076,15 +2189,14 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   }
 
   const nav = [
-    "Profile",
     "Projects",
     "Documents",
     "Agents",
     "Capture",
-    "Data",
   ] satisfies AppSection[];
 
   const descriptions = {
+    Home: "Your workspace and project context, together in one place.",
     Profile:
       "Your experience, skills, and learning goals, shared across your projects.",
     Projects: "Give your coding agents the context behind the code.",
@@ -2094,435 +2206,294 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
     Data: "Export your local context or manage what you keep.",
   };
 
-  const counts: Partial<Record<AppSection, number>> = {
-    Projects: projects.length,
-    Documents: documents.length,
-    Agents: agents.filter((agent) => agent.availability === "ready").length,
-  };
-
   return (
     <View
       style={{
         width: "100%",
         height: "100%",
         display: "flex",
-        flexDirection: compact ? "column" : "row",
-        backgroundColor: colors.bg,
+        flexDirection: "column",
+        backgroundColor: colors.code,
       }}
     >
-      {!compact || navigationOpen ? (
-        <Sidebar
-          style={
-            compact
-              ? {
-                  width: "100%",
-                  height: "auto",
-                  borderRightWidth: quartz.space[0],
-                  borderBottomWidth: quartz.line.hair,
-                }
-              : {}
-          }
-        >
-          <View
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: quartz.space[2],
-              minHeight: quartz.layout.topbar,
-              paddingLeft: quartz.space[2],
-              marginBottom: quartz.space[6],
-            }}
-          >
-            <Text size="headingSm" mono>
-              ₪
-            </Text>
-            <Text size="headingSm">Coderune</Text>
-          </View>
-          <View
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: quartz.space[1],
-            }}
-          >
-            {nav.map((item) => (
-              <Button
-                key={item}
-                variant="ghost"
-                pressed={section === item}
-                testId={`nav-${item.toLowerCase()}`}
-                aria-label={item}
-                onClick={() => {
-                  setSection(item);
-                  setNavigationOpen(false);
-                }}
-                style={{
-                  justifyContent: "flex-start",
-                  minHeight: quartz.layout.row,
-                }}
-              >
-                <View
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: quartz.space[2],
-                  }}
-                >
-                  <Text size="label">{item}</Text>
-                  {counts[item] === undefined ? null : (
-                    <Badge>{counts[item]}</Badge>
-                  )}
-                </View>
-              </Button>
-            ))}
-          </View>
-          <View style={{ flexGrow: 1 }} />
-          <View
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: quartz.space[1],
-              padding: quartz.space[2],
-              paddingTop: quartz.space[6],
-            }}
-          >
-            <Text size="label">{profile.displayName}</Text>
-            <Text size="bodySm" tone="muted">
-              Personal workspace
-            </Text>
-            <Text size="bodySm" tone="muted">
-              Stored on this device
-            </Text>
-          </View>
-        </Sidebar>
-      ) : null}
-
       <View
         style={{
-          flexGrow: 1,
-          minHeight: quartz.space[0],
           display: "flex",
-          flexDirection: "column",
+          flexShrink: quartz.space[0],
+          alignItems: "center",
+          gap: quartz.space[3],
+          minHeight: quartz.layout.topbar,
+          paddingLeft:
+            process.platform === "darwin" ? quartz.space[20] : quartz.space[4],
+          paddingRight: quartz.space[4],
+          borderBottomWidth: quartz.line.hair,
+          borderColor: colors.rowLine,
+          backgroundColor: colors.code,
         }}
       >
-        <View
+        <Tabs
+          items={tabs.map((tab) => ({
+            value: tab,
+            label: tab === "Data" ? "Settings" : tab,
+            closable: tab !== "Home",
+            icon: tab === "Home" ? houseIcon : undefined,
+          }))}
+          value={section}
+          closeIcon={closeIcon}
+          onValueChange={(value) => {
+            const tab = tabs.find((item) => item === value);
+
+            if (tab) {
+              navigate(tab);
+            }
+          }}
+          onClose={(value) => {
+            const tab = tabs.find((item) => item === value);
+
+            if (tab) {
+              closeTab(tab);
+            }
+          }}
+        />
+        {!compact &&
+        preferredEditor &&
+        editors.some((editor) => editor.name === preferredEditor) ? (
+          <Button
+            onClick={() => {
+              const editor = editors.find(
+                (item) => item.name === preferredEditor
+              );
+
+              if (editor) {
+                void launchEditor(editor);
+              }
+            }}
+          >
+            Open in {preferredEditor}
+          </Button>
+        ) : null}
+        <DropdownMenu
+          testId="open-editor-menu"
+          emptyLabel="No editors found"
+          label={preferredEditor ? "Choose editor" : "Open in editor"}
+          items={editors.map((editor) => ({
+            value: editor.command,
+            label: editor.name,
+          }))}
+          onAction={(value) => {
+            const editor = editors.find((item) => item.command === value);
+
+            if (editor) {
+              void launchEditor(editor);
+            }
+          }}
+        />
+      </View>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          flexGrow: 1,
+          minHeight: quartz.space[0],
+        }}
+      >
+        <Sidebar
+          aria-label="Workspace navigation"
           style={{
-            display: "flex",
-            flexShrink: quartz.space[0],
-            alignItems: "center",
-            gap: quartz.space[3],
-            minHeight: quartz.layout.topbar,
-            paddingLeft: compact ? quartz.space[4] : quartz.space[6],
-            paddingRight: quartz.space[4],
-            borderBottomWidth: quartz.line.hair,
-            borderColor: colors.rowLine,
-            backgroundColor: colors.panel,
+            width: quartz.layout.sidebarIcon,
+            padding: quartz.space[1],
+            gap: quartz.space[1],
+            borderRightWidth: quartz.space[0],
+            backgroundColor: colors.code,
           }}
         >
-          {compact ? (
-            <Button
-              variant="ghost"
-              testId="toggle-navigation"
-              aria-label={
-                navigationOpen ? "Close navigation" : "Open navigation"
-              }
-              onClick={() => setNavigationOpen(!navigationOpen)}
-            >
-              Menu
-            </Button>
-          ) : null}
-          <Text size="bodySm" tone="muted">
-            Personal workspace
-          </Text>
-          <Text size="bodySm" tone="muted">
-            /
-          </Text>
-          <Text size="bodySm">{section}</Text>
+          {nav.map((item) => (
+            <IconButton
+              key={item}
+              label={item}
+              source={sectionIcons[item]}
+              testId={`nav-${item.toLowerCase()}`}
+              pressed={section === item}
+              onClick={() => navigate(item)}
+            />
+          ))}
           <View style={{ flexGrow: 1 }} />
-          {compact ? null : <Badge>Local only</Badge>}
-        </View>
+          <IconButton
+            label="Settings"
+            source={gearIcon}
+            testId="nav-data"
+            pressed={section === "Data"}
+            onClick={() => navigate("Data")}
+          />
+          <IconButton
+            label="Profile"
+            source={userIcon}
+            testId="nav-profile"
+            pressed={section === "Profile"}
+            onClick={() => navigate("Profile")}
+          />
+        </Sidebar>
         <View
+          testId="workspace-surface"
           style={{
+            display: "flex",
+            flexDirection: compact ? "column" : "row",
             flexGrow: 1,
+            minWidth: quartz.space[0],
             minHeight: quartz.space[0],
-            overflow: "scroll",
-            padding: compact ? quartz.space[4] : quartz.space[8],
+            marginRight: quartz.space[2],
+            marginBottom: quartz.space[2],
+            marginLeft: quartz.space[0],
+            borderRadius: quartz.radius.frame,
+            backgroundColor: colors.panel,
+            overflow: "hidden",
           }}
         >
           <View
             style={{
-              width: "100%",
-              maxWidth: quartz.layout.container,
+              flexGrow: 1,
+              minHeight: quartz.space[0],
               display: "flex",
               flexDirection: "column",
-              gap: quartz.space[6],
             }}
           >
-            <PageHeader
-              title={sectionTitle(section)}
-              description={descriptions[section]}
-            />
-            {terminalWarning ? (
-              <Notice error={terminalWarning} message="" />
-            ) : null}
-            <Notice error={errorMessage} message={message} />
+            <View
+              style={{
+                flexGrow: 1,
+                minHeight: quartz.space[0],
+                overflow: "scroll",
+                padding: compact ? quartz.space[4] : quartz.space[8],
+                backgroundColor: colors.panel,
+              }}
+            >
+              <View
+                style={{
+                  width: "100%",
+                  maxWidth: quartz.layout.container,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: quartz.space[6],
+                }}
+              >
+                <PageHeader
+                  title={sectionTitle(section)}
+                  description={descriptions[section]}
+                />
+                {terminalWarning ? (
+                  <Notice error={terminalWarning} message="" />
+                ) : null}
+                <Notice error={errorMessage} message={message} />
 
-            {section === "Profile" ? (
-              <>
-                <Section
-                  title={profile.displayName}
-                  description={`Developer profile version ${profile.version}. ${profile.experienceStage.replaceAll("-", " ")}.`}
-                >
+                {visitedTabs.includes("Home") ? (
                   <View
                     style={{
-                      display: "flex",
+                      display: section === "Home" ? "flex" : "none",
                       flexDirection: "column",
-                      gap: quartz.space[2],
+                      width: "100%",
                     }}
                   >
-                    <Text
-                      style={{ ...quartz.type.bodySm, whiteSpace: "normal" }}
+                    <Section
+                      title={selectedProject?.name ?? "Workspace"}
+                      description={
+                        selectedProject || initialDirectory
+                          ? undefined
+                          : "Select or create a project to get started."
+                      }
                     >
-                      Skills: {profile.skillsStatement}
-                    </Text>
-                    <Text
-                      style={{ ...quartz.type.bodySm, whiteSpace: "normal" }}
-                    >
-                      Learning goals: {profile.learningGoals.join("; ")}
-                    </Text>
-                    {profile.fieldSources &&
-                    Object.keys(profile.fieldSources).length > 0 ? (
-                      <Text
-                        style={{
-                          ...quartz.type.bodySm,
-                          color: colors.muted,
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        Some fields retain document provenance for review.
-                      </Text>
-                    ) : null}
+                      {(selectedProject?.rootPath ?? initialDirectory) ? (
+                        <Text mono size="bodySm">
+                          {selectedProject?.rootPath ?? initialDirectory}
+                        </Text>
+                      ) : null}
+                      <Button onClick={() => navigate("Projects")}>
+                        {selectedProject ? "Open project" : "Set up a project"}
+                      </Button>
+                    </Section>
                   </View>
-                </Section>
-                <Section
-                  title="Edit developer profile"
-                  description="Edits affect future captures; existing captures keep their profile snapshot."
-                >
-                  <ProfileEditor
-                    key={`profile-${profile.version}`}
-                    initial={profile}
-                    submitLabel="Save profile version"
-                    onSubmit={async (input) => {
-                      const saved = await app.updateProfile(input);
-                      setProfile(saved);
-                      notify(`Profile version ${saved.version} saved.`);
-                    }}
-                  />
-                </Section>
-              </>
-            ) : null}
+                ) : null}
 
-            {section === "Projects" ? (
-              <>
-                <Section
-                  title="Projects"
-                  description="A project needs a name, readable root folder, and at least one goal."
-                >
+                {visitedTabs.includes("Profile") ? (
                   <View
                     style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: quartz.space[2],
+                      display: section === "Profile" ? "flex" : "none",
+                      flexDirection: "column",
+                      width: "100%",
                     }}
                   >
-                    {projects.map((project) => (
-                      <Button
-                        key={project.id}
-                        pressed={selectedProjectId === project.id}
-                        onClick={() => {
-                          setSelectedProjectId(project.id);
-                          setDeleteProjectId("");
-                        }}
-                        style={{
-                          backgroundColor:
-                            selectedProjectId === project.id
-                              ? colors.accentSoft
-                              : colors.panel,
-                          borderColor:
-                            selectedProjectId === project.id
-                              ? colors.accent
-                              : colors.line,
-                        }}
+                    <>
+                      <Section
+                        title={profile.displayName}
+                        description={`Developer profile version ${profile.version}. ${profile.experienceStage.replaceAll("-", " ")}.`}
                       >
-                        <Text style={{ ...quartz.type.bodySm }}>
-                          {project.name} / v{project.version}
-                        </Text>
-                      </Button>
-                    ))}
-                    <Button
-                      onClick={() => {
-                        setSelectedProjectId(null);
-                        setDeleteProjectId("");
-                      }}
-                    >
-                      <Text style={{ ...quartz.type.bodySm }}>New project</Text>
-                    </Button>
-                  </View>
-                </Section>
-                <Section
-                  title={selectedProject ? "Edit project" : "Create project"}
-                  description="Project context combines developer statements with optional reviewed SRS-derived fields."
-                >
-                  <ProjectEditor
-                    key={
-                      selectedProject
-                        ? `${selectedProject.id}-${selectedProject.version}`
-                        : "new-project"
-                    }
-                    project={selectedProject}
-                    onCreate={async (input) => {
-                      const created = await app.createProject(input);
-                      setSelectedProjectId(created.id);
-                      notify(`Project ${created.name} created.`);
-                      await refresh();
-                    }}
-                    onUpdate={async (id, input) => {
-                      const saved = await app.updateProject(id, input);
-                      setSelectedProjectId(saved.id);
-                      notify(`Project version ${saved.version} saved.`);
-                      await refresh();
-                    }}
-                  />
-                  {selectedProject ? (
-                    <View
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: quartz.space[2],
-                      }}
-                    >
-                      <Button
-                        onClick={() => setDeleteProjectId(selectedProject.id)}
-                        variant="destructive"
-                        style={{}}
-                      >
-                        <Text
+                        <View
                           style={{
-                            ...quartz.type.bodySm,
-                            color: colors.danger,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: quartz.space[2],
                           }}
-                        >
-                          Delete project
-                        </Text>
-                      </Button>
-                      {deleteProjectId === selectedProject.id ? (
-                        <Button
-                          onClick={() => {
-                            void (async () => {
-                              try {
-                                await app.deleteProject(selectedProject.id);
-                                setDeleteProjectId("");
-                                setSelectedProjectId(null);
-                                notify(
-                                  "Project and its captures deleted. Profile and other projects remain."
-                                );
-                                await refresh();
-                              } catch (error) {
-                                setErrorMessage(errorText(error));
-                              }
-                            })();
-                          }}
-                          variant="destructive"
-                          style={{}}
                         >
                           <Text
                             style={{
                               ...quartz.type.bodySm,
-                              color: colors.danger,
+                              whiteSpace: "normal",
                             }}
                           >
-                            Confirm project delete
+                            Skills: {profile.skillsStatement}
                           </Text>
-                        </Button>
-                      ) : null}
-                    </View>
-                  ) : null}
-                </Section>
-              </>
-            ) : null}
-
-            {section === "Documents" ? (
-              <>
-                <Section
-                  title="CV document import"
-                  description="Use local extraction and reviewed agent assistance for profile fields."
-                >
-                  <AgentDraftPanel
-                    app={app}
-                    kind="cv"
-                    projectId={null}
-                    documents={documents}
-                    agents={agents}
-                    onDocumentsChanged={refresh}
-                    onSaved={refresh}
-                  />
-                </Section>
-                <Section
-                  title="SRS document import"
-                  description={
-                    selectedProject
-                      ? `Project: ${selectedProject.name}`
-                      : "Select a project first."
-                  }
-                >
-                  {selectedProject ? (
-                    <AgentDraftPanel
-                      key={`srs-${selectedProject.id}`}
-                      app={app}
-                      kind="srs"
-                      projectId={selectedProject.id}
-                      documents={documents}
-                      agents={agents}
-                      onDocumentsChanged={refresh}
-                      onSaved={refresh}
-                    />
-                  ) : (
-                    <Text
-                      style={{ ...quartz.type.bodySm, color: colors.muted }}
-                    >
-                      Create or select a project in Projects.
-                    </Text>
-                  )}
-                </Section>
-                <Section
-                  title="Saved document text"
-                  description="Original files are not copied. The reviewed extracted text remains available."
-                >
-                  {documents.length === 0 ? (
-                    <Text
-                      style={{ ...quartz.type.bodySm, color: colors.muted }}
-                    >
-                      No documents saved.
-                    </Text>
-                  ) : (
-                    documents.map((document) => (
-                      <View
-                        key={document.id}
-                        style={{
-                          padding: quartz.space[2],
-                          borderRadius: quartz.radius.soft,
-                          borderWidth: quartz.line.hair,
-                          borderColor: colors.line,
-                        }}
+                          <Text
+                            style={{
+                              ...quartz.type.bodySm,
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            Learning goals: {profile.learningGoals.join("; ")}
+                          </Text>
+                          {profile.fieldSources &&
+                          Object.keys(profile.fieldSources).length > 0 ? (
+                            <Text
+                              style={{
+                                ...quartz.type.bodySm,
+                                color: colors.muted,
+                                whiteSpace: "normal",
+                              }}
+                            >
+                              Some fields retain document provenance for review.
+                            </Text>
+                          ) : null}
+                        </View>
+                      </Section>
+                      <Section
+                        title="Edit developer profile"
+                        description="Edits affect future captures; existing captures keep their profile snapshot."
                       >
-                        <Text
-                          style={{
-                            ...quartz.type.bodySm,
-                            fontWeight: quartz.type.label.fontWeight,
+                        <ProfileEditor
+                          key={`profile-${profile.version}`}
+                          initial={profile}
+                          submitLabel="Save profile version"
+                          onSubmit={async (input) => {
+                            const saved = await app.updateProfile(input);
+                            setProfile(saved);
+                            notify(`Profile version ${saved.version} saved.`);
                           }}
-                        >
-                          {document.kind.toUpperCase()} / {document.name}
-                        </Text>
+                        />
+                      </Section>
+                    </>
+                  </View>
+                ) : null}
+
+                {visitedTabs.includes("Projects") ? (
+                  <View
+                    style={{
+                      display: section === "Projects" ? "flex" : "none",
+                      flexDirection: "column",
+                      width: "100%",
+                    }}
+                  >
+                    <>
+                      <Section
+                        title="Projects"
+                        description="A project needs a name, readable root folder, and at least one goal."
+                      >
                         <View
                           style={{
                             display: "flex",
@@ -2530,247 +2501,513 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
                             gap: quartz.space[2],
                           }}
                         >
-                          <Text size="bodySm" tone="muted">
-                            {document.size} bytes
-                          </Text>
-                          <Text size="codeSm">
-                            {document.hash.slice(0, 12)}
-                          </Text>
-                          <Text size="bodySm" tone="muted">
-                            Imported {document.importedAt}
-                          </Text>
+                          {projects.map((project) => (
+                            <Button
+                              key={project.id}
+                              pressed={selectedProjectId === project.id}
+                              onClick={() => {
+                                setSelectedProjectId(project.id);
+                                setDeleteProjectId("");
+                              }}
+                              style={{
+                                backgroundColor:
+                                  selectedProjectId === project.id
+                                    ? colors.accentSoft
+                                    : colors.panel,
+                                borderColor:
+                                  selectedProjectId === project.id
+                                    ? colors.accent
+                                    : colors.line,
+                              }}
+                            >
+                              <Text style={{ ...quartz.type.bodySm }}>
+                                {project.name} / v{project.version}
+                              </Text>
+                            </Button>
+                          ))}
+                          <Button
+                            onClick={() => {
+                              setSelectedProjectId(null);
+                              setDeleteProjectId("");
+                            }}
+                          >
+                            <Text style={{ ...quartz.type.bodySm }}>
+                              New project
+                            </Text>
+                          </Button>
                         </View>
-                      </View>
-                    ))
-                  )}
-                </Section>
-              </>
-            ) : null}
+                      </Section>
+                      <Section
+                        title={
+                          selectedProject ? "Edit project" : "Create project"
+                        }
+                        description="Project context combines developer statements with optional reviewed SRS-derived fields."
+                      >
+                        <ProjectEditor
+                          key={
+                            selectedProject
+                              ? `${selectedProject.id}-${selectedProject.version}`
+                              : "new-project"
+                          }
+                          project={selectedProject}
+                          initialDirectory={initialDirectory}
+                          onCreate={async (input) => {
+                            const created = await app.createProject(input);
+                            setSelectedProjectId(created.id);
+                            notify(`Project ${created.name} created.`);
+                            await refresh();
+                          }}
+                          onUpdate={async (id, input) => {
+                            const saved = await app.updateProject(id, input);
+                            setSelectedProjectId(saved.id);
+                            notify(`Project version ${saved.version} saved.`);
+                            await refresh();
+                          }}
+                        />
+                        {selectedProject ? (
+                          <View
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: quartz.space[2],
+                            }}
+                          >
+                            <Button
+                              onClick={() =>
+                                setDeleteProjectId(selectedProject.id)
+                              }
+                              variant="destructive"
+                              style={{}}
+                            >
+                              <Text
+                                style={{
+                                  ...quartz.type.bodySm,
+                                  color: colors.danger,
+                                }}
+                              >
+                                Delete project
+                              </Text>
+                            </Button>
+                            {deleteProjectId === selectedProject.id ? (
+                              <Button
+                                onClick={() => {
+                                  void (async () => {
+                                    try {
+                                      await app.deleteProject(
+                                        selectedProject.id
+                                      );
+                                      setDeleteProjectId("");
+                                      setSelectedProjectId(null);
+                                      notify(
+                                        "Project and its captures deleted. Profile and other projects remain."
+                                      );
+                                      await refresh();
+                                    } catch (error) {
+                                      setErrorMessage(errorText(error));
+                                    }
+                                  })();
+                                }}
+                                variant="destructive"
+                                style={{}}
+                              >
+                                <Text
+                                  style={{
+                                    ...quartz.type.bodySm,
+                                    color: colors.danger,
+                                  }}
+                                >
+                                  Confirm project delete
+                                </Text>
+                              </Button>
+                            ) : null}
+                          </View>
+                        ) : null}
+                      </Section>
+                    </>
+                  </View>
+                ) : null}
 
-            {section === "Agents" ? (
-              <Section
-                title="Coding-agent compatibility"
-                description="Coderune connects only when you request a draft. Each agent owns sign-in, provider, and model configuration. No adapter is marked verified until compatibility is demonstrated."
-              >
-                <View
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: quartz.space[2],
-                  }}
-                >
-                  {agents.map((agent) => (
-                    <View
-                      key={agent.id}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: quartz.space[2],
-                        padding: quartz.space[3],
-                        borderBottomWidth: quartz.line.hair,
-                        borderColor: colors.rowLine,
-                      }}
+                {visitedTabs.includes("Documents") ? (
+                  <View
+                    style={{
+                      display: section === "Documents" ? "flex" : "none",
+                      flexDirection: "column",
+                      width: "100%",
+                    }}
+                  >
+                    <>
+                      <Section
+                        title="CV document import"
+                        description="Use local extraction and reviewed agent assistance for profile fields."
+                      >
+                        <AgentDraftPanel
+                          app={app}
+                          kind="cv"
+                          projectId={null}
+                          documents={documents}
+                          agents={agents}
+                          onDocumentsChanged={refresh}
+                          onSaved={refresh}
+                        />
+                      </Section>
+                      <Section
+                        title="SRS document import"
+                        description={
+                          selectedProject
+                            ? `Project: ${selectedProject.name}`
+                            : "Select a project first."
+                        }
+                      >
+                        {selectedProject ? (
+                          <AgentDraftPanel
+                            key={`srs-${selectedProject.id}`}
+                            app={app}
+                            kind="srs"
+                            projectId={selectedProject.id}
+                            documents={documents}
+                            agents={agents}
+                            onDocumentsChanged={refresh}
+                            onSaved={refresh}
+                          />
+                        ) : (
+                          <Text
+                            style={{
+                              ...quartz.type.bodySm,
+                              color: colors.muted,
+                            }}
+                          >
+                            Create or select a project in Projects.
+                          </Text>
+                        )}
+                      </Section>
+                      <Section
+                        title="Saved document text"
+                        description="Original files are not copied. The reviewed extracted text remains available."
+                      >
+                        {documents.length === 0 ? (
+                          <Text
+                            style={{
+                              ...quartz.type.bodySm,
+                              color: colors.muted,
+                            }}
+                          >
+                            No documents saved.
+                          </Text>
+                        ) : (
+                          documents.map((document) => (
+                            <View
+                              key={document.id}
+                              style={{
+                                padding: quartz.space[2],
+                                borderRadius: quartz.radius.soft,
+                                borderWidth: quartz.line.hair,
+                                borderColor: colors.line,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  ...quartz.type.bodySm,
+                                  fontWeight: quartz.type.label.fontWeight,
+                                }}
+                              >
+                                {document.kind.toUpperCase()} / {document.name}
+                              </Text>
+                              <View
+                                style={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: quartz.space[2],
+                                }}
+                              >
+                                <Text size="bodySm" tone="muted">
+                                  {document.size} bytes
+                                </Text>
+                                <Text size="codeSm">
+                                  {document.hash.slice(0, 12)}
+                                </Text>
+                                <Text size="bodySm" tone="muted">
+                                  Imported {document.importedAt}
+                                </Text>
+                              </View>
+                            </View>
+                          ))
+                        )}
+                      </Section>
+                    </>
+                  </View>
+                ) : null}
+
+                {visitedTabs.includes("Agents") ? (
+                  <View
+                    style={{
+                      display: section === "Agents" ? "flex" : "none",
+                      flexDirection: "column",
+                      width: "100%",
+                    }}
+                  >
+                    <Section
+                      title="Coding-agent compatibility"
+                      description="Agents connect only when you request a draft. Each agent owns sign-in, provider, and model configuration. No adapter is marked verified until compatibility is demonstrated."
                     >
                       <View
                         style={{
                           display: "flex",
-                          flexWrap: "wrap",
+                          flexDirection: "column",
                           gap: quartz.space[2],
-                          alignItems: "center",
                         }}
                       >
-                        <Text
-                          style={{
-                            ...quartz.type.bodySm,
-                            fontWeight: quartz.type.label.fontWeight,
-                          }}
-                        >
-                          {agent.name}
-                        </Text>
+                        {agents.map((agent) => (
+                          <View
+                            key={agent.id}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: quartz.space[2],
+                              padding: quartz.space[3],
+                              borderBottomWidth: quartz.line.hair,
+                              borderColor: colors.rowLine,
+                            }}
+                          >
+                            <View
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: quartz.space[2],
+                                alignItems: "center",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  ...quartz.type.bodySm,
+                                  fontWeight: quartz.type.label.fontWeight,
+                                }}
+                              >
+                                {agent.name}
+                              </Text>
+                              <Text
+                                style={{
+                                  ...quartz.type.bodySm,
+                                  color: colors.muted,
+                                }}
+                              >
+                                {agent.availability} / verified:{" "}
+                                {agent.verified ? "yes" : "no"}
+                              </Text>
+                            </View>
+                            <Text
+                              style={{
+                                ...quartz.type.bodySm,
+                                color: colors.muted,
+                                whiteSpace: "normal",
+                              }}
+                            >
+                              {agent.detail}
+                            </Text>
+                            <Text
+                              style={{
+                                ...quartz.type.bodySm,
+                                whiteSpace: "normal",
+                              }}
+                            >
+                              Structured output:{" "}
+                              {agent.capabilities.structuredOutput
+                                ? "yes"
+                                : "validated JSON"}{" "}
+                              / cancellation:{" "}
+                              {agent.capabilities.cancellation ? "yes" : "no"} /
+                              streaming:{" "}
+                              {agent.capabilities.streaming ? "yes" : "no"} /
+                              isolation:{" "}
+                              {agent.capabilities.documentOnlyIsolation}
+                            </Text>
+                            <Text
+                              style={{
+                                ...quartz.type.bodySm,
+                                color: colors.muted,
+                                whiteSpace: "normal",
+                              }}
+                            >
+                              {agent.capabilities.restrictions.join(" ")}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </Section>
+                  </View>
+                ) : null}
+
+                {visitedTabs.includes("Capture") ? (
+                  <View
+                    style={{
+                      display: section === "Capture" ? "flex" : "none",
+                      flexDirection: "column",
+                      width: "100%",
+                    }}
+                  >
+                    {selectedProject ? (
+                      <Section
+                        title={`Capture ${selectedProject.name}`}
+                        description="Collection is explicit. Preview the exact file list before saving. Saving is bound to the reviewed content."
+                      >
+                        <CapturePanel
+                          key={`${selectedProject.id}-${selectedProject.version}`}
+                          app={app}
+                          project={selectedProject}
+                          onChanged={refresh}
+                        />
+                      </Section>
+                    ) : (
+                      <Section title="Capture">
                         <Text
                           style={{ ...quartz.type.bodySm, color: colors.muted }}
                         >
-                          {agent.availability} / verified:{" "}
-                          {agent.verified ? "yes" : "no"}
+                          Create or select a project first.
                         </Text>
-                      </View>
-                      <Text
-                        style={{
-                          ...quartz.type.bodySm,
-                          color: colors.muted,
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        {agent.detail}
-                      </Text>
-                      <Text
-                        style={{ ...quartz.type.bodySm, whiteSpace: "normal" }}
-                      >
-                        Structured output:{" "}
-                        {agent.capabilities.structuredOutput
-                          ? "yes"
-                          : "validated JSON"}{" "}
-                        / cancellation:{" "}
-                        {agent.capabilities.cancellation ? "yes" : "no"} /
-                        streaming: {agent.capabilities.streaming ? "yes" : "no"}{" "}
-                        / isolation: {agent.capabilities.documentOnlyIsolation}
-                      </Text>
-                      <Text
-                        style={{
-                          ...quartz.type.bodySm,
-                          color: colors.muted,
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        {agent.capabilities.restrictions.join(" ")}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </Section>
-            ) : null}
+                      </Section>
+                    )}
+                  </View>
+                ) : null}
 
-            {section === "Capture" && selectedProject ? (
-              <Section
-                title={`Capture ${selectedProject.name}`}
-                description="Collection is explicit. Preview the exact file list before saving. Saving is bound to the reviewed content."
-              >
-                <CapturePanel
-                  key={`${selectedProject.id}-${selectedProject.version}`}
-                  app={app}
-                  project={selectedProject}
-                  onChanged={refresh}
-                />
-              </Section>
-            ) : null}
-
-            {section === "Capture" && !selectedProject ? (
-              <Section title="Capture">
-                <Text style={{ ...quartz.type.bodySm, color: colors.muted }}>
-                  Create or select a project first.
-                </Text>
-              </Section>
-            ) : null}
-
-            {section === "Data" ? (
-              <>
-                <Section
-                  title="Export JSON"
-                  description="Includes profile versions, projects, documents, and capture history."
-                >
-                  <Button
-                    onClick={() => {
-                      void (async () => {
-                        try {
-                          const data = await app.exportData();
-                          setExportText(JSON.stringify(data, null, 2));
-                          notify("Export prepared locally.");
-                        } catch (error) {
-                          setErrorMessage(errorText(error));
-                        }
-                      })();
-                    }}
-                  >
-                    <Text style={{ ...quartz.type.bodySm }}>
-                      Prepare export
-                    </Text>
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      await saveExportFile();
-                    }}
-                  >
-                    <Text style={{ ...quartz.type.bodySm }}>
-                      Save JSON file
-                    </Text>
-                  </Button>
-                  {exportPath ? (
-                    <View
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: quartz.space[2],
-                      }}
-                    >
-                      <Text size="bodySm" tone="muted">
-                        Saved to
-                      </Text>
-                      <Text size="codeSm">{exportPath}</Text>
-                    </View>
-                  ) : null}
-                  {exportText ? (
-                    <Textarea
-                      value={exportText}
-                      aria-label="Export JSON"
-                      readOnly
-                      minRows={12}
-                      style={{
-                        paddingTop: quartz.space[2],
-                        fontFamily: quartz.fonts.mono,
-                      }}
-                    />
-                  ) : null}
-                </Section>
-                <Section
-                  title="Delete all application data"
-                  description="Removes the profile, projects, documents, and captures. This cannot be undone."
-                >
-                  <Button
-                    onClick={() => setDeleteAll((value) => !value)}
-                    variant="destructive"
+                {visitedTabs.includes("Data") ? (
+                  <View
                     style={{
-                      alignSelf: "flex-start",
-                      backgroundColor: deleteAll
-                        ? colors.dangerSoft
-                        : colors.panel,
+                      display: section === "Data" ? "flex" : "none",
+                      flexDirection: "column",
+                      width: "100%",
                     }}
                   >
-                    <Text
-                      style={{ ...quartz.type.bodySm, color: colors.danger }}
-                    >
-                      {deleteAll
-                        ? "Delete everything is armed"
-                        : "Delete all data"}
-                    </Text>
-                  </Button>
-                  {deleteAll ? (
-                    <Button
-                      onClick={() => {
-                        void (async () => {
-                          try {
-                            await app.deleteAllData();
-                            setDeleteAll(false);
-                            setExportText("");
-                            setExportPath("");
-                            setProfile(null);
-                            setProjects([]);
-                            setDocuments([]);
-                            setSelectedProjectId(null);
-                            notify("All application data deleted.");
-                            await refresh();
-                          } catch (error) {
-                            setErrorMessage(errorText(error));
-                          }
-                        })();
-                      }}
-                      variant="destructive"
-                      style={{
-                        alignSelf: "flex-start",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          ...quartz.type.bodySm,
-                          fontWeight: quartz.type.label.fontWeight,
-                        }}
+                    <>
+                      <Section
+                        title="Export JSON"
+                        description="Includes profile versions, projects, documents, and capture history."
                       >
-                        Confirm delete everything
-                      </Text>
-                    </Button>
-                  ) : null}
-                </Section>
-              </>
-            ) : null}
+                        <Button
+                          onClick={() => {
+                            void (async () => {
+                              try {
+                                const data = await app.exportData();
+                                setExportText(JSON.stringify(data, null, 2));
+                                notify("Export prepared locally.");
+                              } catch (error) {
+                                setErrorMessage(errorText(error));
+                              }
+                            })();
+                          }}
+                        >
+                          <Text style={{ ...quartz.type.bodySm }}>
+                            Prepare export
+                          </Text>
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            await saveExportFile();
+                          }}
+                        >
+                          <Text style={{ ...quartz.type.bodySm }}>
+                            Save JSON file
+                          </Text>
+                        </Button>
+                        {exportPath ? (
+                          <View
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: quartz.space[2],
+                            }}
+                          >
+                            <Text size="bodySm" tone="muted">
+                              Saved to
+                            </Text>
+                            <Text size="codeSm">{exportPath}</Text>
+                          </View>
+                        ) : null}
+                        {exportText ? (
+                          <Textarea
+                            value={exportText}
+                            aria-label="Export JSON"
+                            readOnly
+                            minRows={12}
+                            style={{
+                              paddingTop: quartz.space[2],
+                              fontFamily: quartz.fonts.mono,
+                            }}
+                          />
+                        ) : null}
+                      </Section>
+                      <Section
+                        title="Delete all application data"
+                        description="Removes the profile, projects, documents, and captures. This cannot be undone."
+                      >
+                        <Button
+                          onClick={() => setDeleteAll((value) => !value)}
+                          variant="destructive"
+                          style={{
+                            alignSelf: "flex-start",
+                            backgroundColor: deleteAll
+                              ? colors.dangerSoft
+                              : colors.panel,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              ...quartz.type.bodySm,
+                              color: colors.danger,
+                            }}
+                          >
+                            {deleteAll
+                              ? "Delete everything is armed"
+                              : "Delete all data"}
+                          </Text>
+                        </Button>
+                        {deleteAll ? (
+                          <Button
+                            onClick={() => {
+                              void (async () => {
+                                try {
+                                  await app.deleteAllData();
+                                  await rm(
+                                    path.join(
+                                      runtime.dataDir,
+                                      "preferred-editor.txt"
+                                    ),
+                                    { force: true }
+                                  );
+                                  setPreferredEditor(null);
+                                  setDeleteAll(false);
+                                  setExportText("");
+                                  setExportPath("");
+                                  setProfile(null);
+                                  setProjects([]);
+                                  setDocuments([]);
+                                  setSelectedProjectId(null);
+                                  notify("All application data deleted.");
+                                  await refresh();
+                                } catch (error) {
+                                  setErrorMessage(errorText(error));
+                                }
+                              })();
+                            }}
+                            variant="destructive"
+                            style={{
+                              alignSelf: "flex-start",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                ...quartz.type.bodySm,
+                                fontWeight: quartz.type.label.fontWeight,
+                              }}
+                            >
+                              Confirm delete everything
+                            </Text>
+                          </Button>
+                        ) : null}
+                      </Section>
+                    </>
+                  </View>
+                ) : null}
+              </View>
+            </View>
           </View>
         </View>
       </View>
@@ -2778,24 +3015,38 @@ export const App = ({ runtime }: { runtime: ApplicationRuntime }) => {
   );
 };
 
-export const mountDesktop = function mountDesktop(runtime: ApplicationRuntime) {
+export const mountDesktop = function mountDesktop(
+  runtime: ApplicationRuntime,
+  initialDirectory: string | null = null
+) {
   return render(
     <QuartzFonts>
-      <App runtime={runtime} />
+      <App runtime={runtime} initialDirectory={initialDirectory} />
     </QuartzFonts>,
     {
-      title: "Coderune",
+      title: "",
       width: 1240,
       height: 820,
+      terminal: false,
+      titlebarTransparent: process.platform === "darwin",
     }
   );
 };
 
 if (import.meta.main) {
+  let initialDirectory: string | null;
+
+  try {
+    initialDirectory = directoryArgument(process.argv.slice(2));
+  } catch (error) {
+    console.error(errorText(error));
+    process.exit(1);
+  }
+
   const runtime = await createApplication({
     dataDir: resolveApplicationDataDir(),
   });
 
   process.on("exit", () => runtime.close());
-  mountDesktop(runtime);
+  mountDesktop(runtime, initialDirectory);
 }

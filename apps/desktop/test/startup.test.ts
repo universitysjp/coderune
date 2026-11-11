@@ -76,7 +76,7 @@ nativeTest(
 
       expect(projects.bounds?.width).toBeGreaterThan(0);
       expect((await ui.call("getPaintedText", {})).text).toContain(
-        "Developer profile"
+        "Set up a project"
       );
       await ui.close();
     } finally {
