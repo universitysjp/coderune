@@ -11,6 +11,16 @@ Import quartz from @coderune/quartz/tokens for every aesthetic value. Native res
 
 Use View/Text for layout and type; Button/Input/Textarea for controls; Field for accessible labels; Card/Alert/PageHeader/Sidebar/Badge for structure. The adapters retain native keyboard handling and expose explicit accessible names. Register bundled TTF fonts before first layout. Both variable fonts and their OFL licenses ship in the tokens package; the desktop build emits its font assets beside the entry point.
 
+Use the native `Tabs` adapter for workspace tabs. It exposes a labelled tab list,
+uses Left/Right and Home/End to select tabs, and gives each closable tab a named
+close action. The caller owns tab contents and their lifetime. The native
+adapter is separate from the Quartz web registry because GPUIX cannot render
+DOM components.
+
+Use `IconButton` for icon-only rail actions; it supplies a name and a tooltip on
+hover or focus. Use `DropdownMenu` for anchored action lists such as opening an
+editor; the floating menu leaves workspace layout unchanged.
+
 `mountDesktop` uses GPUIX's `render` to initialize and reuse the native window and run its frame loop. The mounted `QuartzFonts` gate registers fonts through that initialized renderer before mounting the application UI. Creating and injecting a renderer bypasses GPUIX's window initialization and automatic frame loop. The startup regression test launches this same entry path in a subprocess with disposable storage and exercises the live window, rather than an already initialized offscreen renderer.
 
 Geist source: https://github.com/google/fonts/tree/main/ofl/geist

@@ -2,20 +2,31 @@
 
 import geistFont from "@coderune/tokens/fonts/geist-variable.ttf" with { type: "file" };
 import paperMonoFont from "@coderune/tokens/fonts/paper-mono-variable.ttf" with { type: "file" };
-import { Button as NativeButton, useGpuixRequired } from "@gpuix/react";
+import {
+  Button as NativeButton,
+  buttonProps,
+  DismissableLayer,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  useGpuixRequired,
+} from "@gpuix/react";
 import type {
   ButtonProps as NativeButtonProps,
   InputProps,
   Props,
   StyleDesc,
   TextareaProps,
+  PublicInstance,
 } from "@gpuix/react";
+import { FloatingLayer } from "@gpuix/react/floating";
 import {
   Children,
   createContext,
   isValidElement,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -50,6 +61,371 @@ const focusStyle: StyleDesc = {
 
 export function View({ style, ...props }: Props) {
   return <div {...props} style={{ minWidth: space[0], ...style }} />;
+}
+
+/** Render a decorative SVG using the native renderer and Quartz ink. */
+export function Icon({ source }: { source: string }) {
+  return (
+    <svg
+      aria-hidden
+      source={source.replace("currentColor", colors.ink)}
+      style={{
+        width: space[5],
+        height: space[5],
+        flexShrink: space[0],
+        color: colors.ink,
+      }}
+    />
+  );
+}
+
+export interface TabItem {
+  value: string;
+  label: string;
+  closable?: boolean;
+  icon?: string;
+}
+
+/** Controlled native document tabs with roving focus and optional close actions. */
+export function Tabs({
+  items,
+  value,
+  onValueChange,
+  onClose,
+  closeIcon,
+}: {
+  items: readonly TabItem[];
+  value: string;
+  onValueChange: (value: string) => void;
+  onClose: (value: string) => void;
+  closeIcon: string;
+}) {
+  const renderer = useGpuixRequired();
+  const refs = useRef(new Map<string, PublicInstance>());
+
+  return (
+    <View
+      role="tablist"
+      aria-label="Open workspace tabs"
+      style={{
+        display: "flex",
+        flexGrow: 1,
+        minWidth: space[0],
+        overflowX: "scroll",
+        alignItems: "center",
+      }}
+    >
+      {items.map((item, index) => (
+        <View
+          key={item.value}
+          style={{
+            display: "flex",
+            flexShrink: space[0],
+            alignItems: "center",
+            backgroundColor:
+              item.value === value ? colors.panel : colors.transparent,
+            borderRadius: quartz.radius.soft,
+          }}
+        >
+          <View
+            ref={(instance) => {
+              if (instance) refs.current.set(item.value, instance);
+              else refs.current.delete(item.value);
+            }}
+            {...buttonProps({
+              tabIndex: item.value === value ? 0 : -1,
+              onClick: () => onValueChange(item.value),
+              onKeyDown: (event) => {
+                if (
+                  event.modifiers?.cmd ||
+                  event.modifiers?.ctrl ||
+                  event.modifiers?.alt ||
+                  event.modifiers?.shift
+                )
+                  return;
+                const next =
+                  event.key === "right"
+                    ? (index + 1) % items.length
+                    : event.key === "left"
+                      ? (index + items.length - 1) % items.length
+                      : event.key === "home"
+                        ? 0
+                        : event.key === "end"
+                          ? items.length - 1
+                          : undefined;
+                if (next === undefined) return;
+                const target = items[next];
+                if (!target) return;
+                event.preventDefault();
+                onValueChange(target.value);
+                const instance = refs.current.get(target.value);
+                if (instance) renderer.focusElement?.(instance.id);
+              },
+            })}
+            role="tab"
+            aria-label={item.label}
+            aria-selected={item.value === value}
+            testId={`tab-${item.value.toLowerCase()}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              minHeight: quartz.layout.control,
+              paddingLeft: space[3],
+              paddingRight: space[3],
+              borderRadius: quartz.radius.soft,
+              backgroundColor: colors.transparent,
+              focusVisible: focusStyle,
+              hover: { backgroundColor: colors.hover },
+              cursor: "pointer",
+            }}
+          >
+            {item.icon ? (
+              <Icon source={item.icon} />
+            ) : (
+              <Text size="label">{item.label}</Text>
+            )}
+          </View>
+          {item.closable ? (
+            <Button
+              variant="ghost"
+              size="xs"
+              testId={`close-tab-${item.value.toLowerCase()}`}
+              aria-label={`Close ${item.label} tab`}
+              onClick={() => {
+                onClose(item.value);
+                const target =
+                  item.value === value
+                    ? items[Math.max(0, index - 1)]
+                    : items.find((tab) => tab.value === value);
+                const instance = target && refs.current.get(target.value);
+                if (instance) renderer.focusElement?.(instance.id);
+              }}
+            >
+              <Icon source={closeIcon} />
+            </Button>
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** An anchored list of actions that does not change the surrounding layout. */
+export function DropdownMenu({
+  label,
+  items,
+  onAction,
+  emptyLabel,
+  testId,
+}: {
+  label: string;
+  items: readonly { value: string; label: string }[];
+  onAction: (value: string) => void;
+  emptyLabel: string;
+  testId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const renderer = useGpuixRequired();
+  const trigger = useRef<PublicInstance>(null);
+  const menu = useRef<PublicInstance>(null);
+  const itemRefs = useRef(new Map<string, PublicInstance>());
+  const restoreFocus = useRef(true);
+  const dismissedOutside = useRef(false);
+  const triggerPressedWhileOpen = useRef(false);
+
+  const focusItem = (index: number) => {
+    const item = items[index];
+    const instance = item && itemRefs.current.get(item.value);
+    if (instance) renderer.focusElement?.(instance.id);
+  };
+
+  return (
+    <View style={{ position: "relative", display: "flex" }}>
+      <Button
+        ref={trigger}
+        testId={testId}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onMouseDown={() => {
+          triggerPressedWhileOpen.current = open;
+        }}
+        onClick={() => {
+          if (dismissedOutside.current) {
+            dismissedOutside.current = false;
+            return;
+          }
+          if (triggerPressedWhileOpen.current) {
+            triggerPressedWhileOpen.current = false;
+            setOpen(false);
+            return;
+          }
+          restoreFocus.current = true;
+          setOpen(!open);
+        }}
+      >{`${label} ▾`}</Button>
+      {open ? (
+        <DismissableLayer
+          onEscapeKeyDown={() => setOpen(false)}
+          initialFocus={() => {
+            const first = items[0];
+            return (
+              (first && itemRefs.current.get(first.value)?.id) ??
+              menu.current?.id ??
+              null
+            );
+          }}
+          finalFocus={() =>
+            restoreFocus.current ? (trigger.current?.id ?? null) : null
+          }
+        >
+          <FloatingLayer
+            ref={menu}
+            role="menu"
+            aria-label={label}
+            testId={`${testId}-content`}
+            tabIndex={-1}
+            side="bottom"
+            align="end"
+            sideOffset={space[1]}
+            onKeyDown={(event) => {
+              if (event.key === "tab") {
+                restoreFocus.current = false;
+                setOpen(false);
+              }
+            }}
+            onMouseDownOutside={() => {
+              restoreFocus.current = false;
+              dismissedOutside.current = true;
+              queueMicrotask(() => {
+                dismissedOutside.current = false;
+              });
+              setOpen(false);
+            }}
+            style={{
+              minWidth: quartz.layout.sidebar,
+              padding: space[1],
+              backgroundColor: colors.panel,
+              borderWidth: quartz.line.hair,
+              borderColor: colors.line,
+              borderRadius: quartz.radius.soft,
+            }}
+          >
+            {items.length === 0 ? (
+              <Text size="bodySm" tone="muted" style={{ padding: space[2] }}>
+                {emptyLabel}
+              </Text>
+            ) : (
+              items.map((item, index) => (
+                <View
+                  key={item.value}
+                  ref={(instance) => {
+                    if (instance) itemRefs.current.set(item.value, instance);
+                    else itemRefs.current.delete(item.value);
+                  }}
+                  {...buttonProps({
+                    tabIndex: -1,
+                    onClick: () => {
+                      setOpen(false);
+                      onAction(item.value);
+                    },
+                    onKeyDown: (event) => {
+                      if (event.key === "tab") {
+                        restoreFocus.current = false;
+                        setOpen(false);
+                        return;
+                      }
+                      const next =
+                        event.key === "down"
+                          ? (index + 1) % items.length
+                          : event.key === "up"
+                            ? (index + items.length - 1) % items.length
+                            : event.key === "home"
+                              ? 0
+                              : event.key === "end"
+                                ? items.length - 1
+                                : undefined;
+                      if (next !== undefined) {
+                        event.preventDefault();
+                        focusItem(next);
+                      }
+                    },
+                  })}
+                  role="menuitem"
+                  aria-label={item.label}
+                  testId={`${testId}-option-${item.value}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    minHeight: quartz.layout.row,
+                    paddingLeft: space[3],
+                    paddingRight: space[3],
+                    borderRadius: quartz.radius.inner,
+                    hover: { backgroundColor: colors.hover },
+                    focusVisible: focusStyle,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Text size="label">{item.label}</Text>
+                </View>
+              ))
+            )}
+          </FloatingLayer>
+        </DismissableLayer>
+      ) : null}
+    </View>
+  );
+}
+
+/** Icon-only action with its label available on hover and keyboard focus. */
+export function IconButton({
+  label,
+  source,
+  testId,
+  onClick,
+  pressed = false,
+}: {
+  label: string;
+  source: string;
+  testId: string;
+  onClick: () => void;
+  pressed?: boolean;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          aria-label={label}
+          testId={testId}
+          onClick={onClick}
+          pressed={pressed}
+          style={{
+            width: quartz.layout.row,
+            minHeight: quartz.layout.row,
+            paddingLeft: space[0],
+            paddingRight: space[0],
+          }}
+        >
+          <Icon source={source} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent
+        testId={`tooltip-${testId}`}
+        side="right"
+        sideOffset={space[2]}
+        role="tooltip"
+        style={{
+          backgroundColor: colors.panel,
+          borderColor: colors.line,
+          borderWidth: quartz.line.hair,
+          borderRadius: quartz.radius.soft,
+          padding: space[2],
+        }}
+      >
+        <Text size="label">{label}</Text>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export interface TextProps extends Props {
@@ -214,7 +590,7 @@ export function Button({
       aria-label={controlName(children)}
       {...props}
       disabled={disabled || pending}
-      aria-selected={pressed || undefined}
+      aria-pressed={pressed || undefined}
       aria-description={pending ? pendingLabel : props["aria-description"]}
       style={(state) => ({
         display: "flex",
