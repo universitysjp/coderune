@@ -23,7 +23,8 @@
     "build:desktop": "cargo build --release -p coderune-desktop",
     "check:desktop": "cargo check -p coderune-desktop",
     "test:desktop": "cargo test",
-    "setup:rune": "bash scripts/fetch-rune.sh"
+    "setup:rune": "bash scripts/fetch-rune.sh",
+    "verify:ui": "bash scripts/verify-ui.sh"
   },
   "dependencies": {},
   "devDependencies": {
