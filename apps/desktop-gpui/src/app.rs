@@ -1,8 +1,12 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use coderune_app::Workspace;
+use coderune_app::{PreviewSession, Workspace};
 use coderune_agents::DraftSharingPreview;
-use coderune_domain::{AgentAvailability, AgentId, AppError, DocumentKind, ExperienceStage, ProfileDraft, ProjectDraft};
+use coderune_domain::{
+    AgentAvailability, AgentId, AppError, ContextCapture, DocumentKind, ExperienceStage,
+    ProfileDraft, ProjectDraft,
+};
 use coderune_ui::components::{Button, ButtonVariant, TextInputState};
 use coderune_ui::theme::{self, layout, radius, space, TextRole, Tone, TypeStyled};
 use coderune_ui::{
@@ -181,6 +185,12 @@ impl DocumentForm {
     }
 }
 
+pub struct CaptureDetail {
+    pub capture: ContextCapture,
+    pub contents: BTreeMap<String, String>,
+    pub selected_path: Option<String>,
+}
+
 pub struct CoderuneApp {
     workspace: Option<Workspace>,
     fatal: Option<String>,
@@ -188,6 +198,10 @@ pub struct CoderuneApp {
     profile_form: ProfileForm,
     project_form: ProjectForm,
     document_form: DocumentForm,
+    capture_session: Option<PreviewSession>,
+    capture_reviewed: bool,
+    capture_detail: Option<CaptureDetail>,
+    confirm_delete_capture: Option<String>,
     confirm_delete_project: Option<String>,
     pub error: Option<AppError>,
     pub notice: Option<String>,
@@ -232,6 +246,10 @@ impl CoderuneApp {
             profile_form,
             project_form,
             document_form,
+            capture_session: None,
+            capture_reviewed: false,
+            capture_detail: None,
+            confirm_delete_capture: None,
             confirm_delete_project: None,
             error: None,
             notice: None,
@@ -257,6 +275,110 @@ impl CoderuneApp {
             }
         }
         self.refresh_profile_form(cx);
+    }
+
+    fn preview_capture(&mut self, cx: &mut Context<Self>) {
+        let Some(project) = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.selected_project())
+            .cloned()
+        else {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::NotFound,
+                "Create or select a project before capturing context.",
+            ));
+            return;
+        };
+        let Some(workspace) = self.workspace.as_ref() else { return };
+        match workspace.preview_capture(&project.id, project.scope.clone(), project.limits.clone()) {
+            Ok(session) => {
+                self.capture_session = Some(session);
+                self.capture_reviewed = false;
+                self.capture_detail = None;
+                self.error = None;
+                self.notice = Some("Preview collected. Review the exact file list before saving.".to_string());
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn refresh_capture(&mut self, cx: &mut Context<Self>) {
+        let Some(project_id) = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.selected_project_id.clone())
+        else {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::NotFound,
+                "Create or select a project before refreshing context.",
+            ));
+            return;
+        };
+        let Some(workspace) = self.workspace.as_ref() else { return };
+        match workspace.refresh_capture(&project_id) {
+            Ok((latest, session)) => {
+                let unchanged = latest.is_some();
+                self.capture_session = Some(session);
+                self.capture_reviewed = false;
+                self.capture_detail = None;
+                self.error = None;
+                self.notice = Some(if unchanged {
+                    "Repository unchanged. The latest capture already matches this state.".to_string()
+                } else {
+                    "Changes found. A fresh preview is ready for review.".to_string()
+                });
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn save_capture(&mut self, cx: &mut Context<Self>) {
+        let Some(session) = self.capture_session.clone() else { return };
+        let Some(workspace) = self.workspace.as_mut() else { return };
+        match workspace.save_capture(&session, self.capture_reviewed) {
+            Ok(capture) => {
+                self.notice = Some(format!("Context capture v{} saved.", capture.version));
+                self.error = None;
+                self.capture_reviewed = false;
+                self.capture_session = None;
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn inspect_capture(&mut self, id: &str, cx: &mut Context<Self>) {
+        let Some(workspace) = self.workspace.as_ref() else { return };
+        let Some(project_id) = workspace.selected_project_id.clone() else { return };
+        let Ok(captures) = workspace.list_captures(&project_id) else { return };
+        let Some(capture) = captures.into_iter().find(|capture| capture.id == id) else { return };
+        match workspace.capture_contents(&capture.id) {
+            Ok(contents) => {
+                let selected_path = capture.files.first().map(|file| file.path.clone());
+                self.capture_detail = Some(CaptureDetail {
+                    capture,
+                    contents,
+                    selected_path,
+                });
+                self.error = None;
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn delete_capture(&mut self, id: &str, cx: &mut Context<Self>) {
+        let Some(workspace) = self.workspace.as_mut() else { return };
+        match workspace.delete_capture(id) {
+            Ok(()) => {
+                self.notice = Some("Context capture deleted.".to_string());
+                self.error = None;
+                if self.capture_detail.as_ref().is_some_and(|detail| detail.capture.id == id) {
+                    self.capture_detail = None;
+                }
+                self.confirm_delete_capture = None;
+            }
+            Err(error) => self.error = Some(error),
+        }
     }
 
     fn extract_document(&mut self, cx: &mut Context<Self>) {
@@ -1362,6 +1484,308 @@ impl CoderuneApp {
             .child(draft_card)
     }
 
+    fn render_capture(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let workspace = self.workspace.as_ref();
+        let project = workspace.and_then(|workspace| workspace.selected_project()).cloned();
+        let captures = project
+            .as_ref()
+            .and_then(|project| workspace.and_then(|workspace| workspace.list_captures(&project.id).ok()))
+            .unwrap_or_default();
+
+        let mut body = div().flex().flex_col().gap(px(space::S6));
+        body = body.child(page_header(
+            "Capture",
+            "Collect repository context only on explicit request. Nothing is saved until you review and confirm the exact file list.",
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(space::S2))
+                .child(
+                    Button::new("preview-capture", "Preview capture", ButtonVariant::Primary)
+                        .disabled(project.is_none())
+                        .on_click(cx.listener(|this, _, _, cx| this.preview_capture(cx))),
+                )
+                .child(
+                    Button::new("refresh-capture", "Refresh", ButtonVariant::Secondary)
+                        .disabled(project.is_none())
+                        .on_click(cx.listener(|this, _, _, cx| this.refresh_capture(cx))),
+                ),
+        ));
+
+        if let Some(project) = &project {
+            body = body.child(card(
+                Some(&project.name),
+                Some("Effective scope and limits for the next preview."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S2))
+                    .child(text(&project.root_path, TextRole::Code, Tone::Muted))
+                    .child(text(
+                        format!(
+                            "Includes: {} · Excludes: {} · .gitignore: {} · per file: {} KiB · per capture: {} MiB",
+                            if project.scope.include_paths.is_empty() { "whole repository".to_string() } else { project.scope.include_paths.join(", ") },
+                            if project.scope.exclude_paths.is_empty() { "none".to_string() } else { project.scope.exclude_paths.join(", ") },
+                            if project.scope.respect_gitignore { "yes" } else { "no" },
+                            project.limits.per_file_bytes / 1024,
+                            project.limits.per_capture_bytes / (1024 * 1024),
+                        ),
+                        TextRole::BodySm,
+                        Tone::Muted,
+                    )),
+            ));
+        }
+
+        if let Some(session) = &self.capture_session {
+            let preview = &session.collected.preview;
+            let file_rows = preview
+                .files
+                .iter()
+                .take(200)
+                .map(|file| {
+                    div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(space::S2))
+                        .py(px(space::S1))
+                        .border_b_1()
+                        .border_color(theme::row_line())
+                        .child(text(&file.path, TextRole::CodeSm, Tone::Ink))
+                        .child(badge(&file.category))
+                        .child(text(format!("{} B", file.bytes), TextRole::BodySm, Tone::Faint))
+                })
+                .collect::<Vec<_>>();
+            let skipped_rows = preview
+                .skipped
+                .iter()
+                .take(100)
+                .map(|file| {
+                    div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(space::S2))
+                        .py(px(space::S1))
+                        .child(text(&file.path, TextRole::CodeSm, Tone::Muted))
+                        .child(badge(&file.reason))
+                })
+                .collect::<Vec<_>>();
+            let mut review = card(
+                Some("Review preview"),
+                Some("Saving re-collects the repository. If anything changed, you must preview again."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S3))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .flex_wrap()
+                            .items_center()
+                            .gap(px(space::S2))
+                            .child(badge(&format!("{} files", preview.files.len())))
+                            .child(badge(&format!("{} bytes", preview.total_bytes)))
+                            .child(badge(&format!("{} skipped", preview.skipped.len())))
+                            .when_some(preview.git.as_ref(), |this, git| {
+                                this.child(badge(if git.dirty { "Dirty work tree" } else { "Clean work tree" }))
+                                    .child(text(
+                                        format!(
+                                            "{} · {}",
+                                            git.branch.clone().unwrap_or_else(|| "detached".to_string()),
+                                            git.summary
+                                        ),
+                                        TextRole::BodySm,
+                                        Tone::Muted,
+                                    ))
+                            }),
+                    )
+                    .child(text(&preview.fingerprint, TextRole::CodeSm, Tone::Faint))
+                    .child(
+                        div()
+                            .id("capture-files")
+                            .flex()
+                            .flex_col()
+                            .max_h(px(280.0))
+                            .overflow_y_scroll()
+                            .children(file_rows),
+                    )
+                    .when(!skipped_rows.is_empty(), |this| {
+                        this.child(section_title("Skipped", "Every skipped path is shown with its reason."))
+                            .child(
+                                div()
+                                    .id("capture-skipped")
+                                    .flex()
+                                    .flex_col()
+                                    .max_h(px(160.0))
+                                    .overflow_y_scroll()
+                                    .children(skipped_rows),
+                            )
+                    })
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .flex_wrap()
+                            .items_center()
+                            .gap(px(space::S2))
+                            .child(choice_chip(
+                                "capture-reviewed",
+                                "I reviewed this exact file list",
+                                self.capture_reviewed,
+                                cx.listener(|this, _, _, cx| {
+                                    this.capture_reviewed = !this.capture_reviewed;
+                                    cx.notify();
+                                }),
+                            ))
+                            .child(
+                                Button::new("save-capture", "Save capture", ButtonVariant::Primary)
+                                    .disabled(!self.capture_reviewed)
+                                    .on_click(cx.listener(|this, _, _, cx| this.save_capture(cx))),
+                            ),
+                    ),
+            );
+            if let Some(error) = &self.error {
+                review = review.child(alert(Some(error.code.as_str()), &error.message));
+            }
+            if let Some(notice) = &self.notice {
+                review = review.child(alert(None, notice));
+            }
+            body = body.child(review);
+        } else {
+            if let Some(error) = &self.error {
+                body = body.child(alert(Some(error.code.as_str()), &error.message));
+            }
+            if let Some(notice) = &self.notice {
+                body = body.child(alert(None, notice));
+            }
+        }
+
+        let capture_rows = captures
+            .iter()
+            .map(|capture| {
+                let id = capture.id.clone();
+                let confirming = self.confirm_delete_capture.as_deref() == Some(id.as_str());
+                div()
+                    .flex()
+                    .flex_row()
+                    .flex_wrap()
+                    .items_center()
+                    .gap(px(space::S2))
+                    .w_full()
+                    .p(px(space::S3))
+                    .border_b_1()
+                    .border_color(theme::row_line())
+                    .child(text(&format!("v{}", capture.version), TextRole::Label, Tone::Ink))
+                    .child(badge(&format!("{} files", capture.files.len())))
+                    .child(badge(&format!("{} bytes", capture.total_bytes)))
+                    .child(text(&capture.created_at, TextRole::BodySm, Tone::Faint))
+                    .child(div().flex_1())
+                    .child(
+                        Button::new(SharedString::from(format!("inspect-{}", capture.id)), "Inspect", ButtonVariant::Ghost)
+                            .size(coderune_ui::ButtonSize::Sm)
+                            .on_click(cx.listener(move |this, _, _, cx| this.inspect_capture(&id, cx))),
+                    )
+                    .child(
+                        Button::new(SharedString::from(format!("delete-capture-{}", capture.id)), if confirming { "Confirm" } else { "Delete" }, ButtonVariant::Destructive)
+                            .size(coderune_ui::ButtonSize::Sm)
+                            .on_click(cx.listener({
+                                let id = capture.id.clone();
+                                move |this, _, _, cx| {
+                                    if this.confirm_delete_capture.as_deref() == Some(id.as_str()) {
+                                        this.delete_capture(&id, cx);
+                                    } else {
+                                        this.confirm_delete_capture = Some(id.clone());
+                                        cx.notify();
+                                    }
+                                }
+                            })),
+                    )
+            })
+            .collect::<Vec<_>>();
+
+        body = body.child(card(
+            Some("Capture history"),
+            Some("Older captures remain immutable when the profile or project changes."),
+            div()
+                .flex()
+                .flex_col()
+                .when(capture_rows.is_empty(), |this| {
+                    this.child(text("No captures for this project yet.", TextRole::BodySm, Tone::Muted))
+                })
+                .children(capture_rows),
+        ));
+
+        if let Some(detail) = &self.capture_detail {
+            let selected_content = detail
+                .selected_path
+                .as_ref()
+                .and_then(|path| detail.contents.get(path).cloned())
+                .unwrap_or_default();
+            let file_buttons = detail
+                .capture
+                .files
+                .iter()
+                .take(200)
+                .map(|file| {
+                    let path = file.path.clone();
+                    let selected = detail.selected_path.as_deref() == Some(path.as_str());
+                    div()
+                        .id(SharedString::from(format!("detail-file-{}", file.path)))
+                        .cursor(gpui::CursorStyle::PointingHand)
+                        .px(px(space::S2))
+                        .py(px(space::S1))
+                        .rounded(px(radius::INNER))
+                        .when(selected, |this| this.bg(theme::accent_soft()))
+                        .when(!selected, |this| this.hover(|style| style.bg(theme::hover())))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if let Some(detail) = this.capture_detail.as_mut() {
+                                detail.selected_path = Some(path.clone());
+                            }
+                            cx.notify();
+                        }))
+                        .child(text(&file.path, TextRole::CodeSm, Tone::Ink))
+                })
+                .collect::<Vec<_>>();
+            body = body.child(card(
+                Some(&format!("Capture v{}", detail.capture.version)),
+                Some("Saved content is read back from the local content store by hash."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S3))
+                    .child(
+                        div()
+                            .id("detail-files")
+                            .flex()
+                            .flex_col()
+                            .max_h(px(200.0))
+                            .overflow_y_scroll()
+                            .children(file_buttons),
+                    )
+                    .child(
+                        div()
+                            .id("detail-content")
+                            .max_h(px(layout::FIELD_MAX_HEIGHT))
+                            .overflow_y_scroll()
+                            .bg(theme::code())
+                            .rounded(px(radius::SOFT))
+                            .p(px(space::S3))
+                            .type_role(TextRole::Code)
+                            .text_color(theme::ink())
+                            .child(if selected_content.is_empty() {
+                                "No stored content for this path.".to_string()
+                            } else {
+                                selected_content
+                            }),
+                    ),
+            ));
+        }
+
+        body
+    }
+
     fn refresh_agents(&mut self, cx: &mut Context<Self>) {
         if let Some(workspace) = self.workspace.as_mut() {
             workspace.agents = coderune_agents::detect_all();
@@ -1449,7 +1873,7 @@ impl CoderuneApp {
             View::Projects => self.render_projects(cx).into_any_element(),
             View::Documents => self.render_documents(cx).into_any_element(),
             View::Agents => self.render_agents(cx).into_any_element(),
-            View::Capture => self.render_section_placeholder("Capture", "Preview, review, and save repository context.").into_any_element(),
+            View::Capture => self.render_capture(cx).into_any_element(),
             View::Data => self.render_section_placeholder("Data", "Export local context or delete application data.").into_any_element(),
         };
         div()
