@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use coderune_app::Workspace;
-use coderune_domain::{AppError, DocumentKind, ExperienceStage, ProfileDraft};
+use coderune_domain::{AppError, ExperienceStage, ProfileDraft, ProjectDraft};
 use coderune_ui::components::{Button, ButtonVariant, TextInputState};
 use coderune_ui::theme::{self, layout, radius, space, TextRole, Tone, TypeStyled};
 use coderune_ui::{
@@ -118,11 +118,43 @@ impl ProfileForm {
     }
 }
 
+pub struct ProjectForm {
+    pub name: Entity<TextInputState>,
+    pub root: Entity<TextInputState>,
+    pub goals: Entity<TextInputState>,
+    pub editing: Option<String>,
+}
+
+impl ProjectForm {
+    fn empty(initial_root: Option<PathBuf>, cx: &mut Context<CoderuneApp>) -> Self {
+        let root = initial_root
+            .map(|path| path.display().to_string())
+            .unwrap_or_default();
+        Self {
+            name: cx.new(|cx| TextInputState::single_line("Project name", cx)),
+            root: cx.new(|cx| TextInputState::new_with_value(root, "Absolute path to the project folder", cx)),
+            goals: cx.new(|cx| TextInputState::single_line("At least one goal, comma separated", cx)),
+            editing: None,
+        }
+    }
+
+    fn from_project(project: &coderune_domain::Project, cx: &mut Context<CoderuneApp>) -> Self {
+        Self {
+            name: cx.new(|cx| TextInputState::new_with_value(project.name.clone(), "Project name", cx)),
+            root: cx.new(|cx| TextInputState::new_with_value(project.root_path.clone(), "Absolute path to the project folder", cx)),
+            goals: cx.new(|cx| TextInputState::new_with_value(project.goals.iter().map(|goal| goal.text.clone()).collect::<Vec<_>>().join(", "), "At least one goal, comma separated", cx)),
+            editing: Some(project.id.clone()),
+        }
+    }
+}
+
 pub struct CoderuneApp {
     workspace: Option<Workspace>,
     fatal: Option<String>,
     pub view: View,
     profile_form: ProfileForm,
+    project_form: ProjectForm,
+    confirm_delete_project: Option<String>,
     pub error: Option<AppError>,
     pub notice: Option<String>,
     focus: FocusHandle,
@@ -151,11 +183,20 @@ impl CoderuneApp {
             ),
             None => ProfileForm::empty(cx),
         };
+        let initial_root = workspace
+            .as_ref()
+            .and_then(|workspace| workspace.launch_directory.clone());
+        let project_form = match workspace.as_ref().and_then(|workspace| workspace.selected_project()) {
+            Some(project) => ProjectForm::from_project(project, cx),
+            None => ProjectForm::empty(initial_root, cx),
+        };
         Self {
             workspace,
             fatal,
             view: View::Home,
             profile_form,
+            project_form,
+            confirm_delete_project: None,
             error: None,
             notice: None,
             focus: cx.focus_handle(),
@@ -180,6 +221,83 @@ impl CoderuneApp {
             }
         }
         self.refresh_profile_form(cx);
+    }
+
+    fn load_project_form(&mut self, id: &str, cx: &mut Context<Self>) {
+        let Some(project) = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.projects.iter().find(|project| project.id == id))
+            .cloned()
+        else {
+            return;
+        };
+        self.project_form = ProjectForm::from_project(&project, cx);
+        self.confirm_delete_project = None;
+        self.error = None;
+        if let Some(workspace) = self.workspace.as_mut() {
+            workspace.select_project(Some(project.id));
+        }
+    }
+
+    fn new_project_form(&mut self, cx: &mut Context<Self>) {
+        let initial_root = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.launch_directory.clone());
+        self.project_form = ProjectForm::empty(initial_root, cx);
+        self.confirm_delete_project = None;
+        self.error = None;
+    }
+
+    fn save_project(&mut self, cx: &mut Context<Self>) {
+        let Some(workspace) = self.workspace.as_mut() else { return };
+        let existing = self
+            .project_form
+            .editing
+            .as_deref()
+            .and_then(|id| workspace.projects.iter().find(|project| project.id == id))
+            .cloned();
+        let draft = ProjectDraft {
+            name: self.project_form.name.read(cx).text(),
+            root_path: self.project_form.root.read(cx).text(),
+            goals: split_list(&self.project_form.goals.read(cx).text()),
+            scope: existing
+                .as_ref()
+                .map(|project| project.scope.clone())
+                .unwrap_or_default(),
+            limits: existing
+                .as_ref()
+                .map(|project| project.limits.clone())
+                .unwrap_or_default(),
+            ..Default::default()
+        };
+        let result = match self.project_form.editing.as_deref() {
+            Some(id) => workspace.update_project(id, draft),
+            None => workspace.create_project(draft),
+        };
+        match result {
+            Ok(project) => {
+                self.notice = Some(format!("Project {} saved at version {}.", project.name, project.version));
+                self.error = None;
+                self.project_form = ProjectForm::from_project(&project, cx);
+                self.confirm_delete_project = None;
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn delete_project(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.confirm_delete_project.clone() else { return };
+        let Some(workspace) = self.workspace.as_mut() else { return };
+        match workspace.delete_project(&id) {
+            Ok(()) => {
+                self.notice = Some("Project and its captures deleted.".to_string());
+                self.error = None;
+                self.new_project_form(cx);
+            }
+            Err(error) => self.error = Some(error),
+        }
     }
 
     fn save_profile(&mut self, cx: &mut Context<Self>) {
@@ -741,6 +859,139 @@ impl CoderuneApp {
             .child(form)
     }
 
+    fn render_projects(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let workspace = self.workspace.as_ref();
+        let projects = workspace.map(|workspace| workspace.projects.clone()).unwrap_or_default();
+        let selected = workspace.and_then(|workspace| workspace.selected_project_id.clone());
+        let rows = projects.iter().map(|project| {
+            let active = selected.as_deref() == Some(project.id.as_str());
+            let id = project.id.clone();
+            div()
+                .id(SharedString::from(format!("project-{}", project.id)))
+                .flex()
+                .flex_col()
+                .gap(px(space::S1))
+                .w_full()
+                .p(px(space::S3))
+                .rounded(px(radius::INNER))
+                .cursor(gpui::CursorStyle::PointingHand)
+                .when(active, |this| this.bg(theme::accent_soft()))
+                .when(!active, |this| this.hover(|style| style.bg(theme::hover())))
+                .on_click(cx.listener(move |this, _, _, cx| this.load_project_form(&id, cx)))
+                .child(
+                    div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(space::S2))
+                        .child(text(&project.name, TextRole::Label, Tone::Ink))
+                        .child(badge(&format!("v{}", project.version))),
+                )
+                .child(text(&project.root_path, TextRole::CodeSm, Tone::Faint))
+        }).collect::<Vec<_>>();
+
+        let editing = self.project_form.editing.is_some();
+        let confirm_delete = self.confirm_delete_project.is_some();
+        let mut form = card(
+            Some(if editing { "Edit project" } else { "New project" }),
+            Some("A project needs a name, a readable root folder, and at least one goal."),
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(space::S5))
+                .child(field("Project name", None, self.project_form.name.clone()))
+                .child(field("Root folder", Some("Absolute path. The folder must exist and be readable."), self.project_form.root.clone()))
+                .child(field("Goals", Some("At least one. Separate several goals with commas."), self.project_form.goals.clone()))
+                .child(
+                    div()
+                        .flex()
+                        .flex_row()
+                        .flex_wrap()
+                        .gap(px(space::S2))
+                        .child(
+                            Button::new(
+                                "save-project",
+                                if editing { "Save new version" } else { "Create project" },
+                                ButtonVariant::Primary,
+                            )
+                            .on_click(cx.listener(|this, _, _, cx| this.save_project(cx))),
+                        )
+                        .when(editing, |this| {
+                            this.child(
+                                Button::new(
+                                    "delete-project",
+                                    if confirm_delete { "Confirm delete" } else { "Delete project" },
+                                    ButtonVariant::Destructive,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if this.confirm_delete_project.is_some() {
+                                        this.delete_project(cx);
+                                    } else {
+                                        this.confirm_delete_project = this.project_form.editing.clone();
+                                        cx.notify();
+                                    }
+                                })),
+                            )
+                        })
+                        .when(!editing, |this| {
+                            this.child(
+                                Button::new("blank-project", "Clear", ButtonVariant::Ghost)
+                                    .on_click(cx.listener(|this, _, _, cx| this.new_project_form(cx))),
+                            )
+                        }),
+                ),
+        );
+        if confirm_delete {
+            form = form.child(alert(
+                None,
+                "Deleting a project also deletes its captures and project-linked documents. Click Confirm delete to proceed.",
+            ));
+        }
+        if let Some(error) = &self.error {
+            form = form.child(alert(Some(error.code.as_str()), &error.message));
+        }
+        if let Some(notice) = &self.notice {
+            form = form.child(alert(None, notice));
+        }
+
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(space::S6))
+            .child(page_header(
+                "Projects",
+                "Project context is stored locally and reused on later captures.",
+                Button::new("new-project", "New project", ButtonVariant::Secondary)
+                    .on_click(cx.listener(|this, _, _, cx| this.new_project_form(cx))),
+            ))
+            .child(
+                div()
+                    .flex()
+                    .flex_row()
+                    .flex_wrap()
+                    .gap(px(space::S4))
+                    .items_start()
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(space::S1))
+                            .w(px(300.0))
+                            .flex_shrink_0()
+                            .child(section_title("Configured", "Select a project to edit."))
+                            .when(rows.is_empty(), |this| {
+                                this.child(card(None, None, text(
+                                    "No projects yet. Create one on the right.",
+                                    TextRole::BodySm,
+                                    Tone::Muted,
+                                )))
+                            })
+                            .children(rows),
+                    )
+                    .child(div().flex_1().min_w(px(360.0)).child(form)),
+            )
+    }
+
     fn render_section_placeholder(&self, title: &str, description: &str) -> impl IntoElement {
         card(
             Some(title),
@@ -757,7 +1008,7 @@ impl CoderuneApp {
         let content = match self.view {
             View::Home => self.render_home(cx).into_any_element(),
             View::Profile => self.render_profile(cx).into_any_element(),
-            View::Projects => self.render_section_placeholder("Projects", "Create, select, edit, and delete project context.").into_any_element(),
+            View::Projects => self.render_projects(cx).into_any_element(),
             View::Documents => self.render_section_placeholder("Documents", "Import CV and SRS source documents for review.").into_any_element(),
             View::Agents => self.render_section_placeholder("Agents", "Coding agents detected on this machine.").into_any_element(),
             View::Capture => self.render_section_placeholder("Capture", "Preview, review, and save repository context.").into_any_element(),
