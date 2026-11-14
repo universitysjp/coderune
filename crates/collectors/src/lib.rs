@@ -621,6 +621,20 @@ mod tests {
     }
 
     #[test]
+    fn capture_limit_skips_remaining_files() {
+        let dir = fixture();
+        let mut request = request(dir.path());
+        request.limits.per_capture_bytes = 8;
+        let collected = collect(&request).unwrap();
+        assert!(collected.preview.total_bytes <= 8);
+        assert!(collected
+            .preview
+            .skipped
+            .iter()
+            .any(|file| file.reason == "capture-limit"));
+    }
+
+    #[test]
     fn respects_root_gitignore() {
         let dir = fixture();
         std::fs::write(dir.path().join(".gitignore"), "src/main.ts\n").unwrap();

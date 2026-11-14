@@ -529,6 +529,54 @@ mod tests {
     }
 
     #[test]
+    fn launch_directory_selects_an_existing_project_by_real_path() {
+        let mut workspace = workspace();
+        workspace.confirm_profile(profile()).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("README.md"), "# Demo").unwrap();
+        let project = workspace.create_project(project_draft(root.path())).unwrap();
+        let found = workspace
+            .adopt_launch_directory(root.path().to_path_buf())
+            .unwrap()
+            .expect("existing project should be selected");
+        assert_eq!(found.id, project.id);
+        assert_eq!(workspace.selected_project_id.as_deref(), Some(project.id.as_str()));
+        let other = tempfile::tempdir().unwrap();
+        assert!(workspace
+            .adopt_launch_directory(other.path().to_path_buf())
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn document_import_is_reviewed_and_can_prepare_an_agent_preview() {
+        let mut workspace = workspace();
+        workspace.confirm_profile(profile()).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("cv.md");
+        std::fs::write(&path, "# Ada\n\nRust and TypeScript.").unwrap();
+        let (name, text, bytes) = workspace.extract_document(&path, 1024).unwrap();
+        assert_eq!(name, "cv.md");
+        assert_eq!(bytes, text.len());
+        let document = workspace
+            .save_document(
+                DocumentKind::Cv,
+                None,
+                name,
+                Some(path.display().to_string()),
+                text,
+                true,
+            )
+            .unwrap();
+        let preview = workspace
+            .prepare_draft(coderune_domain::AgentId::ClaudeCode, &document.id)
+            .unwrap();
+        assert!(preview.fits);
+        assert!(preview.text.contains("Rust and TypeScript."));
+        assert!(!preview.text.is_empty());
+    }
+
+    #[test]
     fn export_and_delete_all_return_to_onboarding() {
         let mut workspace = workspace();
         workspace.confirm_profile(profile()).unwrap();
