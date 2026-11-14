@@ -53,12 +53,20 @@ pub(crate) fn onboarding(s: &CoderuneApp, k: &Kit) -> El {
                 k,
             ),
         ),
-        option_chip(
-            "new-to-coding".to_string(),
-            "I am new to coding",
-            s.profile_form.new_to_coding,
-            |s: &mut CoderuneApp| s.profile_form.new_to_coding = !s.profile_form.new_to_coding,
-        ),
+        row()
+            .gap(8.0)
+            .items_center()
+            .child(option_chip(
+                "new-to-coding".to_string(),
+                "I am new to coding",
+                s.profile_form.new_to_coding,
+                |s: &mut CoderuneApp| s.profile_form.new_to_coding = !s.profile_form.new_to_coding,
+            ))
+            .child(
+                text("Recorded as a self-reported baseline, not a verified skill level.")
+                    .font(coderune_ui::theme::BODY_SM)
+                    .color(coderune_ui::theme::muted()),
+            ),
     ];
     if let Some(error) = &s.error {
         form_children.push(ui::alert(Some(error.code.as_str()), &error.message));
