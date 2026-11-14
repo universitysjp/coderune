@@ -12,14 +12,17 @@
     "check": "vp check",
     "check-types": "turbo run check-types",
     "dev": "turbo run dev",
-    "dev:desktop": "turbo run dev --filter=desktop",
+    "dev:desktop": "cargo run -p coderune-desktop",
     "dev:web": "turbo run dev --filter=web",
     "fix": "vp check --fix",
     "lint": "turbo run lint",
     "prepare": "vp config --no-agent",
     "test": "turbo run test",
     "typecheck": "bun check",
-    "wbs:render": "bun scripts/render-wbs.ts"
+    "wbs:render": "bun scripts/render-wbs.ts",
+    "build:desktop": "cargo build --release -p coderune-desktop",
+    "check:desktop": "cargo check -p coderune-desktop",
+    "test:desktop": "cargo test"
   },
   "dependencies": {},
   "devDependencies": {

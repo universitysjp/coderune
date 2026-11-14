@@ -7,9 +7,9 @@ import tanstack from "ultracite/oxlint/tanstack";
 import { defineConfig } from "vite-plus";
 
 import {
-  appRules as quartzAppRules,
-  sourceRules as quartzSourceRules,
-} from "./scripts/quartz-lint/plugin.mjs";
+  appRules as uiAppRules,
+  sourceRules as uiSourceRules,
+} from "./scripts/ui-lint/plugin.mjs";
 
 const reactDoctor = selectJsPlugins(["react-doctor"]);
 
@@ -23,14 +23,13 @@ const generalRuleNames = new Set([
   ]),
 ]);
 
-const nonQuartzRules = Object.fromEntries(
+const nonUiRules = Object.fromEntries(
   [...generalRuleNames].map((rule) => [rule, "off"])
 );
 
-const quartzReferenceFiles = [
+const uiReferenceFiles = [
   "apps/web/src/components/project-home.tsx",
-  "packages/quartz/src/native/**/*.{js,jsx,ts,tsx}",
-  "packages/quartz/src/tokens.ts",
+  "packages/ui/src/tokens.ts",
 ];
 
 const testFiles = [
@@ -50,7 +49,7 @@ export default defineConfig({
       "GLOSSARY.md",
       "README.md",
       "docs/**",
-      "scripts/quartz-lint/**",
+      "scripts/ui-lint/**",
     ],
     proseWrap: "preserve",
   },
@@ -59,14 +58,14 @@ export default defineConfig({
     ignorePatterns: [
       ...(core.ignorePatterns ?? []),
       ".agents/**",
-      "packages/quartz/src/web/**",
-      "scripts/quartz-lint/**",
+      "packages/ui/src/web/**",
+      "scripts/ui-lint/**",
       ...testFiles,
     ],
     jsPlugins: [
       ...(reactDoctor.jsPlugins ?? []),
       ...(antiSlop.jsPlugins ?? []),
-      { name: "quartz", specifier: "./scripts/quartz-lint/plugin.mjs" },
+      { name: "ui", specifier: "./scripts/ui-lint/plugin.mjs" },
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
     ],
     plugins: [
@@ -93,49 +92,28 @@ export default defineConfig({
     },
     overrides: [
       {
-        // Quartz app rules: desktop screens, the Quartz block kept in the web
+        // UI app rules: desktop screens, the UI block kept in the web
         // app, and the web bootstrap. The marketing site's existing cream
         // design is outside the desktop migration.
         files: [
-          "apps/desktop/**/*.{js,jsx,ts,tsx}",
           "apps/web/src/components/project-home.tsx",
           "apps/web/src/main.tsx",
           "apps/web/src/routes/__root.tsx",
         ],
-        rules: quartzAppRules,
+        rules: uiAppRules,
       },
       {
-        // Quartz's own sources build the controls, so app-only rules do not
-        // apply to them. The DOM components are excluded from linting; the
-        // GPUIX adapters stay in scope.
-        files: [
-          "packages/quartz/src/native/**/*.{js,jsx,ts,tsx}",
-          "packages/quartz/src/tokens.ts",
-        ],
-        rules: quartzSourceRules,
+        // UI own sources build the controls, so app-only rules do not
+        // apply to them.
+        files: ["packages/ui/src/tokens.ts"],
+        rules: uiSourceRules,
       },
       {
-        // GPUIX takes StyleDesc objects and cannot execute CSS classes.
-        files: ["apps/desktop/**/*.tsx"],
-        jsPlugins: [
-          {
-            name: "quartz-native",
-            specifier: "./scripts/quartz-lint/native.mjs",
-          },
-        ],
-        rules: {
-          "quartz/no-inline-style": "off",
-          "quartz-native/tokens-only": "error",
-          "quartz-native/components-only": "error",
-          "quartz-native/controls-named": "error",
-        },
-      },
-      {
-        // Quartz reference sources keep the Quartz rules but not the
+        // UI reference sources keep the UI rules but not the
         // repository's general lint set. Tests and the DOM components are
         // excluded from linting entirely.
-        files: quartzReferenceFiles,
-        rules: nonQuartzRules,
+        files: uiReferenceFiles,
+        rules: nonUiRules,
       },
     ],
   },

@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "@gpuix/react",
-    "types": ["bun"]
-  },
-  "include": ["app.tsx", "src", "test", "../../packages/quartz/src/assets.d.ts"]
-}

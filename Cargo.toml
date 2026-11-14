@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "apps/desktop-gpui",
+    "apps/desktop",
     "crates/agents",
     "crates/app",
     "crates/collectors",

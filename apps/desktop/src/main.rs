@@ -4,7 +4,7 @@ mod assets;
 use std::borrow::Cow;
 
 use assets::Assets;
-use coderune_ui::{Backspace, Copy, Cut, Delete, Left, Paste, Right, SelectAll};
+use coderune_ui::{Backspace, Copy, Cut, Delete, Left, Paste, Redo, Right, SelectAll, Undo};
 use gpui::{
     px, size, App, AppContext, Application, Bounds, KeyBinding, TitlebarOptions, WindowBounds, WindowOptions,
 };
@@ -38,6 +38,12 @@ fn main() {
             KeyBinding::new("ctrl-c", Copy, Some("TextInput")),
             KeyBinding::new("cmd-x", Cut, Some("TextInput")),
             KeyBinding::new("ctrl-x", Cut, Some("TextInput")),
+            KeyBinding::new("cmd-z", Undo, Some("TextInput")),
+            KeyBinding::new("ctrl-z", Undo, Some("TextInput")),
+            KeyBinding::new("cmd-shift-z", Redo, Some("TextInput")),
+            KeyBinding::new("ctrl-shift-z", Redo, Some("TextInput")),
+            KeyBinding::new("tab", app::FocusNext, None),
+            KeyBinding::new("shift-tab", app::FocusPrev, None),
         ]);
 
         let launch_directory = std::env::args().nth(1).map(std::path::PathBuf::from);

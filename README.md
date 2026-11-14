@@ -13,17 +13,22 @@ it locally. Architecture and the work breakdown structure will be developed thro
 
 ## Setup
 
+The web app uses Bun. The desktop app is native Rust with GPUI, in
+`apps/desktop`.
+
 ```sh
 bun install
+cargo build -p coderune-desktop
 ```
 
-To make the desktop command available on your PATH while developing, run
-`bun link` in `apps/desktop` and ensure Bun's global bin directory is on your
-PATH. Then run `coderune .` to open the current directory, or `coderune` to
-open the workspace. The editor chooser detects the `code`, `cursor`,
-`antigravity`, and `zed` commands on PATH, and standard installations under
-`/Applications` on macOS. Install the editor's shell command if it does not
-appear.
+Run the desktop app with `cargo run -p coderune-desktop`, or pass a directory:
+`cargo run -p coderune-desktop -- .`. The binary is
+`target/debug/coderune`; `cargo install --path apps/desktop-gpui` puts
+`coderune` on your PATH. The app opens a project folder in Finder and can launch
+`code`, `cursor`, `antigravity`, or `zed` when installed.
+
+The native rewrite notes live in `docs/rust-gpui/`. The old GPUIX/TypeScript
+desktop surface has been removed.
 
 Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/skills`
 and recorded in `skills-lock.json`.

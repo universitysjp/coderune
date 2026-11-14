@@ -13,10 +13,12 @@ use coderune_ui::{
     alert, badge, card, choice_chip, field, nav_item, page_header, section_title, text,
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, AppContext, Context, Div, Entity, FocusHandle,
+    actions, div, prelude::FluentBuilder, px, AppContext, Context, Div, Entity, FocusHandle,
     InteractiveElement, IntoElement, ParentElement, Render, SharedString, StatefulInteractiveElement, Styled,
     Window,
 };
+
+actions!(coderune, [FocusNext, FocusPrev]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
@@ -2081,6 +2083,8 @@ impl Render for CoderuneApp {
             .font_family(theme::FONT_SANS)
             .type_role(TextRole::Body)
             .track_focus(&self.focus)
+            .on_action(cx.listener(|_, _: &FocusNext, window, _| window.focus_next()))
+            .on_action(cx.listener(|_, _: &FocusPrev, window, _| window.focus_prev()))
             .child(body)
     }
 }
