@@ -126,6 +126,11 @@ pub struct ProjectForm {
     pub name: TextEdit,
     pub root: TextEdit,
     pub goals: TextEdit,
+    pub include_paths: TextEdit,
+    pub exclude_paths: TextEdit,
+    pub respect_gitignore: bool,
+    pub per_file_kib: TextEdit,
+    pub per_capture_mib: TextEdit,
     pub editing: Option<String>,
 }
 
@@ -139,6 +144,11 @@ impl ProjectForm {
                     .unwrap_or_default(),
             ),
             goals: edit(""),
+            include_paths: edit(""),
+            exclude_paths: edit(""),
+            respect_gitignore: true,
+            per_file_kib: edit("1024"),
+            per_capture_mib: edit("20"),
             editing: None,
         }
     }
@@ -155,6 +165,11 @@ impl ProjectForm {
                     .collect::<Vec<_>>()
                     .join(", "),
             ),
+            include_paths: edit(project.scope.include_paths.join(", ")),
+            exclude_paths: edit(project.scope.exclude_paths.join(", ")),
+            respect_gitignore: project.scope.respect_gitignore,
+            per_file_kib: edit((project.limits.per_file_bytes / 1024).to_string()),
+            per_capture_mib: edit((project.limits.per_capture_bytes / (1024 * 1024)).to_string()),
             editing: Some(project.id.clone()),
         }
     }
@@ -372,24 +387,38 @@ impl CoderuneApp {
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };
-        let existing = self
-            .project_form
-            .editing
-            .as_deref()
-            .and_then(|id| workspace.projects.iter().find(|project| project.id == id))
-            .cloned();
         let draft = ProjectDraft {
             name: self.project_form.name.text.trim().to_string(),
             root_path: self.project_form.root.text.trim().to_string(),
             goals: split_list(&self.project_form.goals.text),
-            scope: existing
-                .as_ref()
-                .map(|project| project.scope.clone())
-                .unwrap_or_default(),
-            limits: existing
-                .as_ref()
-                .map(|project| project.limits.clone())
-                .unwrap_or_default(),
+            scope: coderune_domain::CollectionScope {
+                include_paths: split_list(&self.project_form.include_paths.text),
+                exclude_paths: split_list(&self.project_form.exclude_paths.text),
+                respect_gitignore: self.project_form.respect_gitignore,
+            },
+            limits: coderune_domain::CaptureLimits {
+                per_file_bytes: self
+                    .project_form
+                    .per_file_kib
+                    .text
+                    .trim()
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|value| *value > 0)
+                    .unwrap_or(1024)
+                    * 1024,
+                per_capture_bytes: self
+                    .project_form
+                    .per_capture_mib
+                    .text
+                    .trim()
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|value| *value > 0)
+                    .unwrap_or(20)
+                    * 1024
+                    * 1024,
+            },
             ..Default::default()
         };
         let result = match self.project_form.editing.as_deref() {
@@ -939,11 +968,21 @@ fn topbar(s: &CoderuneApp) -> El {
 // Screens
 // ---------------------------------------------------------------------------
 
-pub fn on_key(_: &mut CoderuneApp, event: &KeyEvent, _: &mut rune::Tx) -> bool {
-    if let Key::Command('q') = event.key {
-        std::process::exit(0);
+pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, _: &mut rune::Tx) -> bool {
+    match event.key {
+        Key::Command('q') => {
+            std::process::exit(0);
+        }
+        Key::Command('1') => s.navigate(View::Home),
+        Key::Command('2') => s.navigate(View::Profile),
+        Key::Command('3') => s.navigate(View::Projects),
+        Key::Command('4') => s.navigate(View::Documents),
+        Key::Command('5') => s.navigate(View::Agents),
+        Key::Command('6') => s.navigate(View::Capture),
+        Key::Command('7') => s.navigate(View::Data),
+        _ => return false,
     }
-    false
+    true
 }
 
 #[cfg(test)]
@@ -955,7 +994,10 @@ mod tests {
     fn onboarding_and_workspace_render_headlessly() {
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("CODERUNE_DATA_DIR", dir.path());
-        let env = Env { system_dark: false, scale: 1.0 };
+        let env = Env {
+            system_dark: false,
+            scale: 1.0,
+        };
 
         let mut onboarding = Runtime::new(CoderuneApp::init(), view, (1280.0, 860.0), env);
         onboarding.frame(0.0);

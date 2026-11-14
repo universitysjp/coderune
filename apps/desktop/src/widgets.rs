@@ -9,7 +9,7 @@ use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, BODY_SM, HEADING_XS, LABEL, LABEL_SM};
 use coderune_ui::WhenExt;
 use rune::{col, icon, row, text, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit};
-use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit, TextInput};
+use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit, TextArea, TextInput};
 
 pub(crate) fn primary(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
     Button::new(label)
@@ -55,6 +55,23 @@ pub(crate) fn text_input<'a>(
         .label(label)
         .width(None)
         .height(32.0)
+        .on_edit(edit)
+        .build(k)
+}
+
+pub(crate) fn text_area<'a>(
+    value: &TextEdit,
+    placeholder: &str,
+    label: &str,
+    rows: usize,
+    edit: impl for<'b> Fn(&'b mut CoderuneApp) -> &'b mut TextEdit + 'static,
+    k: &Kit,
+) -> El {
+    TextArea::new(value)
+        .placeholder(placeholder)
+        .label(label)
+        .width(None)
+        .rows(rows)
         .on_edit(edit)
         .build(k)
 }

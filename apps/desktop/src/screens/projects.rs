@@ -102,6 +102,67 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
                 k,
             ),
         ),
+        ui::field(
+            "Include paths",
+            Some("Empty means the whole repository. Comma separated, relative to the root."),
+            text_input(
+                &s.project_form.include_paths,
+                "src, docs",
+                "Include paths",
+                |s| &mut s.project_form.include_paths,
+                k,
+            ),
+        ),
+        ui::field(
+            "Exclude paths",
+            Some("Comma separated paths, directory names, or glob patterns."),
+            text_input(
+                &s.project_form.exclude_paths,
+                "generated, vendor",
+                "Exclude paths",
+                |s| &mut s.project_form.exclude_paths,
+                k,
+            ),
+        ),
+        ui::field(
+            "Capture limits",
+            Some("KiB per file and MiB per capture. Defaults are 1024 KiB and 20 MiB."),
+            row()
+                .gap(8.0)
+                .items_center()
+                .child(
+                    text_input(
+                        &s.project_form.per_file_kib,
+                        "1024",
+                        "Per-file limit in KiB",
+                        |s| &mut s.project_form.per_file_kib,
+                        k,
+                    )
+                    .w(160.0),
+                )
+                .child(
+                    text_input(
+                        &s.project_form.per_capture_mib,
+                        "20",
+                        "Per-capture limit in MiB",
+                        |s| &mut s.project_form.per_capture_mib,
+                        k,
+                    )
+                    .w(160.0),
+                ),
+        ),
+        ui::field(
+            "Gitignore",
+            Some("Only the root .gitignore is read."),
+            row().gap(8.0).child(option_chip(
+                "project-gitignore".to_string(),
+                "Respect .gitignore",
+                s.project_form.respect_gitignore,
+                |s: &mut CoderuneApp| {
+                    s.project_form.respect_gitignore = !s.project_form.respect_gitignore
+                },
+            )),
+        ),
     ];
     if confirm_delete {
         form_children.push(ui::alert(None, "Deleting a project also deletes its captures and project-linked documents. Click Confirm delete to proceed."));

@@ -84,10 +84,11 @@ pub(crate) fn profile(s: &CoderuneApp, k: &Kit) -> El {
         ui::field(
             "Initial skills statement",
             Some("New to coding is a valid answer."),
-            text_input(
+            text_area(
                 &s.profile_form.skills,
                 "What can you do today?",
                 "Initial skills statement",
+                3,
                 |s| &mut s.profile_form.skills,
                 k,
             ),
@@ -95,10 +96,11 @@ pub(crate) fn profile(s: &CoderuneApp, k: &Kit) -> El {
         ui::field(
             "Learning goals",
             Some("Separate several goals with commas."),
-            text_input(
+            text_area(
                 &s.profile_form.goals,
                 "What do you want to learn?",
                 "Learning goals",
+                3,
                 |s| &mut s.profile_form.goals,
                 k,
             ),
