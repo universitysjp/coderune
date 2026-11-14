@@ -945,3 +945,26 @@ pub fn on_key(_: &mut CoderuneApp, event: &KeyEvent, _: &mut rune::Tx) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rune::{Env, Runtime};
+
+    #[test]
+    fn onboarding_and_workspace_render_headlessly() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let env = Env { system_dark: false, scale: 1.0 };
+
+        let mut onboarding = Runtime::new(CoderuneApp::init(), view, (1280.0, 860.0), env);
+        onboarding.frame(0.0);
+        assert!(onboarding.find("stage-chip-EarlyCareer").is_some());
+
+        let mut workspace_state = CoderuneApp::init();
+        seed_demo(&mut workspace_state);
+        let mut workspace = Runtime::new(workspace_state, view, (1280.0, 860.0), env);
+        workspace.frame(0.0);
+        assert!(workspace.find("nav-capture").is_some());
+    }
+}

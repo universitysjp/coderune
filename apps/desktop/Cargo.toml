@@ -16,3 +16,6 @@ coderune-domain.workspace = true
 coderune-ui.workspace = true
 rune.workspace = true
 rune-kit.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
