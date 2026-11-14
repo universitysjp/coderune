@@ -3024,9 +3024,12 @@ export const mountDesktop = function mountDesktop(
       <App runtime={runtime} initialDirectory={initialDirectory} />
     </QuartzFonts>,
     {
-      title: "",
+      title: "Coderune",
+      appName: "Coderune",
       width: 1240,
       height: 820,
+      show: true,
+      focus: true,
       terminal: false,
       titlebarTransparent: process.platform === "darwin",
     }
