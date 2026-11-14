@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use coderune_app::Workspace;
-use coderune_domain::{AppError, ExperienceStage, ProfileDraft, ProjectDraft};
+use coderune_agents::DraftSharingPreview;
+use coderune_domain::{AgentAvailability, AgentId, AppError, DocumentKind, ExperienceStage, ProfileDraft, ProjectDraft};
 use coderune_ui::components::{Button, ButtonVariant, TextInputState};
 use coderune_ui::theme::{self, layout, radius, space, TextRole, Tone, TypeStyled};
 use coderune_ui::{
@@ -148,12 +149,45 @@ impl ProjectForm {
     }
 }
 
+#[derive(Clone)]
+pub struct ExtractedDocument {
+    name: String,
+    text: String,
+    bytes: usize,
+    source_path: Option<String>,
+}
+
+pub struct DocumentForm {
+    pub path: Entity<TextInputState>,
+    pub kind: DocumentKind,
+    pub project_id: Option<String>,
+    pub extracted: Option<ExtractedDocument>,
+    pub selected_document: Option<String>,
+    pub agent: Option<AgentId>,
+    pub draft_preview: Option<DraftSharingPreview>,
+}
+
+impl DocumentForm {
+    fn empty(cx: &mut Context<CoderuneApp>) -> Self {
+        Self {
+            path: cx.new(|cx| TextInputState::single_line("Absolute path to a Markdown or text file", cx)),
+            kind: DocumentKind::Cv,
+            project_id: None,
+            extracted: None,
+            selected_document: None,
+            agent: None,
+            draft_preview: None,
+        }
+    }
+}
+
 pub struct CoderuneApp {
     workspace: Option<Workspace>,
     fatal: Option<String>,
     pub view: View,
     profile_form: ProfileForm,
     project_form: ProjectForm,
+    document_form: DocumentForm,
     confirm_delete_project: Option<String>,
     pub error: Option<AppError>,
     pub notice: Option<String>,
@@ -190,12 +224,14 @@ impl CoderuneApp {
             Some(project) => ProjectForm::from_project(project, cx),
             None => ProjectForm::empty(initial_root, cx),
         };
+        let document_form = DocumentForm::empty(cx);
         Self {
             workspace,
             fatal,
             view: View::Home,
             profile_form,
             project_form,
+            document_form,
             confirm_delete_project: None,
             error: None,
             notice: None,
@@ -221,6 +257,76 @@ impl CoderuneApp {
             }
         }
         self.refresh_profile_form(cx);
+    }
+
+    fn extract_document(&mut self, cx: &mut Context<Self>) {
+        let path = self.document_form.path.read(cx).text();
+        if path.trim().is_empty() {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::UnreadableDocument,
+                "Choose a document path first.",
+            ));
+            return;
+        }
+        let Some(workspace) = self.workspace.as_ref() else { return };
+        match workspace.extract_document(std::path::PathBuf::from(&path), 20 * 1024 * 1024) {
+            Ok((name, text, bytes)) => {
+                self.document_form.extracted = Some(ExtractedDocument {
+                    name,
+                    text,
+                    bytes,
+                    source_path: Some(path),
+                });
+                self.error = None;
+                self.notice = Some("Text extracted locally. Review it before saving.".to_string());
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn save_document_import(&mut self, cx: &mut Context<Self>) {
+        let Some(extracted) = self.document_form.extracted.clone() else {
+            return;
+        };
+        let Some(workspace) = self.workspace.as_mut() else { return };
+        match workspace.save_document(
+            self.document_form.kind,
+            self.document_form.project_id.clone(),
+            extracted.name.clone(),
+            extracted.source_path.clone(),
+            extracted.text.clone(),
+            true,
+        ) {
+            Ok(document) => {
+                self.notice = Some(format!("Saved {} import {}.", document.kind.label(), document.name));
+                self.error = None;
+                self.document_form.extracted = None;
+                self.document_form.selected_document = Some(document.id);
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn prepare_draft(&mut self, cx: &mut Context<Self>) {
+        let (Some(agent), Some(document_id)) = (
+            self.document_form.agent,
+            self.document_form.selected_document.clone(),
+        ) else {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::Validation,
+                "Select an imported document and a coding agent first.",
+            ));
+            return;
+        };
+        let Some(workspace) = self.workspace.as_ref() else { return };
+        match workspace.prepare_draft(agent, &document_id) {
+            Ok(preview) => {
+                self.document_form.draft_preview = Some(preview);
+                self.error = None;
+                self.notice = Some("Sharing preview prepared. No agent process has started.".to_string());
+            }
+            Err(error) => self.error = Some(error),
+        }
     }
 
     fn load_project_form(&mut self, id: &str, cx: &mut Context<Self>) {
@@ -992,6 +1098,270 @@ impl CoderuneApp {
             )
     }
 
+    fn render_documents(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let workspace = self.workspace.as_ref();
+        let documents = workspace.map(|workspace| workspace.documents.clone()).unwrap_or_default();
+        let projects = workspace.map(|workspace| workspace.projects.clone()).unwrap_or_default();
+        let agents = workspace.map(|workspace| workspace.agents.clone()).unwrap_or_default();
+
+        let kind_chips = [DocumentKind::Cv, DocumentKind::Srs]
+            .into_iter()
+            .map(|kind| {
+                choice_chip(
+                    SharedString::from(format!("doc-kind-{:?}", kind)),
+                    kind.label(),
+                    self.document_form.kind == kind,
+                    cx.listener(move |this, _, _, cx| {
+                        this.document_form.kind = kind;
+                        this.document_form.draft_preview = None;
+                        cx.notify();
+                    }),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let project_chips = projects
+            .iter()
+            .map(|project| {
+                choice_chip(
+                    SharedString::from(format!("doc-project-{}", project.id)),
+                    &project.name,
+                    self.document_form.project_id.as_deref() == Some(project.id.as_str()),
+                    cx.listener({
+                        let id = project.id.clone();
+                        move |this, _, _, cx| {
+                            this.document_form.project_id = Some(id.clone());
+                            this.document_form.draft_preview = None;
+                            cx.notify();
+                        }
+                    }),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let mut import_card = card(
+            Some("Import a document"),
+            Some("Extraction is local. The original file is not copied into application storage."),
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(space::S4))
+                .child(field(
+                    "Document path",
+                    Some("Markdown and plain text are supported in this build. Use manual entry for PDF or DOCX."),
+                    self.document_form.path.clone(),
+                ))
+                .child(field("Kind", None, div().flex().flex_row().gap(px(space::S2)).children(kind_chips)))
+                .when(self.document_form.kind == DocumentKind::Srs, |this| {
+                    this.child(field(
+                        "Project",
+                        Some("An SRS belongs to one project."),
+                        div().flex().flex_wrap().gap(px(space::S2)).children(project_chips),
+                    ))
+                })
+                .child(
+                    Button::new("extract-document", "Extract text", ButtonVariant::Secondary)
+                        .on_click(cx.listener(|this, _, _, cx| this.extract_document(cx))),
+                ),
+        );
+        if let Some(extracted) = &self.document_form.extracted {
+            import_card = import_card.child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S3))
+                    .pt(px(space::S3))
+                    .border_t_1()
+                    .border_color(theme::row_line())
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(space::S2))
+                            .child(text(&extracted.name, TextRole::Label, Tone::Ink))
+                            .child(badge(&format!("{} bytes", extracted.bytes)))
+                    )
+                    .child(
+                        div()
+                            .id("extracted-text")
+                            .max_h(px(layout::FIELD_MAX_HEIGHT))
+                            .overflow_y_scroll()
+                            .bg(theme::code())
+                            .rounded(px(radius::SOFT))
+                            .p(px(space::S3))
+                            .type_role(TextRole::Code)
+                            .text_color(theme::ink())
+                            .child(extracted.text.clone()),
+                    )
+                    .child(
+                        Button::new("save-document", "Save reviewed import", ButtonVariant::Primary)
+                            .on_click(cx.listener(|this, _, _, cx| this.save_document_import(cx))),
+                    ),
+            );
+        }
+
+        let document_rows = documents
+            .iter()
+            .map(|document| {
+                let selected = self.document_form.selected_document.as_deref() == Some(document.id.as_str());
+                let id = document.id.clone();
+                let project_name = document
+                    .project_id
+                    .as_deref()
+                    .and_then(|id| projects.iter().find(|project| project.id == id))
+                    .map(|project| project.name.as_str())
+                    .unwrap_or("No project");
+                div()
+                    .id(SharedString::from(format!("document-{}", document.id)))
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S1))
+                    .w_full()
+                    .p(px(space::S3))
+                    .rounded(px(radius::INNER))
+                    .cursor(gpui::CursorStyle::PointingHand)
+                    .when(selected, |this| this.bg(theme::accent_soft()))
+                    .when(!selected, |this| this.hover(|style| style.bg(theme::hover())))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.document_form.selected_document = Some(id.clone());
+                        this.document_form.draft_preview = None;
+                        cx.notify();
+                    }))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(space::S2))
+                            .child(text(&document.name, TextRole::Label, Tone::Ink))
+                            .child(badge(document.kind.label()))
+                            .child(badge(&format!("{} bytes", document.text_bytes))),
+                    )
+                    .child(text(
+                        format!("{project_name} · {}", &document.sha256[..8.min(document.sha256.len())]),
+                        TextRole::CodeSm,
+                        Tone::Faint,
+                    ))
+            })
+            .collect::<Vec<_>>();
+
+        let selected_document = self
+            .document_form
+            .selected_document
+            .as_deref()
+            .and_then(|id| documents.iter().find(|document| document.id == id))
+            .cloned();
+
+        let agent_chips = agents
+            .iter()
+            .map(|status| {
+                let id = status.id;
+                let enabled = status.availability == AgentAvailability::Ready;
+                choice_chip(
+                    SharedString::from(format!("draft-agent-{:?}", status.id)),
+                    status.id.label(),
+                    self.document_form.agent == Some(status.id),
+                    cx.listener(move |this, _, _, cx| {
+                        if enabled {
+                            this.document_form.agent = Some(id);
+                            this.document_form.draft_preview = None;
+                            cx.notify();
+                        }
+                    }),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let mut draft_card = card(
+            Some("Agent-assisted draft"),
+            Some("Coderune shares only the exact text you preview. Sign-in, providers, and models stay with the agent."),
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(space::S3))
+                .when_some(selected_document.clone(), |this, document| {
+                    this.child(text(
+                        format!("Selected: {} ({})", document.name, document.kind.label()),
+                        TextRole::BodySm,
+                        Tone::Muted,
+                    ))
+                })
+                .when(selected_document.is_none(), |this| {
+                    this.child(text(
+                        "Select an imported document from the list below.",
+                        TextRole::BodySm,
+                        Tone::Muted,
+                    ))
+                })
+                .child(div().flex().flex_wrap().gap(px(space::S2)).children(agent_chips))
+                .child(
+                    Button::new("prepare-draft", "Prepare sharing preview", ButtonVariant::Secondary)
+                        .disabled(selected_document.is_none())
+                        .on_click(cx.listener(|this, _, _, cx| this.prepare_draft(cx))),
+                ),
+        );
+        if let Some(preview) = &self.document_form.draft_preview {
+            draft_card = draft_card.child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S2))
+                    .child(text(
+                        format!(
+                            "{} bytes · limit {} bytes · {}",
+                            preview.estimated_bytes,
+                            preview.max_input_bytes,
+                            if preview.fits { "fits" } else { "too large" }
+                        ),
+                        TextRole::BodySm,
+                        if preview.fits { Tone::Muted } else { Tone::Danger },
+                    ))
+                    .child(
+                        div()
+                            .id("draft-preview")
+                            .max_h(px(layout::FIELD_MAX_HEIGHT))
+                            .overflow_y_scroll()
+                            .bg(theme::code())
+                            .rounded(px(radius::SOFT))
+                            .p(px(space::S3))
+                            .type_role(TextRole::Code)
+                            .text_color(theme::ink())
+                            .child(preview.text.clone()),
+                    )
+                    .child(text(
+                        "Draft execution is enabled for Claude Code in the service layer. Review the exact text before requesting.",
+                        TextRole::BodySm,
+                        Tone::Faint,
+                    )),
+            );
+        }
+
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(space::S6))
+            .child(page_header(
+                "Documents",
+                "Import CV and SRS source documents, review the extracted text, and prepare agent drafts.",
+                div(),
+            ))
+            .child(import_card)
+            .child(card(
+                Some("Imported documents"),
+                Some("Approved text retained locally. Select one to prepare a draft."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S1))
+                    .when(document_rows.is_empty(), |this| {
+                        this.child(text("No imported documents yet.", TextRole::BodySm, Tone::Muted))
+                    })
+                    .children(document_rows),
+            ))
+            .child(draft_card)
+    }
+
     fn render_section_placeholder(&self, title: &str, description: &str) -> impl IntoElement {
         card(
             Some(title),
@@ -1009,7 +1379,7 @@ impl CoderuneApp {
             View::Home => self.render_home(cx).into_any_element(),
             View::Profile => self.render_profile(cx).into_any_element(),
             View::Projects => self.render_projects(cx).into_any_element(),
-            View::Documents => self.render_section_placeholder("Documents", "Import CV and SRS source documents for review.").into_any_element(),
+            View::Documents => self.render_documents(cx).into_any_element(),
             View::Agents => self.render_section_placeholder("Agents", "Coding agents detected on this machine.").into_any_element(),
             View::Capture => self.render_section_placeholder("Capture", "Preview, review, and save repository context.").into_any_element(),
             View::Data => self.render_section_placeholder("Data", "Export local context or delete application data.").into_any_element(),

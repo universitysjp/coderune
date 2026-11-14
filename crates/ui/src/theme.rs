@@ -66,6 +66,7 @@ pub mod layout {
     pub const PAGE_HEADER_MAX: f32 = 720.0;
     pub const OVERLAY: f32 = 480.0;
     pub const OVERLAY_LG: f32 = 640.0;
+    pub const FIELD_MAX_HEIGHT: f32 = 176.0;
 }
 
 pub const ICON_SIZE: f32 = 20.0;
