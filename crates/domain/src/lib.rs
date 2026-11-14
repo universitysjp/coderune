@@ -383,7 +383,7 @@ pub struct ImportedDocument {
     pub created_at: String,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CollectionScope {
     #[serde(rename = "includePaths", default)]
     pub include_paths: Vec<String>,
@@ -395,6 +395,16 @@ pub struct CollectionScope {
 
 fn default_true() -> bool {
     true
+}
+
+impl Default for CollectionScope {
+    fn default() -> Self {
+        Self {
+            include_paths: Vec::new(),
+            exclude_paths: Vec::new(),
+            respect_gitignore: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
