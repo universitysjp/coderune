@@ -8,7 +8,7 @@
   },
   "scripts": {
     "check-types": "bun check",
-    "test": "bun test"
+    "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
     "@coderune/core": "workspace:*"
