@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use coderune_agents::{self as agents, DraftSharingPreview};
-use coderune_collectors::{self as collectors, CollectedRepository, CollectRequest};
+use coderune_collectors::{self as collectors, CollectRequest, CollectedRepository};
 use coderune_domain::{
     now_iso, AgentStatus, AppError, CaptureLimits, CollectionScope, ContextCapture,
     DeveloperProfile, DocumentKind, ErrorCode, ExportBundle, ImportedDocument, OnboardingState,
@@ -68,7 +68,10 @@ impl Workspace {
     pub fn reload(&mut self) -> AppResult<()> {
         self.onboarding = self.storage.load_onboarding().map_err(map_storage)?;
         self.projects = self.storage.list_projects().map_err(map_storage)?;
-        self.documents = self.storage.list_documents(DocumentFilter::All).map_err(map_storage)?;
+        self.documents = self
+            .storage
+            .list_documents(DocumentFilter::All)
+            .map_err(map_storage)?;
         self.agents = agents::detect_all();
         if self.selected_project_id.is_none() {
             self.selected_project_id = self.projects.first().map(|project| project.id.clone());
@@ -94,7 +97,9 @@ impl Workspace {
     }
 
     pub fn save_onboarding_draft(&mut self, draft: ProfileDraft) -> AppResult<()> {
-        self.storage.save_onboarding_draft(draft).map_err(map_storage)?;
+        self.storage
+            .save_onboarding_draft(draft)
+            .map_err(map_storage)?;
         self.onboarding = self.storage.load_onboarding().map_err(map_storage)?;
         Ok(())
     }
@@ -120,7 +125,10 @@ impl Workspace {
                 "Choose an existing readable project directory.",
             ));
         }
-        let project = self.storage.save_project(draft, true).map_err(map_storage)?;
+        let project = self
+            .storage
+            .save_project(draft, true)
+            .map_err(map_storage)?;
         self.selected_project_id = Some(project.id.clone());
         self.reload()?;
         Ok(project)
@@ -159,7 +167,9 @@ impl Workspace {
     }
 
     pub fn capture_contents(&self, capture_id: &str) -> AppResult<BTreeMap<String, String>> {
-        self.storage.capture_contents(capture_id).map_err(map_storage)
+        self.storage
+            .capture_contents(capture_id)
+            .map_err(map_storage)
     }
 
     pub fn preview_capture(
@@ -188,9 +198,10 @@ impl Workspace {
             profile_updated_at: profile.updated_at.clone(),
         };
         let collected = collectors::collect(&request).map_err(|error| match error {
-            collectors::CollectError::UnreadableRoot(path) => {
-                AppError::new(ErrorCode::UnreadablePath, format!("{path} is not readable."))
-            }
+            collectors::CollectError::UnreadableRoot(path) => AppError::new(
+                ErrorCode::UnreadablePath,
+                format!("{path} is not readable."),
+            ),
             other => AppError::new(ErrorCode::UnreadablePath, other.to_string()),
         })?;
         Ok(PreviewSession {
@@ -201,7 +212,11 @@ impl Workspace {
 
     /// Re-collect before saving so a changed source cannot be saved from a stale
     /// preview. The caller must pass the explicit confirmation flag.
-    pub fn save_capture(&mut self, session: &PreviewSession, confirmed: bool) -> AppResult<ContextCapture> {
+    pub fn save_capture(
+        &mut self,
+        session: &PreviewSession,
+        confirmed: bool,
+    ) -> AppResult<ContextCapture> {
         if !confirmed {
             return Err(AppError::new(
                 ErrorCode::ConfirmationRequired,
@@ -251,7 +266,8 @@ impl Workspace {
             .iter()
             .find(|project| project.id == project_id)
             .ok_or_else(|| AppError::new(ErrorCode::NotFound, "Select a project first."))?;
-        let session = self.preview_capture(project_id, project.scope.clone(), project.limits.clone())?;
+        let session =
+            self.preview_capture(project_id, project.scope.clone(), project.limits.clone())?;
         let latest = self.list_captures(project_id)?.into_iter().next();
         if latest
             .as_ref()
@@ -292,7 +308,10 @@ impl Workspace {
             ));
         }
         let metadata = std::fs::metadata(path).map_err(|_| {
-            AppError::new(ErrorCode::UnreadableDocument, "The document could not be read.")
+            AppError::new(
+                ErrorCode::UnreadableDocument,
+                "The document could not be read.",
+            )
         })?;
         if metadata.len() > max_bytes {
             return Err(AppError::new(
@@ -301,7 +320,10 @@ impl Workspace {
             ));
         }
         let text = std::fs::read_to_string(path).map_err(|_| {
-            AppError::new(ErrorCode::UnreadableDocument, "The document is not valid UTF-8 text.")
+            AppError::new(
+                ErrorCode::UnreadableDocument,
+                "The document is not valid UTF-8 text.",
+            )
         })?;
         if text.trim().is_empty() {
             return Err(AppError::new(
@@ -335,7 +357,10 @@ impl Workspace {
             ));
         }
         if text.trim().is_empty() {
-            return Err(AppError::new(ErrorCode::UnreadableDocument, "The text is empty."));
+            return Err(AppError::new(
+                ErrorCode::UnreadableDocument,
+                "The text is empty.",
+            ));
         }
         if kind == DocumentKind::Srs && project_id.is_none() {
             return Err(AppError::new(
@@ -355,7 +380,10 @@ impl Workspace {
             created_at: now_iso(),
         };
         self.storage.save_document(&document).map_err(map_storage)?;
-        self.documents = self.storage.list_documents(DocumentFilter::All).map_err(map_storage)?;
+        self.documents = self
+            .storage
+            .list_documents(DocumentFilter::All)
+            .map_err(map_storage)?;
         Ok(document)
     }
 
@@ -374,7 +402,12 @@ impl Workspace {
             .as_deref()
             .and_then(|id| self.projects.iter().find(|project| project.id == id))
             .map(|project| project.name.as_str());
-        Ok(agents::prepare_preview(agent, document.kind, document, project_name))
+        Ok(agents::prepare_preview(
+            agent,
+            document.kind,
+            document,
+            project_name,
+        ))
     }
 
     pub fn export_bundle(&self) -> AppResult<ExportBundle> {
@@ -383,7 +416,10 @@ impl Workspace {
 
     pub fn export_json(&self) -> AppResult<String> {
         serde_json::to_string_pretty(&self.export_bundle()?).map_err(|error| {
-            AppError::new(ErrorCode::Validation, format!("Could not serialize export: {error}"))
+            AppError::new(
+                ErrorCode::Validation,
+                format!("Could not serialize export: {error}"),
+            )
         })
     }
 
@@ -396,7 +432,11 @@ impl Workspace {
 
     pub fn adopt_launch_directory(&mut self, directory: PathBuf) -> AppResult<Option<Project>> {
         self.launch_directory = Some(directory.clone());
-        if let Some(project) = self.storage.find_project_by_path(&directory).map_err(map_storage)? {
+        if let Some(project) = self
+            .storage
+            .find_project_by_path(&directory)
+            .map_err(map_storage)?
+        {
             self.selected_project_id = Some(project.id.clone());
             return Ok(Some(project));
         }
@@ -425,7 +465,10 @@ impl Workspace {
             command
         };
         command.spawn().map(|_| ()).map_err(|error| {
-            AppError::new(ErrorCode::UnreadablePath, format!("Could not open the folder: {error}"))
+            AppError::new(
+                ErrorCode::UnreadablePath,
+                format!("Could not open the folder: {error}"),
+            )
         })
     }
 
@@ -433,7 +476,10 @@ impl Workspace {
     pub fn launch_editor(editor: &str, path: &Path) -> AppResult<()> {
         let allowed = ["code", "cursor", "antigravity", "zed"];
         if !allowed.contains(&editor) {
-            return Err(AppError::new(ErrorCode::Validation, "Choose a supported editor."));
+            return Err(AppError::new(
+                ErrorCode::Validation,
+                "Choose a supported editor.",
+            ));
         }
         std::process::Command::new(editor)
             .arg(path)
@@ -501,7 +547,9 @@ mod tests {
     fn project_work_requires_onboarding() {
         let mut workspace = workspace();
         let root = tempfile::tempdir().unwrap();
-        let error = workspace.create_project(project_draft(root.path())).unwrap_err();
+        let error = workspace
+            .create_project(project_draft(root.path()))
+            .unwrap_err();
         assert_eq!(error.code, ErrorCode::OnboardingRequired);
         workspace.confirm_profile(profile()).unwrap();
         assert!(workspace.create_project(project_draft(root.path())).is_ok());
@@ -514,7 +562,9 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         std::fs::write(root.path().join("README.md"), "# Demo").unwrap();
         std::fs::write(root.path().join("main.ts"), "export {}").unwrap();
-        let project = workspace.create_project(project_draft(root.path())).unwrap();
+        let project = workspace
+            .create_project(project_draft(root.path()))
+            .unwrap();
         let session = workspace
             .preview_capture(&project.id, project.scope.clone(), project.limits.clone())
             .unwrap();
@@ -534,18 +584,51 @@ mod tests {
         workspace.confirm_profile(profile()).unwrap();
         let root = tempfile::tempdir().unwrap();
         std::fs::write(root.path().join("README.md"), "# Demo").unwrap();
-        let project = workspace.create_project(project_draft(root.path())).unwrap();
+        let project = workspace
+            .create_project(project_draft(root.path()))
+            .unwrap();
         let found = workspace
             .adopt_launch_directory(root.path().to_path_buf())
             .unwrap()
             .expect("existing project should be selected");
         assert_eq!(found.id, project.id);
-        assert_eq!(workspace.selected_project_id.as_deref(), Some(project.id.as_str()));
+        assert_eq!(
+            workspace.selected_project_id.as_deref(),
+            Some(project.id.as_str())
+        );
         let other = tempfile::tempdir().unwrap();
         assert!(workspace
             .adopt_launch_directory(other.path().to_path_buf())
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn project_scope_and_limits_round_trip() {
+        let mut workspace = workspace();
+        workspace.confirm_profile(profile()).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let mut draft = project_draft(root.path());
+        draft.scope = CollectionScope {
+            include_paths: vec!["src".to_string(), "docs".to_string()],
+            exclude_paths: vec!["vendor".to_string()],
+            respect_gitignore: false,
+        };
+        draft.limits = CaptureLimits {
+            per_file_bytes: 2048,
+            per_capture_bytes: 4096,
+        };
+        let project = workspace.create_project(draft).unwrap();
+        let reloaded = workspace
+            .projects
+            .iter()
+            .find(|item| item.id == project.id)
+            .unwrap();
+        assert_eq!(reloaded.scope.include_paths, vec!["src", "docs"]);
+        assert_eq!(reloaded.scope.exclude_paths, vec!["vendor"]);
+        assert!(!reloaded.scope.respect_gitignore);
+        assert_eq!(reloaded.limits.per_file_bytes, 2048);
+        assert_eq!(reloaded.limits.per_capture_bytes, 4096);
     }
 
     #[test]
@@ -581,7 +664,9 @@ mod tests {
         let mut workspace = workspace();
         workspace.confirm_profile(profile()).unwrap();
         let root = tempfile::tempdir().unwrap();
-        workspace.create_project(project_draft(root.path())).unwrap();
+        workspace
+            .create_project(project_draft(root.path()))
+            .unwrap();
         let json = workspace.export_json().unwrap();
         assert!(json.contains("\"application\": \"Coderune\""));
         workspace.delete_all_data().unwrap();
