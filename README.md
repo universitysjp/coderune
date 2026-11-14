@@ -11,6 +11,18 @@ The first planned milestone is collecting developer and project context and stor
 it locally. Architecture and the work breakdown structure will be developed through
 `/grill-with-docs` before implementation.
 
+## Desktop architecture
+
+- `apps/desktop/src/app.rs` — application state, actions, and the workspace shell.
+- `apps/desktop/src/screens/` — one Rune view module per screen.
+- `apps/desktop/src/widgets.rs` — app-specific controls shared by screens.
+- `crates/ui` — the Rune design system: tokens, icons, cards, fields, alerts.
+- `crates/domain`, `crates/storage`, `crates/collectors`, `crates/agents`, and
+  `crates/app` — framework-independent domain and application operations.
+
+Screens never own data and the service crates never import the UI. Rune's
+headless snapshots make the views reviewable without a window.
+
 ## Setup
 
 The web app uses Bun. The desktop app is native Rust with [Rune](https://github.com/anomalyco/rune), in

@@ -37,7 +37,7 @@ input without a window. See [ADR 0005](../adr/0005-desktop-ui-framework.md).
 - `apps/desktop/src/widgets.rs` — app-specific builders shared by screens.
 - Rune `AppSpec` boot with embedded fonts, minimum window size, Cmd-Q, and named
   scenes for headless snapshots.
-- Onboarding, profile versioning, project CRUD and deletion, Markdown/text
+- Onboarding, profile versioning, project scope/limits, CRUD and deletion, Markdown/text
   document review, agent detection, reviewed captures with history and content
   inspection, JSON export, and confirmed delete-all.
 - A directory argument selects a matching project or prefills a new root.
@@ -70,12 +70,10 @@ also launched and used to complete onboarding and navigate the workspace.
 ## Not yet ported
 
 - PDF and DOCX text extraction (manual entry remains available).
-- Multi-line editors for long prose; Rune fields are available, but the current
-  forms use single-line inputs.
 - Draft execution for Codex, OpenCode, and Antigravity; only Claude Code's
   headless mode runs today.
 - Applying a reviewed agent draft into the profile or project.
-- Per-preview scope/limit overrides and a scope editor in the UI.
+- Per-preview scope/limit overrides; project scope and limits are editable.
 - Self-reported skills, education, employment, certifications, links, and
   learning-preference editors. They are stored and exported but not editable.
 - Settings/preferences, packaging, signing, auto-update, and a tray icon.
