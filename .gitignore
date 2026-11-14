@@ -37,3 +37,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .design-system/
 .ui-review/
 .playwright-cli/
+
+# vendored reference source (Cap)
+/vendor/cap/
+
+# rust build output
+/target/

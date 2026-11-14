@@ -1,0 +1,53 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/desktop-gpui",
+    "crates/agents",
+    "crates/app",
+    "crates/collectors",
+    "crates/domain",
+    "crates/storage",
+    "crates/ui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+directories = "6"
+gpui = { version = "0.2.2", features = ["runtime_shaders"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+unicode-segmentation = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+walkdir = "2"
+
+coderune-agents = { path = "crates/agents" }
+coderune-app = { path = "crates/app" }
+coderune-collectors = { path = "crates/collectors" }
+coderune-domain = { path = "crates/domain" }
+coderune-storage = { path = "crates/storage" }
+coderune-ui = { path = "crates/ui" }
+
+[profile.dev]
+opt-level = 0
+incremental = true
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = "symbols"
