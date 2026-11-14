@@ -153,6 +153,8 @@ impl RenderOnce for Button {
             .px(px(size.padding_x()))
             .py(px(space::S1))
             .rounded(px(radius::SOFT))
+            .tab_index(0)
+            .tab_stop(!disabled)
             .border_1()
             .border_color(border)
             .type_role(size.role())

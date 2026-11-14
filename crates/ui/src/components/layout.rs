@@ -113,6 +113,8 @@ pub fn choice_chip(
         .px(px(space::S3))
         .rounded(px(radius::SOFT))
         .border_1()
+        .tab_index(0)
+        .tab_stop(true)
         .border_color(if selected { theme::accent() } else { theme::control_line() })
         .when(selected, |this| this.bg(theme::accent_soft()))
         .when(!selected, |this| this.hover(|style| style.bg(theme::hover())))

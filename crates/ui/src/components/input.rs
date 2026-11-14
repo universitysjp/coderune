@@ -27,7 +27,9 @@ actions!(
         SelectAll,
         Paste,
         Cut,
-        Copy
+        Copy,
+        Undo,
+        Redo
     ]
 );
 
@@ -41,6 +43,8 @@ pub struct TextInputState {
     last_layout: Option<ShapedLine>,
     last_bounds: Option<Bounds<Pixels>>,
     height: f32,
+    undo_stack: Vec<(SharedString, Range<usize>)>,
+    redo_stack: Vec<(SharedString, Range<usize>)>,
 }
 
 impl TextInputState {
@@ -55,6 +59,8 @@ impl TextInputState {
             last_layout: None,
             last_bounds: None,
             height: 32.0,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
         }
     }
 
@@ -75,6 +81,8 @@ impl TextInputState {
             last_layout: None,
             last_bounds: None,
             height: 32.0,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
         }
     }
 
@@ -85,6 +93,44 @@ impl TextInputState {
     pub fn set_text(&mut self, text: impl Into<SharedString>, cx: &mut Context<Self>) {
         self.content = text.into();
         self.selected_range = self.content.len()..self.content.len();
+        self.marked_range = None;
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+        cx.notify();
+    }
+
+    fn snapshot(&self) -> (SharedString, Range<usize>) {
+        (self.content.clone(), self.selected_range.clone())
+    }
+
+    fn record_undo(&mut self) {
+        if self.undo_stack.len() >= 100 {
+            self.undo_stack.remove(0);
+        }
+        self.undo_stack.push(self.snapshot());
+        self.redo_stack.clear();
+    }
+
+    fn undo(&mut self, _: &Undo, _: &mut Window, cx: &mut Context<Self>) {
+        let Some((content, range)) = self.undo_stack.pop() else {
+            return;
+        };
+        let current = self.snapshot();
+        self.redo_stack.push(current);
+        self.content = content;
+        self.selected_range = range;
+        self.marked_range = None;
+        cx.notify();
+    }
+
+    fn redo(&mut self, _: &Redo, _: &mut Window, cx: &mut Context<Self>) {
+        let Some((content, range)) = self.redo_stack.pop() else {
+            return;
+        };
+        let current = self.snapshot();
+        self.undo_stack.push(current);
+        self.content = content;
+        self.selected_range = range;
         self.marked_range = None;
         cx.notify();
     }
@@ -282,6 +328,7 @@ impl EntityInputHandler for TextInputState {
             .map(|range_utf16| self.range_from_utf16(range_utf16))
             .or(self.marked_range.clone())
             .unwrap_or(self.selected_range.clone());
+        self.record_undo();
         self.content =
             (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
                 .into();
@@ -379,6 +426,8 @@ impl Render for TextInputState {
             .on_action(cx.listener(Self::paste))
             .on_action(cx.listener(Self::cut))
             .on_action(cx.listener(Self::copy))
+            .on_action(cx.listener(Self::undo))
+            .on_action(cx.listener(Self::redo))
             .h(px(self.height))
             .w_full()
             .px(px(space::S3))
@@ -390,6 +439,7 @@ impl Render for TextInputState {
                 theme::control_line()
             })
             .bg(theme::panel())
+            .overflow_hidden()
             .type_role(TextRole::Label)
             .text_color(theme::ink())
             .hover(|style| style.border_color(theme::control_hover()))
