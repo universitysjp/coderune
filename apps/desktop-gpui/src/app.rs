@@ -182,6 +182,19 @@ impl CoderuneApp {
         self.refresh_profile_form(cx);
     }
 
+    fn save_profile(&mut self, cx: &mut Context<Self>) {
+        let draft = self.profile_form.to_draft(cx);
+        let Some(workspace) = self.workspace.as_mut() else { return };
+        match workspace.update_profile(draft) {
+            Ok(profile) => {
+                self.notice = Some(format!("Profile v{} saved.", profile.version));
+                self.error = None;
+                self.refresh_profile_form(cx);
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+
     fn save_draft(&mut self, cx: &mut Context<Self>) {
         let draft = self.profile_form.to_draft(cx);
         let Some(workspace) = self.workspace.as_mut() else { return };
@@ -606,6 +619,128 @@ impl CoderuneApp {
         body
     }
 
+    fn render_profile(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let profile = self.workspace.as_ref().and_then(|workspace| workspace.profile());
+        let stage_row = ExperienceStage::ALL
+            .iter()
+            .map(|stage| {
+                choice_chip(
+                    SharedString::from(format!("profile-stage-{:?}", stage)),
+                    stage.label(),
+                    self.profile_form.stage == Some(*stage),
+                    cx.listener(move |this, _, _, cx| {
+                        this.profile_form.stage = Some(*stage);
+                        cx.notify();
+                    }),
+                )
+            })
+            .collect::<Vec<_>>();
+        let current = profile.map(|profile| {
+            card(
+                Some("Current baseline"),
+                Some("Edits create a new immutable version. Existing captures keep their snapshot."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S3))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(space::S2))
+                            .child(text(&profile.display_name, TextRole::HeadingXs, Tone::Ink))
+                            .child(badge(&format!("v{}", profile.version)))
+                            .child(badge(profile.experience_stage.label())),
+                    )
+                    .child(field("Skills", None, text(&profile.skills_statement, TextRole::Body, Tone::Muted)))
+                    .child(field(
+                        "Learning goals",
+                        None,
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(space::S1))
+                            .children(profile.learning_goals.iter().map(|goal| {
+                                text(format!("· {goal}"), TextRole::BodySm, Tone::Muted)
+                            })),
+                    ))
+                    .child(text(
+                        format!(
+                            "{} self-reported skill(s) · {} education entr(ies) · {} employment entr(ies)",
+                            profile.self_reported_skills.len(),
+                            profile.education.len(),
+                            profile.employment.len()
+                        ),
+                        TextRole::BodySm,
+                        Tone::Faint,
+                    )),
+            )
+        });
+        let mut form = card(
+            Some("Edit profile"),
+            Some("Required fields stay required. Self-reported skills are never presented as verified mastery."),
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(space::S5))
+                .child(field("Display name", Some("A name or pseudonym."), self.profile_form.display_name.clone()))
+                .child(field(
+                    "Experience stage",
+                    Some("Self-reported baseline."),
+                    div().flex().flex_wrap().gap(px(space::S2)).children(stage_row),
+                ))
+                .child(field(
+                    "Initial skills statement",
+                    Some("New to coding is a valid answer."),
+                    self.profile_form.skills.clone(),
+                ))
+                .child(field(
+                    "Learning goals",
+                    Some("Separate several goals with commas."),
+                    self.profile_form.goals.clone(),
+                ))
+                .child(
+                    div()
+                        .flex()
+                        .flex_row()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(space::S2))
+                        .child(choice_chip(
+                            "profile-new-to-coding",
+                            "I am new to coding",
+                            self.profile_form.new_to_coding,
+                            cx.listener(|this, _, _, cx| {
+                                this.profile_form.new_to_coding = !this.profile_form.new_to_coding;
+                                cx.notify();
+                            }),
+                        ))
+                        .child(
+                            Button::new("save-profile", "Save new version", ButtonVariant::Primary)
+                                .on_click(cx.listener(|this, _, _, cx| this.save_profile(cx))),
+                        ),
+                ),
+        );
+        if let Some(error) = &self.error {
+            form = form.child(alert(Some(error.code.as_str()), &error.message));
+        }
+        if let Some(notice) = &self.notice {
+            form = form.child(alert(None, notice));
+        }
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(space::S6))
+            .child(page_header(
+                "Profile",
+                "The reusable developer profile shared across every project.",
+                div(),
+            ))
+            .when_some(current, |this, current| this.child(current))
+            .child(form)
+    }
+
     fn render_section_placeholder(&self, title: &str, description: &str) -> impl IntoElement {
         card(
             Some(title),
@@ -621,7 +756,7 @@ impl CoderuneApp {
     fn render_workspace(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let content = match self.view {
             View::Home => self.render_home(cx).into_any_element(),
-            View::Profile => self.render_section_placeholder("Profile", "Inspect and edit the reusable developer profile.").into_any_element(),
+            View::Profile => self.render_profile(cx).into_any_element(),
             View::Projects => self.render_section_placeholder("Projects", "Create, select, edit, and delete project context.").into_any_element(),
             View::Documents => self.render_section_placeholder("Documents", "Import CV and SRS source documents for review.").into_any_element(),
             View::Agents => self.render_section_placeholder("Agents", "Coding agents detected on this machine.").into_any_element(),
