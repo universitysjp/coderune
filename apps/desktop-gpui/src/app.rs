@@ -1362,6 +1362,74 @@ impl CoderuneApp {
             .child(draft_card)
     }
 
+    fn refresh_agents(&mut self, cx: &mut Context<Self>) {
+        if let Some(workspace) = self.workspace.as_mut() {
+            workspace.agents = coderune_agents::detect_all();
+        }
+        self.notice = Some("Agent detection refreshed.".to_string());
+        cx.notify();
+    }
+
+    fn render_agents(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let agents = self.workspace.as_ref().map(|workspace| workspace.agents.clone()).unwrap_or_default();
+        let cards = agents.iter().map(|status| {
+            let ready = status.availability == AgentAvailability::Ready;
+            let capabilities = status
+                .capabilities
+                .iter()
+                .map(|capability| badge(capability))
+                .collect::<Vec<_>>();
+            card(
+                Some(status.id.label()),
+                Some("Optional. Coderune never owns this tool's sign-in, provider, or model choice."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S3))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .flex_wrap()
+                            .items_center()
+                            .gap(px(space::S2))
+                            .child(badge(if ready { "Ready" } else { "Not installed" }))
+                            .child(badge(if status.verified { "Verified" } else { "Unverified" }))
+                            .children(capabilities),
+                    )
+                    .child(text(&status.detail, TextRole::BodySm, Tone::Muted))
+                    .child(text(
+                        format!("Restrictions: {}", status.restrictions.join("; ")),
+                        TextRole::BodySm,
+                        Tone::Faint,
+                    ))
+                    .child(text(&status.setup_url, TextRole::CodeSm, Tone::Muted)),
+            )
+        }).collect::<Vec<_>>();
+
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(space::S6))
+            .child(page_header(
+                "Agents",
+                "Coding agents detected on this machine. Compatibility is reported honestly and is not claimed until demonstrated.",
+                Button::new("refresh-agents", "Refresh detection", ButtonVariant::Secondary)
+                    .on_click(cx.listener(|this, _, _, cx| this.refresh_agents(cx))),
+            ))
+            .child(alert(
+                None,
+                "Each agent keeps its own sign-in, provider, and model configuration. Coderune does not read or copy credential files. Manual entry always remains available.",
+            ))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S4))
+                    .children(cards),
+            )
+    }
+
     fn render_section_placeholder(&self, title: &str, description: &str) -> impl IntoElement {
         card(
             Some(title),
@@ -1380,7 +1448,7 @@ impl CoderuneApp {
             View::Profile => self.render_profile(cx).into_any_element(),
             View::Projects => self.render_projects(cx).into_any_element(),
             View::Documents => self.render_documents(cx).into_any_element(),
-            View::Agents => self.render_section_placeholder("Agents", "Coding agents detected on this machine.").into_any_element(),
+            View::Agents => self.render_agents(cx).into_any_element(),
             View::Capture => self.render_section_placeholder("Capture", "Preview, review, and save repository context.").into_any_element(),
             View::Data => self.render_section_placeholder("Data", "Export local context or delete application data.").into_any_element(),
         };
