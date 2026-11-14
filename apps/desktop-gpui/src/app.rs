@@ -203,6 +203,8 @@ pub struct CoderuneApp {
     capture_detail: Option<CaptureDetail>,
     confirm_delete_capture: Option<String>,
     confirm_delete_project: Option<String>,
+    export_path: Entity<TextInputState>,
+    confirm_delete_all: bool,
     pub error: Option<AppError>,
     pub notice: Option<String>,
     focus: FocusHandle,
@@ -251,6 +253,15 @@ impl CoderuneApp {
             capture_detail: None,
             confirm_delete_capture: None,
             confirm_delete_project: None,
+            export_path: cx.new(|cx| {
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                TextInputState::new_with_value(
+                    PathBuf::from(home).join("coderune-export.json").display().to_string(),
+                    "Where to write the JSON export",
+                    cx,
+                )
+            }),
+            confirm_delete_all: false,
             error: None,
             notice: None,
             focus: cx.focus_handle(),
@@ -275,6 +286,42 @@ impl CoderuneApp {
             }
         }
         self.refresh_profile_form(cx);
+    }
+
+    fn export_data(&mut self, cx: &mut Context<Self>) {
+        let path = PathBuf::from(self.export_path.read(cx).text());
+        let Some(workspace) = self.workspace.as_ref() else { return };
+        match workspace.export_json() {
+            Ok(json) => match std::fs::write(&path, json) {
+                Ok(()) => {
+                    self.notice = Some(format!("Exported local context to {}.", path.display()));
+                    self.error = None;
+                }
+                Err(error) => {
+                    self.error = Some(AppError::new(
+                        coderune_domain::ErrorCode::Validation,
+                        format!("Could not write {}: {error}", path.display()),
+                    ));
+                }
+            },
+            Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn delete_all_data(&mut self, cx: &mut Context<Self>) {
+        let Some(workspace) = self.workspace.as_mut() else { return };
+        match workspace.delete_all_data() {
+            Ok(()) => {
+                self.notice = Some("All application data deleted. Onboarding is required again.".to_string());
+                self.error = None;
+                self.confirm_delete_all = false;
+                self.view = View::Home;
+                self.capture_session = None;
+                self.capture_detail = None;
+                self.refresh_profile_form(cx);
+            }
+            Err(error) => self.error = Some(error),
+        }
     }
 
     fn preview_capture(&mut self, cx: &mut Context<Self>) {
@@ -1794,6 +1841,106 @@ impl CoderuneApp {
         cx.notify();
     }
 
+    fn render_data(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let data_path = self
+            .workspace
+            .as_ref()
+            .map(|workspace| workspace.data_path().display().to_string())
+            .unwrap_or_else(|| "Unavailable".to_string());
+        let export_path_for_open = PathBuf::from(&data_path);
+        let mut body = div()
+            .flex()
+            .flex_col()
+            .gap(px(space::S6))
+            .child(page_header(
+                "Data",
+                "Inspect the local database, export a JSON bundle, or remove all application data.",
+                div(),
+            ))
+            .child(card(
+                Some("Local database"),
+                Some("One per-user SQLite database, outside project repositories."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S3))
+                    .child(
+                        div()
+                            .bg(theme::code())
+                            .rounded(px(radius::SOFT))
+                            .p(px(space::S3))
+                            .type_role(TextRole::Code)
+                            .text_color(theme::ink())
+                            .child(data_path.clone()),
+                    )
+                    .child(
+                        Button::new("open-data-folder", "Open data folder", ButtonVariant::Secondary)
+                            .disabled(!PathBuf::from(&data_path).parent().is_some_and(|parent| parent.exists()))
+                            .on_click(cx.listener(move |this, _, _, _| {
+                                if let Some(parent) = export_path_for_open.parent() {
+                                    if let Err(error) = Workspace::open_directory(parent) {
+                                        this.error = Some(error);
+                                    }
+                                }
+                            })),
+                    ),
+            ))
+            .child(card(
+                Some("Export"),
+                Some("Exports the profile, every profile and project version, documents, and all captures with content."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S4))
+                    .child(field("Export path", Some("A JSON file. No data is uploaded."), self.export_path.clone()))
+                    .child(
+                        Button::new("export-json", "Export JSON", ButtonVariant::Primary)
+                            .on_click(cx.listener(|this, _, _, cx| this.export_data(cx))),
+                    ),
+            ))
+            .child(card(
+                Some("Delete all data"),
+                Some("Removes the profile, onboarding draft, projects, documents, captures, and stored content. Schema migrations remain."),
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(space::S3))
+                    .child(text(
+                        "This cannot be undone. Export first if you need a copy.",
+                        TextRole::BodySm,
+                        Tone::Muted,
+                    ))
+                    .child(
+                        Button::new(
+                            "delete-all",
+                            if self.confirm_delete_all { "Confirm delete all" } else { "Delete all data" },
+                            ButtonVariant::Destructive,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            if this.confirm_delete_all {
+                                this.delete_all_data(cx);
+                            } else {
+                                this.confirm_delete_all = true;
+                                cx.notify();
+                            }
+                        })),
+                    ),
+            ));
+        if self.confirm_delete_all {
+            body = body.child(alert(
+                Some("confirmation-required"),
+                "Click Confirm delete all to remove every stored profile, project, document, and capture.",
+            ));
+        }
+        if let Some(error) = &self.error {
+            body = body.child(alert(Some(error.code.as_str()), &error.message));
+        }
+        if let Some(notice) = &self.notice {
+            body = body.child(alert(None, notice));
+        }
+        body
+    }
+
     fn render_agents(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let agents = self.workspace.as_ref().map(|workspace| workspace.agents.clone()).unwrap_or_default();
         let cards = agents.iter().map(|status| {
@@ -1874,7 +2021,7 @@ impl CoderuneApp {
             View::Documents => self.render_documents(cx).into_any_element(),
             View::Agents => self.render_agents(cx).into_any_element(),
             View::Capture => self.render_capture(cx).into_any_element(),
-            View::Data => self.render_section_placeholder("Data", "Export local context or delete application data.").into_any_element(),
+            View::Data => self.render_data(cx).into_any_element(),
         };
         div()
             .flex()
