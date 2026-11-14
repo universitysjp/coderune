@@ -280,6 +280,7 @@ impl CoderuneApp {
         }
     }
 
+    #[allow(dead_code)]
     fn reload(&mut self, cx: &mut Context<Self>) {
         self.error = None;
         if let Some(workspace) = self.workspace.as_mut() {
@@ -326,7 +327,7 @@ impl CoderuneApp {
         }
     }
 
-    fn preview_capture(&mut self, cx: &mut Context<Self>) {
+    fn preview_capture(&mut self, _cx: &mut Context<Self>) {
         let Some(project) = self
             .workspace
             .as_ref()
@@ -352,7 +353,7 @@ impl CoderuneApp {
         }
     }
 
-    fn refresh_capture(&mut self, cx: &mut Context<Self>) {
+    fn refresh_capture(&mut self, _cx: &mut Context<Self>) {
         let Some(project_id) = self
             .workspace
             .as_ref()
@@ -382,7 +383,7 @@ impl CoderuneApp {
         }
     }
 
-    fn save_capture(&mut self, cx: &mut Context<Self>) {
+    fn save_capture(&mut self, _cx: &mut Context<Self>) {
         let Some(session) = self.capture_session.clone() else { return };
         let Some(workspace) = self.workspace.as_mut() else { return };
         match workspace.save_capture(&session, self.capture_reviewed) {
@@ -396,7 +397,7 @@ impl CoderuneApp {
         }
     }
 
-    fn inspect_capture(&mut self, id: &str, cx: &mut Context<Self>) {
+    fn inspect_capture(&mut self, id: &str, _cx: &mut Context<Self>) {
         let Some(workspace) = self.workspace.as_ref() else { return };
         let Some(project_id) = workspace.selected_project_id.clone() else { return };
         let Ok(captures) = workspace.list_captures(&project_id) else { return };
@@ -415,7 +416,7 @@ impl CoderuneApp {
         }
     }
 
-    fn delete_capture(&mut self, id: &str, cx: &mut Context<Self>) {
+    fn delete_capture(&mut self, id: &str, _cx: &mut Context<Self>) {
         let Some(workspace) = self.workspace.as_mut() else { return };
         match workspace.delete_capture(id) {
             Ok(()) => {
@@ -455,7 +456,7 @@ impl CoderuneApp {
         }
     }
 
-    fn save_document_import(&mut self, cx: &mut Context<Self>) {
+    fn save_document_import(&mut self, _cx: &mut Context<Self>) {
         let Some(extracted) = self.document_form.extracted.clone() else {
             return;
         };
@@ -478,7 +479,7 @@ impl CoderuneApp {
         }
     }
 
-    fn prepare_draft(&mut self, cx: &mut Context<Self>) {
+    fn prepare_draft(&mut self, _cx: &mut Context<Self>) {
         let (Some(agent), Some(document_id)) = (
             self.document_form.agent,
             self.document_form.selected_document.clone(),
@@ -1331,8 +1332,10 @@ impl CoderuneApp {
                     ))
                 })
                 .child(
-                    Button::new("extract-document", "Extract text", ButtonVariant::Secondary)
-                        .on_click(cx.listener(|this, _, _, cx| this.extract_document(cx))),
+                    div().flex().flex_row().child(
+                        Button::new("extract-document", "Extract text", ButtonVariant::Secondary)
+                            .on_click(cx.listener(|this, _, _, cx| this.extract_document(cx))),
+                    ),
                 ),
         );
         if let Some(extracted) = &self.document_form.extracted {
@@ -1366,8 +1369,10 @@ impl CoderuneApp {
                             .child(extracted.text.clone()),
                     )
                     .child(
-                        Button::new("save-document", "Save reviewed import", ButtonVariant::Primary)
-                            .on_click(cx.listener(|this, _, _, cx| this.save_document_import(cx))),
+                        div().flex().flex_row().child(
+                            Button::new("save-document", "Save reviewed import", ButtonVariant::Primary)
+                                .on_click(cx.listener(|this, _, _, cx| this.save_document_import(cx))),
+                        ),
                     ),
             );
         }
@@ -1876,15 +1881,17 @@ impl CoderuneApp {
                             .child(data_path.clone()),
                     )
                     .child(
-                        Button::new("open-data-folder", "Open data folder", ButtonVariant::Secondary)
-                            .disabled(!PathBuf::from(&data_path).parent().is_some_and(|parent| parent.exists()))
-                            .on_click(cx.listener(move |this, _, _, _| {
-                                if let Some(parent) = export_path_for_open.parent() {
-                                    if let Err(error) = Workspace::open_directory(parent) {
-                                        this.error = Some(error);
+                        div().flex().flex_row().child(
+                            Button::new("open-data-folder", "Open data folder", ButtonVariant::Secondary)
+                                .disabled(!PathBuf::from(&data_path).parent().is_some_and(|parent| parent.exists()))
+                                .on_click(cx.listener(move |this, _, _, _| {
+                                    if let Some(parent) = export_path_for_open.parent() {
+                                        if let Err(error) = Workspace::open_directory(parent) {
+                                            this.error = Some(error);
+                                        }
                                     }
-                                }
-                            })),
+                                })),
+                        ),
                     ),
             ))
             .child(card(
@@ -1896,8 +1903,10 @@ impl CoderuneApp {
                     .gap(px(space::S4))
                     .child(field("Export path", Some("A JSON file. No data is uploaded."), self.export_path.clone()))
                     .child(
-                        Button::new("export-json", "Export JSON", ButtonVariant::Primary)
-                            .on_click(cx.listener(|this, _, _, cx| this.export_data(cx))),
+                        div().flex().flex_row().child(
+                            Button::new("export-json", "Export JSON", ButtonVariant::Primary)
+                                .on_click(cx.listener(|this, _, _, cx| this.export_data(cx))),
+                        ),
                     ),
             ))
             .child(card(
@@ -1913,19 +1922,21 @@ impl CoderuneApp {
                         Tone::Muted,
                     ))
                     .child(
-                        Button::new(
-                            "delete-all",
-                            if self.confirm_delete_all { "Confirm delete all" } else { "Delete all data" },
-                            ButtonVariant::Destructive,
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            if this.confirm_delete_all {
-                                this.delete_all_data(cx);
-                            } else {
-                                this.confirm_delete_all = true;
-                                cx.notify();
-                            }
-                        })),
+                        div().flex().flex_row().child(
+                            Button::new(
+                                "delete-all",
+                                if self.confirm_delete_all { "Confirm delete all" } else { "Delete all data" },
+                                ButtonVariant::Destructive,
+                            )
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                if this.confirm_delete_all {
+                                    this.delete_all_data(cx);
+                                } else {
+                                    this.confirm_delete_all = true;
+                                    cx.notify();
+                                }
+                            })),
+                        ),
                     ),
             ));
         if self.confirm_delete_all {
@@ -2003,6 +2014,7 @@ impl CoderuneApp {
             )
     }
 
+    #[allow(dead_code)]
     fn render_section_placeholder(&self, title: &str, description: &str) -> impl IntoElement {
         card(
             Some(title),
