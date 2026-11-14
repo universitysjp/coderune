@@ -8,7 +8,7 @@
   font-display: swap;
 }
 
-:root .quartz {
+:root .ui {
   --font-sans: var(--font-family-base);
   --font-mono: var(--font-family-mono);
   --surface-canvas: var(--background);
@@ -19,7 +19,7 @@
   line-height: var(--leading-body);
 }
 
-.quartz .site-page {
+.ui .site-page {
   --surface-page: var(--background);
   --surface-card: var(--card);
   --text-1: var(--foreground);

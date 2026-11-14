@@ -49,7 +49,7 @@ const modules = [
   {
     location: "apps/app",
     responsibility:
-      "GPUIX React application with native desktop and supported terminal launch modes.",
+      "Native Rust/GPUI desktop application with local, reviewable context.",
   },
   {
     location: "packages/core",

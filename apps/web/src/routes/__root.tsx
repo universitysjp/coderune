@@ -1,6 +1,6 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 
-import "@/quartz.css";
+import "@/ui.css";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";

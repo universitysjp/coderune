@@ -1,4 +1,4 @@
-@import "@coderune/quartz/web/styles.css";
+@import "@coderune/ui/web/styles.css";
 
 @source "./components";
 @source "./lib";

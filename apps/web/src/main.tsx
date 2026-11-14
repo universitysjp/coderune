@@ -1,4 +1,4 @@
-import { QuartzPortalProvider } from "@coderune/quartz/web";
+import { UiPortalProvider } from "@coderune/ui/web";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 
@@ -15,8 +15,8 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <QuartzPortalProvider>
+    <UiPortalProvider>
       <RouterProvider router={router} />
-    </QuartzPortalProvider>
+    </UiPortalProvider>
   </StrictMode>
 );

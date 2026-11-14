@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
-    "@coderune/quartz": "workspace:*",
     "@coderune/tokens": "workspace:*",
+    "@coderune/ui": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/postcss": "^4.3.3",
     "@tanstack/react-router": "^1.170.45",

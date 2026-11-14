@@ -30,8 +30,8 @@ import {
   StatValue,
   Status,
   cn,
-} from "@coderune/quartz/web";
-import type { ColumnDef, Trend } from "@coderune/quartz/web";
+} from "@coderune/ui/web";
+import type { ColumnDef, Trend } from "@coderune/ui/web";
 import { useState } from "react";
 
 // A block: a workspace home for a team of agents. The introduction is an overview, so it is Panels: Conversations (the

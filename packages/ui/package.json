@@ -1,0 +1,37 @@
+{
+  "name": "@coderune/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Web UI system for Coderune. Native desktop controls live in crates/ui (Rust/GPUI).",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./web": "./src/web/index.ts",
+    "./web/icon": "./src/web/icon.tsx",
+    "./web/styles.css": "./src/web/styles.css",
+    "./web/tokens.css": "./src/web/tokens.css",
+    "./web/base.css": "./src/web/base.css",
+    "./tokens": "./src/tokens.ts"
+  },
+  "scripts": {
+    "check-types": "bun check"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "@coderune/tokens": "workspace:*",
+    "@fortawesome/free-solid-svg-icons": "^7.3.1",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.13",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

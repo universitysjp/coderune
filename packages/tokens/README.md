@@ -72,10 +72,10 @@ against `--background`, so do not use it for small text on the cream canvas. Use
 non-text accents. Text placed on the primary fill uses `--primary-foreground`,
 which has 5.26:1 contrast.
 
-## Fonts for Quartz
+## Fonts for UI
 
-`@coderune/quartz` owns the Quartz design system, including its native token projection at
-`@coderune/quartz/tokens`. This package remains the source of the Geist and Paper Mono font files.
+`@coderune/ui` owns the UI design system, including its native token projection at
+`@coderune/ui/tokens`. This package remains the source of the Geist and Paper Mono font files.
 Bundled variable TTF files and OFL licenses live beside the web WOFF2 font; the native entry registers
 the TTF files before layout. See
-[Quartz in Coderune](../../docs/desktop-quartz.md) for the adapter interface and verification commands.
+[UI in Coderune](../../docs/desktop-ui.md) for the adapter interface and verification commands.
