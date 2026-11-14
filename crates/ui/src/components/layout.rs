@@ -98,6 +98,31 @@ pub fn alert(error: Option<&str>, message: &str) -> Div {
     root
 }
 
+pub fn choice_chip(
+    id: impl Into<ElementId>,
+    label: &str,
+    selected: bool,
+    on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    div()
+        .id(id)
+        .flex()
+        .items_center()
+        .justify_center()
+        .min_h(px(32.0))
+        .px(px(space::S3))
+        .rounded(px(radius::SOFT))
+        .border_1()
+        .border_color(if selected { theme::accent() } else { theme::control_line() })
+        .when(selected, |this| this.bg(theme::accent_soft()))
+        .when(!selected, |this| this.hover(|style| style.bg(theme::hover())))
+        .cursor(CursorStyle::PointingHand)
+        .type_role(TextRole::Label)
+        .text_color(theme::ink())
+        .on_click(on_click)
+        .child(label.to_string())
+}
+
 pub fn badge(label: &str) -> Div {
     div()
         .flex()

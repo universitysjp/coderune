@@ -3,7 +3,9 @@ mod input;
 mod layout;
 
 pub use button::{Button, ButtonSize, ButtonVariant};
-pub use input::TextInputState;
+pub use input::{
+    Backspace, Copy, Cut, Delete, Left, Paste, Right, SelectAll, TextInputState,
+};
 pub use layout::{
-    alert, badge, card, field, icon_button, nav_item, page_header, section_title,
+    alert, badge, card, choice_chip, field, icon_button, nav_item, page_header, section_title,
 };
