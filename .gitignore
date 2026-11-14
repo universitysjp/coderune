@@ -38,11 +38,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .ui-review/
 .playwright-cli/
 
-# vendored reference source (Cap)
-/vendor/cap/
-
 # rust build output
 /target/
 
-# vendored reference source (Rune)
-/vendor/rune/
+/vendor/

@@ -12,15 +12,7 @@ path = "src/main.rs"
 [dependencies]
 coderune-agents.workspace = true
 coderune-app.workspace = true
-coderune-collectors.workspace = true
 coderune-domain.workspace = true
-coderune-storage.workspace = true
 coderune-ui.workspace = true
-anyhow.workspace = true
-chrono.workspace = true
-gpui.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-unicode-segmentation.workspace = true
+rune.workspace = true
+rune-kit.workspace = true

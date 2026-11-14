@@ -1,6 +1,6 @@
 # 0005 — Desktop UI framework: GPUI now, Rune as the alternative
 
-Status: proposed. Awaiting the developer's decision.
+Status: accepted on 2026-11-15. The developer chose Rune.
 
 ## Context
 
@@ -22,30 +22,23 @@ Two neighbouring options exist:
 Rune is not GPUI. Moving to it means replacing `crates/ui` and the view layer,
 not changing the domain, storage, collector, agent, or application crates.
 
-## Decision (proposed)
+## Decision
 
-Keep GPUI for this port and do not switch to Rune in the same increment.
+Switch the desktop UI layer to Rune and keep the service crates unchanged.
 
 Reasons:
 
-1. The requirement is Cap's GPUI architecture. The current app is the first
-   working native surface, and replacing the framework now would restart the
-   UI layer after it has been built.
-2. The expensive correctness work — onboarding gate, versioned records,
-   reviewed captures, stale-preview rejection, SQLite compatibility, agent
-   detection — lives below the UI and is framework-independent.
-3. GPUI's smaller platform surface is enough for ordinary windows, text input,
-   and form controls. The current gaps are known and bounded.
-4. Rune is pre-release, does not accept pull requests, and would require
-   committing to a pinned `dev` revision and its own text/layout/rendering
-   behaviour.
-
-Rune's agent tooling is still the strongest argument for switching. Adopt the
-parts that do not require a framework change:
-
-- Keep the service and UI boundaries separate so the view layer is replaceable.
-- Prefer deterministic, reviewable screens and state over free-form drawing.
-- Add a headless or scripted UI verification path when GPUI makes one practical.
+1. Rune's headless tooling renders PNG snapshots, dumps the element tree, and
+   drives scripted pointer and keyboard input with a virtual clock. That is the
+   verification path this project needs and GPUI does not provide.
+2. `rune-kit` supplies the controls a desktop app needs — text input, fields,
+   buttons, badges, scroll views, accessibility roles — instead of hand-building
+   them in GPUI.
+3. The domain, storage, collectors, agents, and application operations are
+   framework-independent; the switch replaces `crates/ui` and the view layer only.
+4. Rune is pre-release and pinned to `8fc71fbf21db41920409bf6fa20ffb41ddb2f99d`.
+   Its API churn is an owned dependency risk, accepted for the verification and
+   component benefits.
 
 ## Revisit when
 
@@ -57,9 +50,10 @@ parts that do not require a framework change:
 
 ## Consequences
 
-Keeping GPUI: fastest path to the requested Cap-shaped app; more hand-built
-controls; UI verification stays manual or screenshot-based.
-
-Switching to Rune: stronger component coverage and agent-verifiable UI; a
-second UI rewrite; divergence from Cap's implementation and the original
-direction.
+- `apps/desktop` is a Rune app; `crates/ui` (GPUI controls) is removed.
+- The app depends on a git revision of Rune and on Rune's vendored crates through
+  `[patch.crates-io]`. `bun run setup:rune` fetches the checkout.
+- The Rust toolchain is pinned to 1.99.1, which Rune requires.
+- The Cap reference remains architectural, not literal: Rust service crates, one
+  process, native GPU drawing, and no web view.
+- Headless snapshots and scripted input become part of UI review.

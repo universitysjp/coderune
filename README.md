@@ -13,7 +13,7 @@ it locally. Architecture and the work breakdown structure will be developed thro
 
 ## Setup
 
-The web app uses Bun. The desktop app is native Rust with GPUI, in
+The web app uses Bun. The desktop app is native Rust with [Rune](https://github.com/anomalyco/rune), in
 `apps/desktop`.
 
 ```sh

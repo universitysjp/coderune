@@ -1,67 +1,33 @@
 mod app;
-mod assets;
+mod screens;
+mod widgets;
 
-use std::borrow::Cow;
-
-use assets::Assets;
-use coderune_ui::{Backspace, Copy, Cut, Delete, Left, Paste, Redo, Right, SelectAll, Undo};
-use gpui::{
-    px, size, App, AppContext, Application, Bounds, KeyBinding, TitlebarOptions, WindowBounds, WindowOptions,
-};
+use rune::AppSpec;
 
 fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("coderune=info")),
+    rune::run(AppSpec {
+        min_size: Some((900.0, 600.0)),
+        fonts: &[
+            include_bytes!("../../../packages/tokens/fonts/Geist-Variable.ttf"),
+            include_bytes!("../../../packages/tokens/fonts/PaperMono-Variable.ttf"),
+        ],
+        families: ("Geist", "Paper Mono"),
+        on_key: Some(app::on_key),
+        scenes: &[
+            ("home", app::scene_home),
+            ("profile", app::scene_profile),
+            ("projects", app::scene_projects),
+            ("documents", app::scene_documents),
+            ("agents", app::scene_agents),
+            ("capture", app::scene_capture),
+            ("capture-preview", app::scene_capture_preview),
+            ("data", app::scene_data),
+        ],
+        ..AppSpec::new(
+            "Coderune",
+            (1280.0, 860.0),
+            app::CoderuneApp::init,
+            app::view,
         )
-        .init();
-
-    Application::new().with_assets(Assets).run(|cx: &mut App| {
-        cx.text_system()
-            .add_fonts(vec![
-                Cow::Borrowed(coderune_ui::theme::GEIST_TTF),
-                Cow::Borrowed(coderune_ui::theme::PAPER_MONO_TTF),
-            ])
-            .expect("Coderune fonts must register before the first layout");
-
-        cx.bind_keys([
-            KeyBinding::new("backspace", Backspace, Some("TextInput")),
-            KeyBinding::new("delete", Delete, Some("TextInput")),
-            KeyBinding::new("left", Left, Some("TextInput")),
-            KeyBinding::new("right", Right, Some("TextInput")),
-            KeyBinding::new("cmd-a", SelectAll, Some("TextInput")),
-            KeyBinding::new("ctrl-a", SelectAll, Some("TextInput")),
-            KeyBinding::new("cmd-v", Paste, Some("TextInput")),
-            KeyBinding::new("ctrl-v", Paste, Some("TextInput")),
-            KeyBinding::new("cmd-c", Copy, Some("TextInput")),
-            KeyBinding::new("ctrl-c", Copy, Some("TextInput")),
-            KeyBinding::new("cmd-x", Cut, Some("TextInput")),
-            KeyBinding::new("ctrl-x", Cut, Some("TextInput")),
-            KeyBinding::new("cmd-z", Undo, Some("TextInput")),
-            KeyBinding::new("ctrl-z", Undo, Some("TextInput")),
-            KeyBinding::new("cmd-shift-z", Redo, Some("TextInput")),
-            KeyBinding::new("ctrl-shift-z", Redo, Some("TextInput")),
-            KeyBinding::new("tab", app::FocusNext, None),
-            KeyBinding::new("shift-tab", app::FocusPrev, None),
-        ]);
-
-        let launch_directory = std::env::args().nth(1).map(std::path::PathBuf::from);
-        let bounds = Bounds::centered(None, size(px(1280.0), px(860.0)), cx);
-        cx.open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(bounds)),
-                window_min_size: Some(size(px(900.0), px(600.0))),
-                titlebar: Some(TitlebarOptions {
-                    title: Some("Coderune".into()),
-                    appears_transparent: false,
-                    traffic_light_position: None,
-                }),
-                ..Default::default()
-            },
-            |_window, cx| cx.new(|cx| app::CoderuneApp::new(launch_directory, cx)),
-        )
-        .expect("Coderune window should open");
-        cx.activate(true);
     });
 }
