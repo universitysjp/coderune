@@ -16,7 +16,7 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
     let projects = workspace
         .map(|workspace| workspace.projects.clone())
         .unwrap_or_default();
-    let selected = workspace.and_then(|workspace| workspace.selected_project_id.clone());
+    let selected = s.project_form.editing.clone();
     let mut rows = Vec::new();
     for project in &projects {
         let active = selected.as_deref() == Some(project.id.as_str());

@@ -28,18 +28,13 @@ pub(crate) fn agents(s: &CoderuneApp, k: &Kit) -> El {
                 row()
                     .gap(8.0)
                     .items_center()
-                    .child(status_badge(
-                        if ready { "Ready" } else { "Not installed" },
-                        ready,
-                        k,
-                    ))
-                    .child(status_badge(
+                    .child(ui::badge(if ready { "Ready" } else { "Not installed" }, k))
+                    .child(ui::badge(
                         if status.verified {
                             "Verified"
                         } else {
                             "Unverified"
                         },
-                        status.verified,
                         k,
                     ))
                     .children(

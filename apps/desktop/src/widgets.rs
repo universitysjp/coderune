@@ -154,11 +154,6 @@ pub(crate) fn option_chip<S: 'static>(
         .on_press(press)
 }
 
-pub(crate) fn status_badge(label: &str, _ok: bool, k: &Kit) -> El {
-    // Status is a word in a neutral badge: no green, no filled blue, no coloured dot.
-    Badge::new(label).build(k)
-}
-
 // ---------------------------------------------------------------------------
 // Root and shell
 // ---------------------------------------------------------------------------

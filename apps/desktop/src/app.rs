@@ -110,15 +110,19 @@ impl ProfileForm {
         }
     }
 
-    pub(crate) fn to_draft(&self) -> ProfileDraft {
-        ProfileDraft {
-            display_name: self.display_name.text.trim().to_string(),
-            experience_stage: self.stage,
-            new_to_coding: self.new_to_coding,
-            skills_statement: self.skills.text.trim().to_string(),
-            learning_goals: split_list(&self.goals.text),
-            ..Default::default()
-        }
+    /// Preserve fields the form does not edit (CV-derived skills, education, employment,
+    /// links, and provenance) and overwrite the visible ones.
+    pub(crate) fn to_draft(
+        &self,
+        previous: Option<&coderune_domain::DeveloperProfile>,
+    ) -> ProfileDraft {
+        let mut draft = previous.map(ProfileDraft::from_profile).unwrap_or_default();
+        draft.display_name = self.display_name.text.trim().to_string();
+        draft.experience_stage = self.stage;
+        draft.new_to_coding = self.new_to_coding;
+        draft.skills_statement = self.skills.text.trim().to_string();
+        draft.learning_goals = split_list(&self.goals.text);
+        draft
     }
 }
 
@@ -172,6 +176,42 @@ impl ProjectForm {
             per_capture_mib: edit((project.limits.per_capture_bytes / (1024 * 1024)).to_string()),
             editing: Some(project.id.clone()),
         }
+    }
+
+    /// Preserve project fields the form does not edit (purpose, business logic, rules,
+    /// constraints, decisions, acceptance criteria, knowledge) and overwrite visible ones.
+    pub(crate) fn to_draft(&self, previous: Option<&coderune_domain::Project>) -> ProjectDraft {
+        let defaults = coderune_domain::CaptureLimits::default();
+        let mut draft = previous.map(ProjectDraft::from_project).unwrap_or_default();
+        draft.name = self.name.text.trim().to_string();
+        draft.root_path = self.root.text.trim().to_string();
+        draft.goals = split_list(&self.goals.text);
+        draft.scope = coderune_domain::CollectionScope {
+            include_paths: split_list(&self.include_paths.text),
+            exclude_paths: split_list(&self.exclude_paths.text),
+            respect_gitignore: self.respect_gitignore,
+        };
+        draft.limits = coderune_domain::CaptureLimits {
+            per_file_bytes: self
+                .per_file_kib
+                .text
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .filter(|value| *value > 0)
+                .map(|value| value * 1024)
+                .unwrap_or(defaults.per_file_bytes),
+            per_capture_bytes: self
+                .per_capture_mib
+                .text
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .filter(|value| *value > 0)
+                .map(|value| value * 1024 * 1024)
+                .unwrap_or(defaults.per_capture_bytes),
+        };
+        draft
     }
 }
 
@@ -241,7 +281,10 @@ impl CoderuneApp {
                 None
             }
         };
-        let launch = std::env::args().nth(1).map(PathBuf::from);
+        let launch = std::env::args()
+            .nth(1)
+            .filter(|argument| !argument.starts_with("--"))
+            .map(PathBuf::from);
         if let (Some(workspace), Some(directory)) = (workspace.as_mut(), launch) {
             if let Err(error) = workspace.adopt_launch_directory(directory) {
                 fatal = Some(format!("Could not inspect the launch directory: {error}"));
@@ -306,10 +349,18 @@ impl CoderuneApp {
     pub(crate) fn navigate(&mut self, view: View) {
         self.view = view;
         self.error = None;
+        self.notice = None;
+        self.confirm_delete_project = None;
+        self.confirm_delete_capture = None;
+        self.confirm_delete_all = false;
     }
 
     pub(crate) fn save_draft(&mut self) {
-        let draft = self.profile_form.to_draft();
+        let previous = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.profile().cloned());
+        let draft = self.profile_form.to_draft(previous.as_ref());
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };
@@ -323,7 +374,11 @@ impl CoderuneApp {
     }
 
     pub(crate) fn confirm_profile(&mut self) {
-        let draft = self.profile_form.to_draft();
+        let previous = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.profile().cloned());
+        let draft = self.profile_form.to_draft(previous.as_ref());
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };
@@ -342,7 +397,11 @@ impl CoderuneApp {
     }
 
     pub(crate) fn save_profile(&mut self) {
-        let draft = self.profile_form.to_draft();
+        let previous = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.profile().cloned());
+        let draft = self.profile_form.to_draft(previous.as_ref());
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };
@@ -381,45 +440,21 @@ impl CoderuneApp {
         self.project_form = ProjectForm::empty(initial_root);
         self.confirm_delete_project = None;
         self.error = None;
+        if let Some(workspace) = self.workspace.as_mut() {
+            workspace.select_project(None);
+        }
     }
 
     pub(crate) fn save_project(&mut self) {
+        let previous = self.project_form.editing.as_deref().and_then(|id| {
+            self.workspace
+                .as_ref()
+                .and_then(|workspace| workspace.projects.iter().find(|project| project.id == id))
+                .cloned()
+        });
+        let draft = self.project_form.to_draft(previous.as_ref());
         let Some(workspace) = self.workspace.as_mut() else {
             return;
-        };
-        let draft = ProjectDraft {
-            name: self.project_form.name.text.trim().to_string(),
-            root_path: self.project_form.root.text.trim().to_string(),
-            goals: split_list(&self.project_form.goals.text),
-            scope: coderune_domain::CollectionScope {
-                include_paths: split_list(&self.project_form.include_paths.text),
-                exclude_paths: split_list(&self.project_form.exclude_paths.text),
-                respect_gitignore: self.project_form.respect_gitignore,
-            },
-            limits: coderune_domain::CaptureLimits {
-                per_file_bytes: self
-                    .project_form
-                    .per_file_kib
-                    .text
-                    .trim()
-                    .parse::<u64>()
-                    .ok()
-                    .filter(|value| *value > 0)
-                    .unwrap_or(1024)
-                    * 1024,
-                per_capture_bytes: self
-                    .project_form
-                    .per_capture_mib
-                    .text
-                    .trim()
-                    .parse::<u64>()
-                    .ok()
-                    .filter(|value| *value > 0)
-                    .unwrap_or(20)
-                    * 1024
-                    * 1024,
-            },
-            ..Default::default()
         };
         let result = match self.project_form.editing.as_deref() {
             Some(id) => workspace.update_project(id, draft),
@@ -506,6 +541,7 @@ impl CoderuneApp {
                 ));
                 self.error = None;
                 self.document_form.extracted = None;
+                self.document_form.draft_preview = None;
                 self.document_form.selected_document = Some(document.id);
             }
             Err(error) => self.error = Some(error),
@@ -709,6 +745,11 @@ impl CoderuneApp {
                 self.view = View::Home;
                 self.capture_session = None;
                 self.capture_detail = None;
+                self.confirm_delete_project = None;
+                self.confirm_delete_capture = None;
+                self.confirm_delete_all = false;
+                self.project_form = ProjectForm::empty(None);
+                self.document_form = DocumentForm::empty();
                 self.refresh_profile_form();
             }
             Err(error) => self.error = Some(error),
@@ -846,23 +887,28 @@ fn workspace(s: &CoderuneApp, k: &Kit) -> El {
         .fill(theme::bg())
         .child(sidebar(s, k))
         .child(
-            col().grow(1.0).h_full().min_h(0.0).child(topbar(s)).child(
-                col()
-                    .grow(1.0)
-                    .min_h(0.0)
-                    .scroll(ScrollSpec {
-                        stick_bottom: false,
-                    })
-                    .padding(theme::GUTTER)
-                    .items_center()
-                    .child(
-                        col()
-                            .w_full()
-                            .max_w(theme::CONTAINER)
-                            .gap(24.0)
-                            .child(content),
-                    ),
-            ),
+            col()
+                .grow(1.0)
+                .h_full()
+                .min_h(0.0)
+                .child(topbar(s, k))
+                .child(
+                    col()
+                        .grow(1.0)
+                        .min_h(0.0)
+                        .scroll(ScrollSpec {
+                            stick_bottom: false,
+                        })
+                        .padding(theme::GUTTER)
+                        .items_center()
+                        .child(
+                            col()
+                                .w_full()
+                                .max_w(theme::CONTAINER)
+                                .gap(24.0)
+                                .child(content),
+                        ),
+                ),
         )
 }
 
@@ -941,7 +987,7 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
         )
 }
 
-fn topbar(s: &CoderuneApp) -> El {
+fn topbar(s: &CoderuneApp, k: &Kit) -> El {
     let project = s
         .workspace
         .as_ref()
@@ -949,7 +995,7 @@ fn topbar(s: &CoderuneApp) -> El {
     let mut right = row().gap(8.0).items_center();
     if let Some(project) = project {
         right = right
-            .child(ui::badge(&project.name, &theme::kit()))
+            .child(ui::badge(&project.name, k))
             .child(text(&project.root_path).font(CODE_SM).color(theme::faint()));
     }
     row()

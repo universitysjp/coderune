@@ -29,6 +29,9 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             s.document_form.kind == kind,
             move |s: &mut CoderuneApp| {
                 s.document_form.kind = kind;
+                if kind == DocumentKind::Cv {
+                    s.document_form.project_id = None;
+                }
                 s.document_form.draft_preview = None;
             },
         ));
