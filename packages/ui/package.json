@@ -12,8 +12,7 @@
     "./web/icon": "./src/web/icon.tsx",
     "./web/styles.css": "./src/web/styles.css",
     "./web/tokens.css": "./src/web/tokens.css",
-    "./web/base.css": "./src/web/base.css",
-    "./tokens": "./src/tokens.ts"
+    "./web/base.css": "./src/web/base.css"
   },
   "scripts": {
     "check-types": "bun check"

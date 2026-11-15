@@ -17,7 +17,7 @@
     "fix": "vp check --fix",
     "lint": "turbo run lint",
     "prepare": "vp config --no-agent",
-    "test": "turbo run test",
+    "test": "cargo test --workspace",
     "typecheck": "bun check",
     "wbs:render": "bun scripts/render-wbs.ts",
     "build:desktop": "cargo build --release -p coderune-desktop",

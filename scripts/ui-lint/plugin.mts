@@ -1,53 +1,53 @@
-import {createPlugin} from './core.mjs';
+import {createPlugin} from './core.mts';
 
-// Quartz's lint rules, as an Oxlint JS plugin. The shared rules live in core.mjs, which the design.how registry build
-// copies here; this file says what they call things in Quartz and adds the rules only Quartz has: hue names a kind
+// UI's lint rules, as an Oxlint JS plugin. The shared rules live in core.mjs, which the design.how registry build
+// copies here; this file says what they call things in UI and adds the rules only UI has: hue names a kind
 // and never fills a region, amber and red mean trouble, status is a word, only overlays cast a shadow, mono is for
 // what a person copies, every box takes one of three corners, ink fill is the primary action and a checked control, each component has one frame,
-// and the grey field is a well for code and output only. Each rule's docs link points at the Quartz rule it enforces.
+// and the grey field is a well for code and output only. Each rule's docs link points at the UI rule it enforces.
 
-const SITE = 'https://design.how/systems/quartz';
+const SITE = 'https://design.how/systems/ui';
 const FOUNDATIONS = ['anti-slop', 'color', 'typography', 'elevation', 'radius', 'iconography', 'motion', 'space', 'borders-and-lines', 'grid'];
 const COMPONENTS = ['button', 'field', 'skeleton', 'dialog', 'link', 'status', 'badge', 'empty-state', 'alert', 'card'];
 
 /** Words that say an element shows trouble, in an attribute value or the condition that picks a class. */
 const TROUBLE = /warn|fail|error|danger|destructive|invalid|critical|alert|reject|denied|revoked/i;
-/** Quartz's trouble roles: the amber and red steps, and shadcn's destructive name for the red. */
+/** UI's trouble roles: the amber and red steps, and shadcn's destructive name for the red. */
 const WARM = /^(?:warn|fail|destructive)(?:-|$)/;
 /** Fills that put a kind hue or a trouble color behind content. */
 const HUE_FILL = /^(?:accent-(?:mark|field|tint)|warn|fail|destructive)$/;
-/** Mono: Quartz's code roles and Tailwind's font-mono. */
+/** Mono: UI's code roles and Tailwind's font-mono. */
 const MONO = new Set(['font-mono', 'type-code', 'type-tag', 'type-code-sm', 'type-code-touch', 'type-code-display']);
 /** Text that is a number, a duration or a size: it takes the data utility, not mono. */
 const NUMBERISH = /^[+\-−~]?[$€£]?\d[\d.,]*\s*(?:%|ms|s|m|h|d|min|k|K|M|B|x|KB|MB|GB|TB|tokens?)?(?:\s+\d[\d.,]*\s*(?:ms|s|m|h|d|min))*$/;
 /** Text that is an id, a key or a hash a person copies. */
 const COPYABLE = /^(?:[a-z]{2,10}_[A-Za-z0-9]{6,}|sk-[A-Za-z0-9_-]{8,}|0x[0-9a-fA-F]{8,}|(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
-/** Quartz components that set their content in mono already. */
+/** UI components that set their content in mono already. */
 const MONO_PARTS = new Set(['CopyButton', 'CodeBlock', 'CodeEditor', 'CodeTag', 'MaskedKey', 'Timeline', 'Kbd', 'KbdGroup', 'BreadcrumbId', 'EmptyCode', 'JsonView', 'LogViewer']);
-/** The grey field's names: Quartz's surface and shadcn's card and muted. On a container they are a box in a box. */
+/** The grey field's names: UI's surface and shadcn's card and muted. On a container they are a box in a box. */
 const GREY_FIELD = new Set(['bg-surface', 'bg-card', 'bg-muted']);
 /** Elements that hold code or output, where the grey field is the well it should be. */
 const WELL_ELEMENTS = new Set(['pre', 'code', 'samp', 'output', 'kbd']);
 const ARROW_END = /(?:→|↗|↘|›|»|->|⟶|➜|➔)\s*$/;
 const VAGUE_LINK = /^(?:learn more|read more|see more|more|click here|here|this)$/i;
 const OVERLAY_ROLES = /^(?:dialog|alertdialog|menu|listbox|tooltip)$/;
-/** The stock radius steps Quartz replaced with its three corners: rounded-inner, rounded-soft and rounded-frame (plus none and full). */
+/** The stock radius steps UI replaced with its three corners: rounded-inner, rounded-soft and rounded-frame (plus none and full). */
 const RADIUS_SCALE = /^(?:xs|sm|md|lg|xl)$/;
 /** Ink fills: the primary action. */
 const INK_FILL = /^(?:ink|inverse|primary)$/;
 /** Elements that are structure, never an ink-filled action: headings, landmarks and header cells. */
 const STRUCTURE = /^(?:h[1-6]|header|th|nav|aside|section)$/;
 
-const quartz = createPlugin({
-  name: 'quartz',
-  title: 'Quartz',
+const ui = createPlugin({
+  name: "ui",
+  title: "UI",
   site: SITE,
-  pages: {quartz: '', ...Object.fromEntries(FOUNDATIONS.map(slug => [slug, `/foundations/${slug}`])), ...Object.fromEntries(COMPONENTS.map(slug => [slug, `/components/${slug}`]))},
+  pages: {ui: '', ...Object.fromEntries(FOUNDATIONS.map(slug => [slug, `/foundations/${slug}`])), ...Object.fromEntries(COMPONENTS.map(slug => [slug, `/components/${slug}`]))},
   docs: {
-    'unknown-class': 'quartz-tokens-only', 'no-raw-color': 'quartz-tokens-only', 'no-arbitrary-value': 'space-scale-only', 'no-inline-style': 'quartz-tokens-only',
-    'no-dynamic-class': 'quartz-tokens-only', 'no-dark-variant': 'quartz-tokens-only', 'no-caps': 'anti-slop-no-caps', 'no-transition-all': 'motion-declare-transitions',
-    'no-outline-none': 'quartz-keyboard', 'no-gradient': 'quartz-no-decoration', 'no-native-control': 'quartz-components-first', 'field-label': 'field-label-bound',
-    'no-restyle': 'quartz-components-first', 'one-primary': 'button-one-primary', 'no-emoji-or-em-dash': 'anti-slop-no-em-dash',
+    'unknown-class': 'ui-tokens-only', 'no-raw-color': 'ui-tokens-only', 'no-arbitrary-value': 'space-scale-only', 'no-inline-style': 'ui-tokens-only',
+    'no-dynamic-class': 'ui-tokens-only', 'no-dark-variant': 'ui-tokens-only', 'no-caps': 'anti-slop-no-caps', 'no-transition-all': 'motion-declare-transitions',
+    'no-outline-none': 'ui-keyboard', 'no-gradient': 'ui-no-decoration', 'no-native-control': 'ui-components-first', 'field-label': 'field-label-bound',
+    'no-restyle': 'ui-components-first', 'one-primary': 'button-one-primary', 'no-emoji-or-em-dash': 'anti-slop-no-em-dash',
     'dialog-controlled': 'dialog-controlled-not-mounted', 'no-side-rail': 'anti-slop-no-side-rail', 'skeleton-still': 'skeleton-no-sweep',
     'no-scroll-reveal': 'anti-slop-no-decorative-motion', 'no-second-icon-set': 'iconography-import',
   },
@@ -59,9 +59,9 @@ const quartz = createPlugin({
     textSize: 'a type-* role such as type-body, type-body-sm, type-label or type-heading',
     caps: 'and let the type-* role set the tracking',
     white: 'text on ink is text-text-inverse',
-    focusRing: 'Quartz\'s 2px ink :focus-visible ring',
+    focusRing: 'UI\'s 2px ink :focus-visible ring',
     duration: 'duration-(--dur-fast)',
-    gradient: {description: 'No gradients; Quartz is flat.', use: 'a flat role such as bg-page'},
+    gradient: {description: 'No gradients; UI is flat.', use: 'a flat role such as bg-page'},
   },
   natives: ui => ({button: `Button from '${ui}/button'`, textarea: `Textarea from '${ui}/textarea'`, select: `Select from '${ui}/select'`,
     dialog: `Dialog or Sheet from '${ui}/'`, checkbox: `Checkbox from '${ui}/checkbox'`, radio: `RadioGroup from '${ui}/radio-group'`,
@@ -171,7 +171,7 @@ const quartz = createPlugin({
                 if (c.root !== 'shadow' || c.value === 'none' || /^\[inset[_\s]/.test(c.value ?? '')) continue;
                 const empty = ['xs', 'sm'].includes(c.value);
                 context.report({loc, message: empty
-                  ? `"${c.utility}" draws nothing in Quartz, and a flat <${name}> needs no lift; draw its edge with the frame utility.`
+                  ? `"${c.utility}" draws nothing in UI, and a flat <${name}> needs no lift; draw its edge with the frame utility.`
                   : `"${c.utility}" lifts a flat <${name}>; only menus, popovers, dialogs, sheets, tooltips and toasts cast shadow-overlay. Draw its edge with the frame utility.`});
               }
             },
@@ -359,5 +359,5 @@ const quartz = createPlugin({
   },
 });
 
-export const {appRules, sourceRules} = quartz;
-export default quartz.plugin;
+export const {appRules, sourceRules} = ui;
+export default ui.plugin;

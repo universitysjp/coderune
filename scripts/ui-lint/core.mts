@@ -1,11 +1,11 @@
 import {readFileSync} from 'node:fs';
 import {definePlugin} from 'vite-plus/lint/plugins';
-import {handPickedValue, NAMED, RAW} from './value-rules.mjs';
+import {handPickedValue, NAMED, RAW} from './value-rules.mts';
 
 // The lint every design system ships, as an Oxlint JS plugin. Plain ESM, no build step. Each rule flags one thing a
 // system's rules forbid and says what to use instead; its docs link points at the system rule it enforces.
 //
-// This file is the shared part. A system's lint/plugin.mjs calls createPlugin(config) with its name, its site, the
+// This file is the shared part. A system's lint/plugin.mts calls createPlugin(config) with its name, its site, the
 // words its messages use (color roles, the focus ring, its components) and any rules only it has. The registry build
 // copies this file into each system's lint folder as lint/core.mjs, so the installed lint needs nothing from
 // design.how.
@@ -137,7 +137,7 @@ const APP_ONLY = ['no-raw-color', 'no-outline-none', 'no-arbitrary-value', 'no-i
 const WARN = ['one-primary', 'no-emoji-or-em-dash'];
 
 /**
- * The plugin for one design system. `config` (see Lime's and Quartz's lint/plugin.mjs):
+ * The plugin for one design system. `config` (see Lime's and ui's lint/plugin.mts):
  *   name, title          the system's id (lime) and display name (Lime)
  *   site, pages          the system's docs URL, and the page under it for each rule-id prefix ({color: '/foundations/color'})
  *   docs                 the system rule each shared rule enforces, by rule name

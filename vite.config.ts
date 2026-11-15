@@ -6,10 +6,7 @@ import react from "ultracite/oxlint/react";
 import tanstack from "ultracite/oxlint/tanstack";
 import { defineConfig } from "vite-plus";
 
-import {
-  appRules as uiAppRules,
-  sourceRules as uiSourceRules,
-} from "./scripts/ui-lint/plugin.mjs";
+import { appRules as uiAppRules } from "./scripts/ui-lint/plugin.mts";
 
 const reactDoctor = selectJsPlugins(["react-doctor"]);
 
@@ -27,10 +24,7 @@ const nonUiRules = Object.fromEntries(
   [...generalRuleNames].map((rule) => [rule, "off"])
 );
 
-const uiReferenceFiles = [
-  "apps/web/src/components/project-home.tsx",
-  "packages/ui/src/tokens.ts",
-];
+const uiReferenceFiles = ["apps/web/src/components/project-home.tsx"];
 
 const testFiles = [
   "**/*.{test,spec}.{js,jsx,ts,tsx}",
@@ -65,7 +59,7 @@ export default defineConfig({
     jsPlugins: [
       ...(reactDoctor.jsPlugins ?? []),
       ...(antiSlop.jsPlugins ?? []),
-      { name: "ui", specifier: "./scripts/ui-lint/plugin.mjs" },
+      { name: "ui", specifier: "./scripts/ui-lint/plugin.mts" },
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
     ],
     plugins: [
@@ -101,12 +95,6 @@ export default defineConfig({
           "apps/web/src/routes/__root.tsx",
         ],
         rules: uiAppRules,
-      },
-      {
-        // UI own sources build the controls, so app-only rules do not
-        // apply to them.
-        files: ["packages/ui/src/tokens.ts"],
-        rules: uiSourceRules,
       },
       {
         // UI reference sources keep the UI rules but not the
