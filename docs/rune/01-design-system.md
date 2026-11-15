@@ -84,8 +84,8 @@ from `@coderune/ui/web`; do not duplicate the registry inside the app.
 
 ## Verification
 
-- `cargo test --workspace`
-- `cargo clippy --workspace --all-targets -- -D warnings`
+- `bun run test`
+- `bun run lint`
 - `bun run check`
 - `bun run verify:ui`
 - `bun run --cwd apps/web build`

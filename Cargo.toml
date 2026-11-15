@@ -8,7 +8,26 @@ members = [
   "crates/domain",
   "crates/storage",
   "crates/ui",
+  ".rune/vendor/accesskit_macos",
+  ".rune/vendor/accesskit_windows",
+  ".rune/vendor/parley_engine",
+  ".rune/vendor/wgpu-hal",
+  ".rune/vendor/winit",
 ]
+# Vendored Rune patches are members so Turborepo can hash and validate them,
+# but they are not part of this project's normal default build.
+default-members = [
+  "apps/desktop",
+  "crates/agents",
+  "crates/app",
+  "crates/collectors",
+  "crates/domain",
+  "crates/storage",
+  "crates/ui",
+]
+
+[workspace.metadata]
+name = "coderune"
 
 [workspace.package]
 version = "0.1.0"

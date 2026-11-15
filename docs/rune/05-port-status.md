@@ -37,11 +37,23 @@ system. The web app keeps its own React registry in `packages/ui`.
 
 ```sh
 bun run setup:rune
-cargo run -p coderune-desktop
+bun run dev:all
+bun run dev:desktop
 cargo run -p coderune-desktop -- .
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
+bun run build:desktop
+bun run check:desktop
+bun run test
+bun run test:desktop
+bun run lint
 bun run check
 bun run verify:ui
 bun run --cwd apps/web build
 ```
+
+Turborepo discovers the Cargo workspace through the experimental
+`experimentalCargoWorkspaces` flag. The vendored Rune patch crates under
+`.rune/vendor` are workspace members so Turbo can hash them, but they are not
+default members: `cargo build` and `cargo test` still target this app and its
+crates. Use `bun run test`/`bun run lint` rather than `cargo test --workspace` or
+`cargo clippy --workspace`, because `--workspace` includes the platform-specific
+vendored crates.
