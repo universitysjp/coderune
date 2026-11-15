@@ -16,6 +16,7 @@
     "dev:web": "turbo run dev --filter=web",
     "fix": "vp check --fix",
     "format": "turbo run format --filter=./apps/* --filter=./crates/*",
+    "icon:build": "bun scripts/make-app-icon.ts",
     "lint": "turbo run lint --filter=./apps/* --filter=./crates/*",
     "prepare": "vp config --no-agent",
     "test": "turbo run test --filter=./apps/* --filter=./crates/*",
