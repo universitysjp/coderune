@@ -80,7 +80,7 @@ any `cargo` command: the workspace patches Rune’s vendored crates, so Cargo
 cannot resolve without that checkout.
 
 Turbo drives the native tasks too: `bun run dev:desktop`, `bun run check:desktop`,
-`bun run test`, and `bun run lint`. `bun run dev` stays web-only; use
+`bun run test`, `bun run lint`, and `bun run format`. `bun run dev` stays web-only; use
 `bun run dev:all` for web and desktop together. Run the desktop app with
 `cargo run -p coderune-desktop`, or pass a directory:
 `cargo run -p coderune-desktop -- .`. The binary is

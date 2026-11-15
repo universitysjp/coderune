@@ -15,6 +15,7 @@
     "dev:desktop": "turbo run dev --filter=coderune-desktop",
     "dev:web": "turbo run dev --filter=web",
     "fix": "vp check --fix",
+    "format": "turbo run format --filter=./apps/* --filter=./crates/*",
     "lint": "turbo run lint --filter=./apps/* --filter=./crates/*",
     "prepare": "vp config --no-agent",
     "test": "turbo run test --filter=./apps/* --filter=./crates/*",
