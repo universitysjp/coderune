@@ -12,7 +12,7 @@ use coderune_domain::{
 };
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use sha2::{Digest, Sha256};
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CollectError {
@@ -20,6 +20,8 @@ pub enum CollectError {
     UnreadableRoot(String),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("could not serialize capture fingerprint: {0}")]
+    Serialize(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Clone)]
@@ -40,17 +42,19 @@ pub struct CollectedRepository {
     pub contents: BTreeMap<String, String>,
 }
 
-pub fn validate_root(root: &str) -> bool {
-    let path = Path::new(root);
-    path.is_dir() && std::fs::read_dir(path).is_ok()
+pub fn validate_root(root: &Path) -> bool {
+    root.is_dir() && std::fs::read_dir(root).is_ok()
 }
 
 pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectError> {
-    if !validate_root(&request.root.display().to_string()) {
+    if !validate_root(&request.root) {
         return Err(CollectError::UnreadableRoot(
             request.root.display().to_string(),
         ));
     }
+    // A readable root can still fail canonicalization through an unreadable
+    // ancestor. Keep collecting from the validated path rather than guessing
+    // that the directory itself is unusable.
     let root = request
         .root
         .canonicalize()
@@ -67,7 +71,7 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
         .follow_links(false)
         .sort_by_file_name()
         .into_iter()
-        .filter_entry(|entry| !protected_directory(entry.path(), &root))
+        .filter_entry(|entry| !protected_directory(entry, &root))
     {
         let entry = match entry {
             Ok(entry) => entry,
@@ -120,10 +124,10 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
                 continue;
             }
         }
-        if !allowed_file(&relative_path) {
+        let Some(file_category) = classify(&relative_path) else {
             push_skip(&mut skipped, relative_path, "unsupported-type");
             continue;
-        }
+        };
         if !seen.insert(relative_path.clone()) {
             continue;
         }
@@ -161,7 +165,7 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
             path: relative_path.clone(),
             sha256,
             bytes: bytes_len,
-            category: category(&relative_path).to_string(),
+            category: file_category.to_string(),
         });
     }
 
@@ -171,14 +175,14 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
 
     let git = git_state(&root);
     let repository_fingerprint =
-        repository_fingerprint(&files, git.as_ref(), &request.scope, &request.limits);
+        repository_fingerprint(&files, git.as_ref(), &request.scope, &request.limits)?;
     let fingerprint = capture_fingerprint(
         &repository_fingerprint,
         request.profile_version,
         &request.profile_updated_at,
         request.project_version,
         &request.project_updated_at,
-    );
+    )?;
     Ok(CollectedRepository {
         preview: CapturePreview {
             project_id: request.project_id.clone(),
@@ -196,13 +200,14 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
 }
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hasher
-        .finalize()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let digest = Sha256::digest(bytes);
+    let mut output = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        output.push(DIGITS[(byte >> 4) as usize] as char);
+        output.push(DIGITS[(byte & 0x0f) as usize] as char);
+    }
+    output
 }
 
 pub fn repository_fingerprint(
@@ -210,7 +215,7 @@ pub fn repository_fingerprint(
     git: Option<&GitState>,
     scope: &CollectionScope,
     limits: &CaptureLimits,
-) -> String {
+) -> Result<String, CollectError> {
     #[derive(serde::Serialize)]
     struct Payload<'a> {
         files: Vec<(&'a str, &'a str)>,
@@ -227,7 +232,7 @@ pub fn repository_fingerprint(
         scope,
         limits,
     };
-    sha256_hex(&serde_json::to_vec(&payload).unwrap_or_default())
+    Ok(sha256_hex(&serde_json::to_vec(&payload)?))
 }
 
 pub fn capture_fingerprint(
@@ -236,7 +241,7 @@ pub fn capture_fingerprint(
     profile_updated_at: &str,
     project_version: u32,
     project_updated_at: &str,
-) -> String {
+) -> Result<String, CollectError> {
     #[derive(serde::Serialize)]
     struct Payload<'a> {
         repository: &'a str,
@@ -249,16 +254,13 @@ pub fn capture_fingerprint(
         #[serde(rename = "projectUpdatedAt")]
         project_updated_at: &'a str,
     }
-    sha256_hex(
-        &serde_json::to_vec(&Payload {
-            repository,
-            profile_version,
-            profile_updated_at,
-            project_version,
-            project_updated_at,
-        })
-        .unwrap_or_default(),
-    )
+    Ok(sha256_hex(&serde_json::to_vec(&Payload {
+        repository,
+        profile_version,
+        profile_updated_at,
+        project_version,
+        project_updated_at,
+    })?))
 }
 
 fn push_skip(skipped: &mut Vec<SkippedFile>, path: String, reason: &str) {
@@ -370,18 +372,11 @@ impl RootIgnore {
     }
 }
 
-fn protected_directory(path: &Path, root: &Path) -> bool {
-    if !path.is_dir() {
+fn protected_directory(entry: &DirEntry, root: &Path) -> bool {
+    if !entry.file_type().is_dir() || relative(root, entry.path()).is_empty() {
         return false;
     }
-    let relative = relative(root, path);
-    if relative.is_empty() {
-        return false;
-    }
-    let name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
+    let name = entry.file_name().to_str().unwrap_or_default();
     PROTECTED_DIRECTORIES.contains(&name)
 }
 
@@ -408,84 +403,46 @@ fn protected_reason(path: &str) -> Option<&'static str> {
     {
         return Some("binary");
     }
-    if GENERATED_DIRECTORIES
-        .iter()
-        .any(|directory| lower.split('/').any(|part| part == *directory))
-    {
-        return Some("generated-output");
-    }
-    if DEPENDENCY_DIRECTORIES
-        .iter()
-        .any(|directory| lower.split('/').any(|part| part == *directory))
-    {
-        return Some("dependency-directory");
-    }
     None
 }
 
-fn allowed_file(path: &str) -> bool {
-    let name = path.rsplit('/').next().unwrap_or(path);
-    let lower = name.to_ascii_lowercase();
-    if lower == "agents.md" || lower.starts_with("readme") {
-        return true;
-    }
-    if MANIFESTS.contains(&lower.as_str())
-        || lower.starts_with("requirements") && lower.ends_with(".txt")
-    {
-        return true;
-    }
-    if CONFIGURATION_EXACT.contains(&lower.as_str()) {
-        return true;
-    }
-    if CONFIGURATION_PREFIXES
-        .iter()
-        .any(|prefix| lower.starts_with(prefix))
-    {
-        return true;
-    }
-    SOURCE_EXTENSIONS
-        .iter()
-        .chain(DOCUMENT_EXTENSIONS.iter())
-        .any(|extension| lower.ends_with(extension))
-}
-
-fn category(path: &str) -> &'static str {
+fn classify(path: &str) -> Option<&'static str> {
     let name = path.rsplit('/').next().unwrap_or(path);
     let lower = name.to_ascii_lowercase();
     if lower == "agents.md" {
-        return "agent-instructions";
+        return Some("agent-instructions");
     }
     if lower.starts_with("readme") {
-        return "readme";
+        return Some("readme");
     }
     if MANIFESTS.contains(&lower.as_str())
         || lower.starts_with("requirements") && lower.ends_with(".txt")
     {
-        return "manifest";
+        return Some("manifest");
     }
     if CONFIGURATION_EXACT.contains(&lower.as_str())
         || CONFIGURATION_PREFIXES
             .iter()
             .any(|prefix| lower.starts_with(prefix))
     {
-        return "configuration";
+        return Some("configuration");
     }
     if is_test_path(path) {
-        return "test";
+        return Some("test");
     }
     if SOURCE_EXTENSIONS
         .iter()
         .any(|extension| lower.ends_with(extension))
     {
-        return "source";
+        return Some("source");
     }
     if DOCUMENT_EXTENSIONS
         .iter()
         .any(|extension| lower.ends_with(extension))
     {
-        return "documentation";
+        return Some("documentation");
     }
-    "other"
+    None
 }
 
 fn is_test_path(path: &str) -> bool {
@@ -502,12 +459,9 @@ fn is_test_path(path: &str) -> bool {
 
 fn git_state(root: &Path) -> Option<GitState> {
     let inside = Command::new("git")
-        .args([
-            "-C",
-            &root.display().to_string(),
-            "rev-parse",
-            "--is-inside-work-tree",
-        ])
+        .arg("-C")
+        .arg(root)
+        .args(["rev-parse", "--is-inside-work-tree"])
         .output()
         .ok()?;
     if !inside.status.success()
@@ -619,32 +573,6 @@ const PROTECTED_DIRECTORIES: &[&str] = &[
     "vendor",
     "target",
 ];
-
-const DEPENDENCY_DIRECTORIES: &[&str] = &[
-    ".git",
-    ".hg",
-    ".svn",
-    ".venv",
-    "venv",
-    "env",
-    "node_modules",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".turbo",
-    ".next",
-    ".nuxt",
-    ".cache",
-    "dist",
-    "build",
-    "out",
-    "coverage",
-    "vendor",
-    "target",
-];
-
-const GENERATED_DIRECTORIES: &[&str] = &["dist", "build", "out", "coverage", ".next", ".turbo"];
 
 const BINARY_EXTENSIONS: &[&str] = &[
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".tiff", ".mp3", ".mp4", ".mov",
