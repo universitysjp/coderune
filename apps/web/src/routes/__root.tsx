@@ -1,10 +1,11 @@
-import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+import { buttonVariants } from "@coderune/ui/web";
 
 import "@/ui.css";
 
+import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { buttonVariants } from "@/components/ui/button-variants";
 
 const RootLayout = () => (
   <div className="site-page min-h-svh">
@@ -26,7 +27,10 @@ const NotFoundPage = () => (
       The route does not exist. Return to the overview to continue reading about
       Coderune.
     </p>
-    <Link className={buttonVariants({ className: "mt-7" })} to="/">
+    <Link
+      className={buttonVariants({ variant: "link", className: "mt-7" })}
+      to="/"
+    >
       Back to overview
     </Link>
   </section>
