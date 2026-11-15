@@ -261,56 +261,34 @@ impl Workspace {
         Ok(())
     }
 
-    /// Read a selected CV/SRS file. PDF and DOCX extraction is not yet ported;
-    /// the UI falls back to manual entry for those formats.
+    /// Read a selected CV/SRS file. Markdown, plain text, PDF, and DOCX are
+    /// extracted locally; unsupported or image-only input asks for manual entry.
     pub fn extract_document(
         &self,
         path: impl AsRef<Path>,
         max_bytes: u64,
     ) -> AppResult<(String, String, usize)> {
-        let path = path.as_ref();
-        let extension = path
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or_default()
-            .to_ascii_lowercase();
-        if !matches!(extension.as_str(), "md" | "markdown" | "txt") {
-            return Err(AppError::new(
-                ErrorCode::UnsupportedDocument,
-                "This build extracts Markdown and plain text. Use manual entry for PDF or DOCX.",
-            ));
-        }
-        let metadata = std::fs::metadata(path).map_err(|_| {
-            AppError::new(
-                ErrorCode::UnreadableDocument,
-                "The document could not be read.",
-            )
-        })?;
-        if metadata.len() > max_bytes {
-            return Err(AppError::new(
-                ErrorCode::DocumentTooLarge,
-                format!("The document exceeds the {max_bytes} byte limit."),
-            ));
-        }
-        let text = std::fs::read_to_string(path).map_err(|_| {
-            AppError::new(
-                ErrorCode::UnreadableDocument,
-                "The document is not valid UTF-8 text.",
-            )
-        })?;
-        if text.trim().is_empty() {
-            return Err(AppError::new(
-                ErrorCode::ImageOnlyDocument,
-                "The document contains no extractable text.",
-            ));
-        }
-        let name = path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .unwrap_or("document")
-            .to_string();
-        let bytes = text.len();
-        Ok((name, text, bytes))
+        coderune_collectors::extract_document_text(path.as_ref(), max_bytes).map_err(|error| {
+            use coderune_collectors::CollectError;
+            match error {
+                CollectError::UnsupportedDocument => AppError::new(
+                    ErrorCode::UnsupportedDocument,
+                    "Use a PDF, DOCX, Markdown, or plain-text document, or enter the details manually.",
+                ),
+                CollectError::DocumentTooLarge(limit) => AppError::new(
+                    ErrorCode::DocumentTooLarge,
+                    format!("The document exceeds the {limit} byte limit."),
+                ),
+                CollectError::ImageOnlyDocument => AppError::new(
+                    ErrorCode::ImageOnlyDocument,
+                    "The document contains no extractable text. Enter the details manually or use a text-based document.",
+                ),
+                _ => AppError::new(
+                    ErrorCode::UnreadableDocument,
+                    "The document could not be read. Check the path and try again.",
+                ),
+            }
+        })
     }
 
     pub fn save_document(

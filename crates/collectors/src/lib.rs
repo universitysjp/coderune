@@ -4,6 +4,7 @@
 //! executes project tooling and never follows symlinks.
 
 use std::collections::BTreeMap;
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -22,6 +23,14 @@ pub enum CollectError {
     Io(#[from] std::io::Error),
     #[error("could not serialize capture fingerprint: {0}")]
     Serialize(#[from] serde_json::Error),
+    #[error("this build cannot extract text from that document type")]
+    UnsupportedDocument,
+    #[error("the document exceeds the {0} byte limit")]
+    DocumentTooLarge(u64),
+    #[error("the document could not be read")]
+    UnreadableDocument,
+    #[error("the document contains no extractable text")]
+    ImageOnlyDocument,
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +206,156 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
         },
         contents,
     })
+}
+
+/// Read the text of a local CV or SRS. PDF and DOCX parsing happens here, in
+/// the collectors crate: no project code runs, no network is used, and the
+/// original file is never copied into application storage.
+pub fn extract_document_text(
+    path: &Path,
+    max_bytes: u64,
+) -> Result<(String, String, usize), CollectError> {
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if !matches!(
+        extension.as_str(),
+        "md" | "markdown" | "txt" | "pdf" | "docx"
+    ) {
+        return Err(CollectError::UnsupportedDocument);
+    }
+    let metadata = std::fs::metadata(path).map_err(|_| CollectError::UnreadableDocument)?;
+    if !metadata.is_file() {
+        return Err(CollectError::UnreadableDocument);
+    }
+    if metadata.len() > max_bytes {
+        return Err(CollectError::DocumentTooLarge(max_bytes));
+    }
+    let text = match extension.as_str() {
+        "md" | "markdown" | "txt" => {
+            std::fs::read_to_string(path).map_err(|_| CollectError::UnreadableDocument)?
+        }
+        "docx" => {
+            let bytes = std::fs::read(path).map_err(|_| CollectError::UnreadableDocument)?;
+            docx_text(&bytes, max_bytes)?
+        }
+        "pdf" => {
+            let bytes = std::fs::read(path).map_err(|_| CollectError::UnreadableDocument)?;
+            pdf_extract::extract_text_from_mem(&bytes)
+                .map_err(|_| CollectError::UnreadableDocument)?
+        }
+        _ => unreachable!(),
+    };
+    if text.trim().is_empty() {
+        return Err(CollectError::ImageOnlyDocument);
+    }
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("document")
+        .to_string();
+    let bytes = text.len();
+    Ok((name, text, bytes))
+}
+
+/// Word stores visible text in `word/document.xml`; paragraphs are `w:p`
+/// elements and their runs are `w:t`. A bounded read keeps a compressed
+/// archive from expanding into an unbounded string.
+fn docx_text(bytes: &[u8], max_bytes: u64) -> Result<String, CollectError> {
+    let mut archive =
+        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| CollectError::UnreadableDocument)?;
+    let mut document = archive
+        .by_name("word/document.xml")
+        .map_err(|_| CollectError::UnreadableDocument)?;
+    let mut xml = String::new();
+    document
+        .by_ref()
+        .take(max_bytes.saturating_add(1))
+        .read_to_string(&mut xml)
+        .map_err(|_| CollectError::UnreadableDocument)?;
+    if xml.len() as u64 > max_bytes {
+        return Err(CollectError::DocumentTooLarge(max_bytes));
+    }
+    let mut text = String::new();
+    let mut rest = xml.as_str();
+    loop {
+        let next_run = rest.find("<w:t");
+        let next_paragraph = rest.find("</w:p>");
+        let next_break = rest.find("<w:br");
+        let next_tab = rest.find("<w:tab");
+        let here = [next_run, next_paragraph, next_break, next_tab]
+            .into_iter()
+            .flatten()
+            .min();
+        let Some(at) = here else {
+            break;
+        };
+        if Some(at) == next_paragraph {
+            text.push('\n');
+            rest = &rest[at + "</w:p>".len()..];
+            continue;
+        }
+        if Some(at) == next_break || Some(at) == next_tab {
+            text.push(if Some(at) == next_break { '\n' } else { '\t' });
+            let close = if Some(at) == next_break {
+                "<w:br"
+            } else {
+                "<w:tab"
+            };
+            rest = &rest[at + close.len()..];
+            if let Some(slash) = rest.find('>') {
+                rest = &rest[slash + 1..];
+            }
+            continue;
+        }
+        rest = &rest[at..];
+        let Some(open_end) = rest.find('>') else {
+            break;
+        };
+        rest = &rest[open_end + 1..];
+        let Some(end) = rest.find("</w:t>") else {
+            break;
+        };
+        text.push_str(&decode_xml_entities(&rest[..end]));
+        rest = &rest[end + "</w:t>".len()..];
+    }
+    Ok(text)
+}
+
+fn decode_xml_entities(value: &str) -> String {
+    let mut text = String::with_capacity(value.len());
+    let mut rest = value;
+    while let Some(start) = rest.find('&') {
+        text.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let Some(end) = rest.find(';') else {
+            text.push_str(rest);
+            return text;
+        };
+        let entity = &rest[1..end];
+        match entity {
+            "amp" => text.push('&'),
+            "lt" => text.push('<'),
+            "gt" => text.push('>'),
+            "quot" => text.push('"'),
+            "apos" => text.push('\''),
+            _ => {
+                let code = entity
+                    .strip_prefix("#x")
+                    .and_then(|hex| u32::from_str_radix(hex, 16).ok())
+                    .or_else(|| entity.strip_prefix('#').and_then(|d| d.parse().ok()));
+                match code.and_then(char::from_u32) {
+                    Some(character) => text.push(character),
+                    None => text.push_str(&rest[..=end]),
+                }
+            }
+        }
+        rest = &rest[end + 1..];
+    }
+    text.push_str(rest);
+    text
 }
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
@@ -678,5 +837,51 @@ mod tests {
             .files
             .iter()
             .all(|file| file.path != "src/main.ts"));
+    }
+
+    #[test]
+    fn docx_extraction_keeps_paragraphs_and_entities() {
+        use std::io::Write;
+
+        let dir = fixture();
+        let path = dir.path().join("cv.docx");
+        let xml = r#"<?xml version="1.0"?><w:document><w:body>
+            <w:p><w:r><w:t>Ada Lovelace</w:t></w:r></w:p>
+            <w:p><w:r><w:t>Rust &amp; TypeScript</w:t></w:r></w:p>
+        </w:body></w:document>"#;
+        let file = std::fs::File::create(&path).unwrap();
+        let mut archive = zip::ZipWriter::new(file);
+        archive
+            .start_file(
+                "word/document.xml",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+        archive.write_all(xml.as_bytes()).unwrap();
+        archive.finish().unwrap();
+
+        let (name, text, bytes) = extract_document_text(&path, 1024 * 1024).unwrap();
+        assert_eq!(name, "cv.docx");
+        assert!(text.contains("Ada Lovelace"));
+        assert!(text.contains("Rust & TypeScript"));
+        assert!(text.contains('\n'));
+        assert_eq!(bytes, text.len());
+    }
+
+    #[test]
+    fn unsupported_and_oversized_documents_are_explained() {
+        let dir = fixture();
+        let path = dir.path().join("cv.rtf");
+        std::fs::write(&path, "{\\rtf1 Ada}").unwrap();
+        assert!(matches!(
+            extract_document_text(&path, 1024),
+            Err(CollectError::UnsupportedDocument)
+        ));
+        let text = dir.path().join("cv.txt");
+        std::fs::write(&text, "Ada Lovelace").unwrap();
+        assert!(matches!(
+            extract_document_text(&text, 4),
+            Err(CollectError::DocumentTooLarge(4))
+        ));
     }
 }
