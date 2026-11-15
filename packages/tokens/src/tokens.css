@@ -2,7 +2,7 @@
 
 @font-face {
   font-family: "Paper Mono";
-  src: url("../fonts/PaperMono-Variable.woff2") format("woff2-variations");
+  src: url("../fonts/PaperMono-Variable.ttf") format("truetype-variations");
   font-style: normal;
   font-weight: 100 800;
   font-display: swap;

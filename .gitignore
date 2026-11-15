@@ -39,6 +39,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .playwright-cli/
 
 # rust build output
+/.rune/
 /target/
 
-/vendor/

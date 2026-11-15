@@ -1,7 +1,6 @@
 //! Coderune's fixed light theme for Rune.
 //!
-//! Values come from `packages/ui/src/tokens.ts` and the native design notes. There is no
-//! dark theme. Blue is a non-text accent; focus rings are ink.
+//! Values transcribe Coderune's design roles. There is no dark theme. Blue is a non-text accent; focus rings are ink.
 
 use rune::{color::srgb_decode, Color, Family, Shadow, TextStyle};
 use rune_kit::{kit::Type, Kit};

@@ -46,11 +46,11 @@ rune-kit = { git = "https://github.com/anomalyco/rune", rev = "8fc71fbf21db41920
 coderune-ui = { path = "crates/ui" }
 
 [patch.crates-io]
-wgpu-hal = { path = "vendor/rune/vendor/wgpu-hal" }
-winit = { path = "vendor/rune/vendor/winit" }
-parley_engine = { path = "vendor/rune/vendor/parley_engine" }
-accesskit_windows = { path = "vendor/rune/vendor/accesskit_windows" }
-accesskit_macos = { path = "vendor/rune/vendor/accesskit_macos" }
+wgpu-hal = { path = ".rune/vendor/wgpu-hal" }
+winit = { path = ".rune/vendor/winit" }
+parley_engine = { path = ".rune/vendor/parley_engine" }
+accesskit_windows = { path = ".rune/vendor/accesskit_windows" }
+accesskit_macos = { path = ".rune/vendor/accesskit_macos" }
 
 [profile.dev]
 opt-level = 0

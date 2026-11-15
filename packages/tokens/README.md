@@ -76,6 +76,6 @@ which has 5.26:1 contrast.
 
 `@coderune/ui` owns the UI design system, including its native token projection at
 `crates/ui/src/theme.rs`. This package remains the source of the Geist and Paper Mono font files and is embedded by the Rune desktop.
-Bundled variable TTF files and OFL licenses live beside the web WOFF2 font; the native entry registers
-the TTF files before layout. See
-[UI in Coderune](../../docs/desktop-ui.md) for the adapter interface and verification commands.
+Bundled variable TTF files and OFL licenses live beside the web WOFF2 font; the Rune desktop embeds
+the TTF files before layout. See [UI in Coderune](../../docs/desktop-ui.md) for the component and
+verification commands.

@@ -115,7 +115,7 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
             Some("Comma separated paths, directory names, or glob patterns."),
             text_input(
                 &s.project_form.exclude_paths,
-                "generated, vendor",
+                "generated, dist",
                 "Exclude paths",
                 |s| &mut s.project_form.exclude_paths,
                 k,

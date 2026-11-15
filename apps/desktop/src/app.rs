@@ -789,7 +789,7 @@ pub fn seed_demo(s: &mut CoderuneApp) {
         s.profile_form.display_name = edit("Ada");
         s.profile_form.stage = Some(ExperienceStage::EarlyCareer);
         s.profile_form.skills = edit("Rust and TypeScript");
-        s.profile_form.goals = edit("Ship the native desktop app, Learn GPUI");
+        s.profile_form.goals = edit("Ship the native desktop app, Learn Rune");
         s.confirm_profile();
     }
     let needs_project = s
