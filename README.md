@@ -35,12 +35,11 @@ cargo build -p coderune-desktop
 
 Run the desktop app with `cargo run -p coderune-desktop`, or pass a directory:
 `cargo run -p coderune-desktop -- .`. The binary is
-`target/debug/coderune`; `cargo install --path apps/desktop-gpui` puts
+`target/debug/coderune`; `cargo install --path apps/desktop` puts
 `coderune` on your PATH. The app opens a project folder in Finder and can launch
 `code`, `cursor`, `antigravity`, or `zed` when installed.
 
-The native rewrite notes live in `docs/rust-rune/`. The old GPUIX/TypeScript
-desktop surface has been removed.
+The native desktop notes live in `docs/rune/`. The desktop is Rust/Rune; the shared web UI is in `packages/ui`.
 
 Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/skills`
 and recorded in `skills-lock.json`.

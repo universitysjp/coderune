@@ -79,7 +79,7 @@ Legend: `Not started`, `In progress`, `Blocked`, `Done`.
 
 - Pruthivi: establish the core models/interfaces and Rune manual onboarding flow;
   require the confirmed developer baseline before starting project work.
-- Nuwan: implement the per-user Bun SQLite store, migrations, onboarding/profile
+- Nuwan: implement the per-user SeaORM SQLite store, migrations, onboarding/profile
   versions, approved imports, transactional captures, and history/deletion reads.
 - Then connect the local document extractors, agent draft adapters, repository
   capture, and data-management flows against those interfaces.

@@ -1,4 +1,4 @@
-> Status: historical. The GPUIX/TypeScript increment was superseded by the native Rust desktop (Rune UI, SeaORM storage). The accepted product rules below still apply; the implementation paths do not.
+> Status: accepted product rules. The implementation is the native Rust desktop in `apps/desktop` with Rune and SeaORM.
 
 # Data collection and storage interview
 
@@ -8,8 +8,8 @@ Status: interview round complete; scope confirmed by the developer on 2026-10-22
 
 - The first increment collects the developer profile, project context, and selected repository context.
 - The first milestone allows the developer to collect, inspect, and save that context locally.
-- Use GPUIX React with Bun for the interactive application, replacing the earlier OpenTUI choice. Keep desktop and terminal launch modes in the same application where the runtime supports them.
-- Initially target native desktop on macOS Apple Silicon and Windows x64. GPUIX terminal mode is available on macOS/Linux in compatible terminals; it does not provide a Windows terminal interface.
+- Use the native Rust desktop in `apps/desktop` with a Rune interface.
+- Target native desktop on macOS Apple Silicon and Windows x64.
 - One developer profile is reused across projects. Each project has its own goals, rules, and collection permissions.
 - Developer onboarding is mandatory before starting project work. Completing and confirming the profile establishes the starting information needed by later learning and gamification features; those features are not implemented in this increment.
 - Completing onboarding requires a display name or pseudonym, self-reported experience stage, an initial skills statement, and at least one learning goal. New developers can explicitly state that they are new to coding. A CV and prior employment are not required.
@@ -28,20 +28,19 @@ Status: interview round complete; scope confirmed by the developer on 2026-10-22
 - Respect ignore rules and exclude environment files, private keys, dependency directories, generated output, binaries, and paths outside the selected repository.
 - Store data in one per-user SQLite database in the user's application data directory, outside project repositories.
 - Keep versioned context captures containing approved text, paths, hashes, timestamps, and Git state. Preserve older captures and reuse unchanged content.
-- Use `packages/core` for domain models and application operations, `packages/collectors` for filesystem and Git collection, and `packages/storage` for SQLite schema, migrations, and persistence. Both GPUIX launch modes use the same application operations and persistence boundary.
-- Use `packages/agents` for connections to Codex, Claude Code, OpenCode, and Antigravity. Use their documented ACP or native interfaces and expose each adapter's actual capabilities. This increment uses agents only for reviewed CV/SRS draft jobs; full interactive coding sessions follow later.
+- Use `crates/domain` for domain models, `crates/app` for application operations, `crates/collectors` for filesystem and Git collection, and `crates/storage` for SeaORM entities, migrations, and persistence.
+- Use `crates/agents` for connections to Codex, Claude Code, OpenCode, and Antigravity. Use their documented ACP or native interfaces and expose each adapter's actual capabilities. This increment uses agents only for reviewed CV/SRS draft jobs; full interactive coding sessions follow later.
 - Inferred skill assessment follows in a later increment. CV import is now included in this increment.
 - Assumption verification and developer learning belong to later increments.
 - The optional Eve/learning subagent is outside the implementation scope.
 
 ## Native desktop decision
 
-The developer originally accepted GPUIX, then moved the desktop to native Rust
-with a Rune UI and SeaORM storage. The application operations, local SQLite
-database, onboarding gate, capture rules, and agent boundaries in this document
-remain the requirements. The TypeScript packages named below were removed after
-the Rust port; their behavior lives in `crates/domain`, `crates/storage`,
-`crates/collectors`, `crates/agents`, and `crates/app`.
+The desktop is a native Rust application in `apps/desktop`. Rune draws the
+interface; `rune-kit` supplies accessible controls. The application operations,
+local SQLite database, onboarding gate, capture rules, and agent boundaries in
+this document remain the requirements. The service crates are `crates/domain`,
+`crates/storage`, `crates/collectors`, `crates/agents`, and `crates/app`.
 
 ## Graph tooling recommendation
 
@@ -102,7 +101,7 @@ Claude's native CLI and SDK paths must remain distinct. Its [CLI reference](http
 
 ### Confirmed integration structure and increment boundary
 
-- Add `packages/agents` as the boundary for talking to external coding tools. Keep agent-specific commands, wire messages, capability checks, timeouts, cancellation, and errors inside it. The core requests a document draft and receives a validated draft or an actionable error.
+- Add `crates/agents` as the boundary for talking to external coding tools. Keep agent-specific commands, wire messages, capability checks, timeouts, cancellation, and errors inside it. The core requests a document draft and receives a validated draft or an actionable error.
 - Use ACP for compatible agent sessions and native adapters where a tool has a different documented protocol. Avoid implementing a new agent loop or provider authentication system.
 - Keep onboarding, document extraction, repository collection, and SQLite persistence usable without an agent. A connected agent is needed only when the developer requests agent-assisted interpretation.
 - Limit this increment's agent work to explicit CV/SRS draft jobs: supplied text, progress/cancel, schema validation, and human review. Interactive project coding sessions follow later, along with gamification and verification.
@@ -114,14 +113,15 @@ These are planned responsibilities, not a statement that the packages are implem
 
 | Location | Responsibility |
 | --- | --- |
-| `apps/app` | GPUIX React application, native/terminal launch modes, forms, navigation, progress, and application composition. |
-| `packages/core` | Profile/project models, onboarding completion rules, import draft schemas, capture operations, and interfaces for external effects. |
-| `packages/collectors` | Local repository/Git capture and selected-document text extraction, scope enforcement, limits, hashes, and source metadata. |
-| `packages/storage` | Bun SQLite initialization outside repositories, migrations, transactional persistence, versions, history, retention, and consistent reads for export. |
-| `packages/agents` | Existing-tool detection/selection, documented protocol adapters, capabilities, draft jobs, progress/cancellation, and actionable errors. |
-| Existing `apps/web` and `packages/tokens` | Preserve the developer's scaffold and design assets; reuse suitable assets without assuming web components run in GPUIX. |
+| `apps/desktop` | Rune application: onboarding, workspace screens, forms, navigation, and application composition. |
+| `crates/domain` | Profile/project models, onboarding rules, import draft schemas, capture types, and errors. |
+| `crates/app` | Application operations, capture orchestration, document review, export, and OS integration. |
+| `crates/collectors` | Local repository/Git capture, selected-document extraction, scope enforcement, limits, hashes, and source metadata. |
+| `crates/storage` | SeaORM entities and migrations, transactional persistence, versions, history, retention, and export reads. |
+| `crates/agents` | Existing-tool detection, protocol adapters, capabilities, draft jobs, progress/cancellation, and actionable errors. |
+| `apps/web`, `packages/ui`, `packages/tokens` | React site, shared web registry, and font assets. |
 
-The core defines the interfaces used by its operations. Collectors, storage, and agents implement them and can depend on core types; the core does not import those implementations. The GPUIX app composes the implementations. Agent wire formats and database rows do not become UI form contracts.
+The core defines the interfaces used by its operations. Collectors, storage, and agents implement them and can depend on core types; the core does not import those implementations. The desktop app composes the implementations. Agent wire formats and database rows do not become UI form contracts.
 
 The TypeScript/Bun implementation covers this increment without a Python backend. Supporting Python repositories means reading their permitted files; it does not require executing Python or installing an embedding service.
 

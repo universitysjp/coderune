@@ -70,10 +70,10 @@ In scope:
   Initial desktop targets are macOS Apple Silicon and Windows x64. Terminal mode
   requires supported macOS/Linux terminals; Windows/tmux terminal support is not
   claimed.
-- Local Bun SQLite outside repositories, with transactions, versions, approved
+- Local SeaORM SQLite outside repositories, with transactions, versions, approved
   imported text, source references, and history.
 - Inspect, save, reopen, edit, manually refresh, export JSON, and confirm deletion.
-- `packages/agents` adapters targeting installed Codex, Claude Code, OpenCode, and
+- `crates/agents` adapters targeting installed Codex, Claude Code, OpenCode, and
   Antigravity for user-requested CV/SRS drafts. Each tool retains its own sign-in,
   providers, and configuration; capabilities must be demonstrated per adapter.
 - Preview shared text, review and correct generated drafts, validate their shape,
@@ -319,7 +319,7 @@ implementation evidence, rather than reopening agreed onboarding/storage choices
   merely by documenting an upstream capability.
 - Add the selected `colbymchenry/codegraph` integration later, assessing its Node
   process boundary, egress controls, and derived-graph freshness. Keep the app's
-  Bun SQLite store authoritative; no PostgreSQL/pgvector is planned. See
+  SeaORM SQLite store authoritative; no PostgreSQL/pgvector is planned. See
   [the graph comparison](../graph-tool-comparison.md).
 - Specify full coding-session permissions, passive collection, verification,
   learning, and evaluation before implementing those later packages.
