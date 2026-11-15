@@ -572,9 +572,6 @@ impl Storage {
         let version = capture.version;
         let fingerprint = capture.fingerprint.clone();
         let created_at = capture.created_at.clone();
-        let files = capture.files.clone();
-        let skipped = capture.skipped.clone();
-        let contents = contents.clone();
         self.run(async {
             let tx = self.conn.begin().await?;
             capture::ActiveModel {
@@ -587,7 +584,7 @@ impl Storage {
             }
             .insert(&tx)
             .await?;
-            for file in &files {
+            for file in &capture.files {
                 if let Some(text) = contents.get(&file.path) {
                     content::Entity::insert(content::ActiveModel {
                         hash: Set(file.sha256.clone()),
@@ -612,7 +609,7 @@ impl Storage {
                 .insert(&tx)
                 .await?;
             }
-            for skipped in &skipped {
+            for skipped in &capture.skipped {
                 capture_skipped::ActiveModel {
                     capture_id: Set(id.clone()),
                     path: Set(skipped.path.clone()),
