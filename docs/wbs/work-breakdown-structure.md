@@ -13,7 +13,7 @@ define this increment where they refine the original proposal.
 
 | Member | Primary responsibility |
 | --- | --- |
-| Pruthivi Thejan | GPUIX application, collection, and agent integration |
+| Pruthivi Thejan | Rune application, collection, and agent integration |
 | Nuwan Konara | Backend, local storage, and database |
 | Raviru Rathnaweera | Project management, research, verification, and evaluation |
 
@@ -66,7 +66,7 @@ In scope:
 - Repository context selected and captured on explicit request.
 - Git state, dependency manifests, project configuration, `AGENTS.md`, `README`,
   selected documentation, and permitted TypeScript and Python source and test files.
-- One GPUIX React app with Bun, native desktop and supported terminal launch modes.
+- One Rune React app with Bun, native desktop and supported terminal launch modes.
   Initial desktop targets are macOS Apple Silicon and Windows x64. Terminal mode
   requires supported macOS/Linux terminals; Windows/tmux terminal support is not
   claimed.
@@ -93,7 +93,7 @@ Out of scope for this increment:
 
 Existing CI and automated-test packages remain visible in the wider plan and are
 not selected for this session. The existing web scaffold and design assets are
-preserved; the GPUIX app is planned in `apps/app`.
+preserved; the Rune app is planned in `apps/desktop`.
 
 ## Planned implementation order
 
@@ -126,7 +126,7 @@ interfaces. Agent-assisted imports do not block manual onboarding.
 | 2.2 | Configure TypeScript, lint, format, and test commands | Pruthivi Thejan | ✓ |
 | 2.3 | Add CI and pre-commit checks | Nuwan Konara | |
 | 2.4 | Establish domain glossary and ADR process | Pruthivi Thejan | ✓ |
-| 2.5 | Define core, collectors, storage, agents, and GPUIX app responsibilities | Pruthivi Thejan | ✓ |
+| 2.5 | Define core, collectors, storage, agents, and Rune app responsibilities | Pruthivi Thejan | ✓ |
 
 ### 3. Developer and project context
 
@@ -182,11 +182,11 @@ interfaces. Agent-assisted imports do not block manual onboarding.
 | 5.11 | Persist onboarding drafts, completion, and initial/profile versions | Nuwan Konara | ✓ |
 | 5.12 | Initialize the per-user database outside repositories and expose consistent reads | Nuwan Konara | ✓ |
 
-### 6. GPUIX application and user experience
+### 6. Rune application and user experience
 
 | ID | Work package | Owner | Session |
 | --- | --- | --- | --- |
-| 6.1 | Build GPUIX React/Bun application shell | Pruthivi Thejan | ✓ |
+| 6.1 | Build Rune React/Bun application shell | Pruthivi Thejan | ✓ |
 | 6.2 | Implement navigation and screen flow | Pruthivi Thejan | ✓ |
 | 6.3 | Implement forms and validation feedback | Pruthivi Thejan | ✓ |
 | 6.4 | Add progress, cancellation, and timeouts | Pruthivi Thejan | ✓ |
@@ -314,7 +314,7 @@ Confirmed scope; completion evidence belongs in the progress tracker.
 The current interview round is complete. These items belong to later design or
 implementation evidence, rather than reopening agreed onboarding/storage choices:
 
-- Demonstrate Bun/document-parser, GPUIX platform, and individual agent adapter
+- Demonstrate Bun/document-parser, Rune platform, and individual agent adapter
   compatibility during their work packages. No implementation support is implied
   merely by documenting an upstream capability.
 - Add the selected `colbymchenry/codegraph` integration later, assessing its Node

@@ -1,3 +1,5 @@
+> Status: historical. The GPUIX/TypeScript increment was superseded by the native Rust desktop (Rune UI, SeaORM storage). The accepted product rules below still apply; the implementation paths do not.
+
 # Data collection and storage interview
 
 Status: interview round complete; scope confirmed by the developer on 2026-10-22, including Q24–Q25. This document defines the first collection and storage increment. Implementation progress is tracked separately in [the WBS](wbs/work-breakdown-structure.md) and [its progress tracker](wbs/wbs-progress.md).
@@ -32,15 +34,14 @@ Status: interview round complete; scope confirmed by the developer on 2026-10-22
 - Assumption verification and developer learning belong to later increments.
 - The optional Eve/learning subagent is outside the implementation scope.
 
-## GPUIX interface decision
+## Native desktop decision
 
-The developer accepted GPUIX for a desktop-first React/TypeScript application running with Bun, and identified its recently added terminal renderer. The earlier OpenTUI plan is superseded.
-
-The official [terminal documentation](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/README.md#run-in-a-terminal) provides `GPUIX_TERMINAL=1 bun app.tsx` or `render(<App />, { terminal: true })`. It renders the same React tree through the kitty graphics protocol. Supported terminal environments are kitty/Ghostty on macOS/Linux; Windows and tmux are unsupported. This mode needs a compatible graphical terminal, rather than providing a conventional character-cell TUI or a noninteractive command API.
-
-Use one GPUIX app with shared core, collectors, and storage packages. Native desktop targets are macOS Apple Silicon and Windows x64. Include terminal launch support where GPUIX supports it; terminal-specific document selection behavior needs checking during implementation. Browser/WASM serving is a separate capability and is not part of the agreed first increment. A future browser app would need a service boundary for Bun filesystem/SQLite operations; those modules cannot be imported directly into browser code. See the official [starter server](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/example-app/web.ts) and [file-picker documentation](https://github.com/remorses/gpuix/blob/a53b294401280014e94eb9bd98a7c7ed1929f92d/README.md#file-picker).
-
-The existing `apps/web` scaffold and developer tooling are preserved. The planned GPUIX application is `apps/app`; the web scaffold does not establish a browser filesystem/SQLite implementation for this increment.
+The developer originally accepted GPUIX, then moved the desktop to native Rust
+with a Rune UI and SeaORM storage. The application operations, local SQLite
+database, onboarding gate, capture rules, and agent boundaries in this document
+remain the requirements. The TypeScript packages named below were removed after
+the Rust port; their behavior lives in `crates/domain`, `crates/storage`,
+`crates/collectors`, `crates/agents`, and `crates/app`.
 
 ## Graph tooling recommendation
 

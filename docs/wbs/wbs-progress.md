@@ -7,7 +7,7 @@ the full WBS and are omitted here.
 
 Status as of 2026-10-22. The interview round is complete. Application features
 below remain not started unless concrete evidence is listed; upstream tool
-documentation and existing web/design scaffolds do not establish GPUIX or agent
+documentation and existing web/design scaffolds do not establish Rune or agent
 adapter implementation.
 
 Legend: `Not started`, `In progress`, `Blocked`, `Done`.
@@ -15,11 +15,11 @@ Legend: `Not started`, `In progress`, `Blocked`, `Done`.
 | ID | Work package | Owner | Status | Evidence or note |
 | --- | --- | --- | --- | --- |
 | 1.3 | Confirm increment requirements and data-sharing rules | Pruthivi Thejan | Done | Confirmed requirements, scope, and sharing rules in [the design](../data-collection-design.md). |
-| 1.4 | Confirm increment architecture and module interfaces | Pruthivi Thejan | Done | GPUIX/Bun/SQLite, package responsibilities, and agent integration scope confirmed in the design. |
+| 1.4 | Confirm increment architecture and module interfaces | Pruthivi Thejan | Done | Rune/Bun/SQLite, package responsibilities, and agent integration scope confirmed in the design. |
 | 2.1 | Configure Bun and Turborepo workspace | Pruthivi Thejan | Done | Root package.json, turbo.json, and Bun workspaces exist; existing foundation status retained. |
-| 2.2 | Configure TypeScript, lint, format, and test commands | Pruthivi Thejan | In progress | Root/web scripts and TypeScript configuration exist. Planned GPUIX/shared-package tooling is not implemented or demonstrated yet. |
+| 2.2 | Configure TypeScript, lint, format, and test commands | Pruthivi Thejan | In progress | Root/web scripts and TypeScript configuration exist. Planned Rune/shared-package tooling is not implemented or demonstrated yet. |
 | 2.4 | Establish domain glossary and ADR process | Pruthivi Thejan | Done | GLOSSARY.md and docs/agents/domain.md define vocabulary and the ADR process; create ADRs only for qualifying decisions. |
-| 2.5 | Define core, collectors, storage, agents, and GPUIX app responsibilities | Pruthivi Thejan | Done | Planned app/core/collectors/storage/agents responsibilities and dependency direction are documented. This does not mean the packages are built. |
+| 2.5 | Define core, collectors, storage, agents, and Rune app responsibilities | Pruthivi Thejan | Done | Planned app/core/collectors/storage/agents responsibilities and dependency direction are documented. This does not mean the packages are built. |
 | 3.1 | Define developer profile and initial baseline domain models | Pruthivi Thejan | Not started |  |
 | 3.2 | Implement developer profile entry and validation | Pruthivi Thejan | Not started |  |
 | 3.3 | Define self-reported skill scale | Pruthivi Thejan | Done | Beginner/intermediate/advanced or unrated; self-report remains distinct from demonstrated mastery. |
@@ -57,7 +57,7 @@ Legend: `Not started`, `In progress`, `Blocked`, `Done`.
 | 5.10 | Persist approved document text, hashes, and field/source references | Nuwan Konara | Not started |  |
 | 5.11 | Persist onboarding drafts, completion, and initial/profile versions | Nuwan Konara | Not started |  |
 | 5.12 | Initialize the per-user database outside repositories and expose consistent reads | Nuwan Konara | Not started |  |
-| 6.1 | Build GPUIX React/Bun application shell | Pruthivi Thejan | Not started |  |
+| 6.1 | Build Rune React/Bun application shell | Pruthivi Thejan | Not started |  |
 | 6.2 | Implement navigation and screen flow | Pruthivi Thejan | Not started |  |
 | 6.3 | Implement forms and validation feedback | Pruthivi Thejan | Not started |  |
 | 6.4 | Add progress, cancellation, and timeouts | Pruthivi Thejan | Not started |  |
@@ -77,7 +77,7 @@ Legend: `Not started`, `In progress`, `Blocked`, `Done`.
 
 ## Next implementation handoff
 
-- Pruthivi: establish the core models/interfaces and GPUIX manual onboarding flow;
+- Pruthivi: establish the core models/interfaces and Rune manual onboarding flow;
   require the confirmed developer baseline before starting project work.
 - Nuwan: implement the per-user Bun SQLite store, migrations, onboarding/profile
   versions, approved imports, transactional captures, and history/deletion reads.

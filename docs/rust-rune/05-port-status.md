@@ -14,9 +14,10 @@ input without a window. See [ADR 0005](../adr/0005-desktop-ui-framework.md).
 
 - `crates/domain` — glossary-aligned profile, onboarding, project, document,
   capture, agent, export, and error types with validation.
-- `crates/storage` — legacy-compatible SQLite location and schema (versions
-  1–4), versioned profile/project writes, documents, deduplicated capture
-  content, export, and deletion cascades.
+- `crates/storage` — legacy-compatible SQLite location, SeaORM entities and
+  schema-builder migrations, versioned profile/project writes, documents,
+  deduplicated capture content, export, and deletion cascades. No hand-written
+  table DDL or repository SQL remains.
 - `crates/collectors` — explicit, read-only repository walk; protected paths;
   root `.gitignore`; include/exclude matching; size limits; SHA-256; Git state;
   deterministic fingerprints.
@@ -37,9 +38,9 @@ input without a window. See [ADR 0005](../adr/0005-desktop-ui-framework.md).
 - `apps/desktop/src/widgets.rs` — app-specific builders shared by screens.
 - Rune `AppSpec` boot with embedded fonts, minimum window size, Cmd-Q, and named
   scenes for headless snapshots.
-- Onboarding, profile versioning, project scope/limits, CRUD and deletion, Markdown/text
-  document review, agent detection, reviewed captures with history and content
-  inspection, JSON export, and confirmed delete-all.
+- Onboarding, profile versioning, project scope/limits, CRUD and deletion,
+  Markdown/text document review, agent detection, reviewed captures with
+  history and content inspection, JSON export, and confirmed delete-all.
 - A directory argument selects a matching project or prefills a new root.
 
 ## Verification
