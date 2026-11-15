@@ -65,15 +65,17 @@ tracking, or synthetic bold in the desktop UI.
 - Spacing: 0, 2, 4, 8, 12, 16, 20, 24, 32, 40.
 - Radius: 4 (inner), 6 (control/card inner), 10 (frame).
 - Hairline: 1px; focus: 2px.
-- Sidebar 248; topbar 56; page gutter 24/32; content max 1120; field max height 176.
-- Controls: 24/28/32/44 high; rows 40/56; icon 20.
+- Sidebar 236; toolbar 48; window frame 8; page gutter 32; content max 1120;
+  field max height 176.
+- Controls: 24/28/32/44 high; rows 32/40; icon 20.
 
 ## Desktop components
 
 `crates/ui` owns page headers, cards, fields, alerts, badges, navigation rows,
 and code wells. `apps/desktop/src/widgets.rs` owns app-specific builders
-(buttons, text inputs, choice chips). Buttons, text fields, and menus come from
-`rune-kit` so focus, IME, accessibility, and keyboard behavior stay intact.
+(buttons, text inputs, choice chips). Buttons, text fields, menus, and the
+`SplitView`/`Page` shell come from `rune-kit` so focus, IME, accessibility,
+keyboard behavior, and window chrome stay intact.
 
 ## Web components
 

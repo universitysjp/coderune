@@ -71,8 +71,9 @@ pub fn inverse() -> Color {
     hex(0xffffff)
 }
 
-pub const SIDEBAR: f32 = 248.0;
-pub const TOPBAR: f32 = 56.0;
+pub const SIDEBAR: f32 = 236.0;
+pub const TOPBAR: f32 = 48.0;
+pub const FRAME: f32 = 8.0;
 pub const GUTTER: f32 = 32.0;
 pub const CONTAINER: f32 = 1120.0;
 pub const PAGE_HEADER_MAX: f32 = 720.0;

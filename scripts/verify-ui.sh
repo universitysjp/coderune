@@ -14,12 +14,17 @@ trap 'rm -rf "$DATA"' EXIT
 export CODERUNE_DATA_DIR="$DATA"
 
 "$BIN" --snap "$OUT/onboarding.png" --size 1280x860
-for scene in home profile projects documents agents capture data; do
+"$BIN" --snap "$OUT/onboarding-narrow.png" --size 980x680
+for scene in onboarding-start onboarding-review; do
   "$BIN" --snap "$OUT/$scene.png" --scene "$scene" --size 1280x860
 done
+for scene in home profile profile-details projects documents agents capture data; do
+  "$BIN" --snap "$OUT/$scene.png" --scene "$scene" --size 1280x860
+done
+"$BIN" --snap "$OUT/home-narrow.png" --scene home --size 980x680
 "$BIN" --snap "$OUT/capture-preview.png" --scene capture-preview --size 1280x860
 
-for file in onboarding home profile projects documents agents capture capture-preview data; do
+for file in onboarding onboarding-narrow home home-narrow profile profile-details projects documents agents capture capture-preview data onboarding-start onboarding-review; do
   test -s "$OUT/$file.png" || { echo "missing $OUT/$file.png" >&2; exit 1; }
 done
 echo "UI snapshots written to $OUT"

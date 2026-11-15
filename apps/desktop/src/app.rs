@@ -5,9 +5,12 @@ use std::path::PathBuf;
 
 use coderune_app::{PreviewSession, Workspace};
 use coderune_domain::{
-    AgentId, AppError, ContextCapture, DocumentKind, ExperienceStage, ProfileDraft, ProjectDraft,
+    AgentId, AppError, Certification, ContextCapture, DocumentKind, EducationEntry,
+    EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft, ProjectDraft,
+    ProjectExperience, SelfReportedSkill, SkillRating,
 };
 use rune::{col, row, text, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit};
+use rune_kit::shell::{PaneState, Sidebar, SplitView, Toolbar};
 use rune_kit::Kit;
 
 use coderune_ui::components as ui;
@@ -62,6 +65,121 @@ impl View {
     ];
 }
 
+/// The three short onboarding questions. Optional profile detail lives in the
+/// app's Profile screen, so onboarding never becomes a form with everything on
+/// one page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnboardingStep {
+    About,
+    StartingPoint,
+    Review,
+}
+
+impl OnboardingStep {
+    pub const ALL: [Self; 3] = [Self::About, Self::StartingPoint, Self::Review];
+
+    pub fn index(self) -> usize {
+        match self {
+            Self::About => 0,
+            Self::StartingPoint => 1,
+            Self::Review => 2,
+        }
+    }
+
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::About => "About you",
+            Self::StartingPoint => "Your starting point",
+            Self::Review => "Review your baseline",
+        }
+    }
+
+    pub fn description(self) -> &'static str {
+        match self {
+            Self::About => "Two quick questions. Your name and where you are starting from.",
+            Self::StartingPoint => {
+                "Two more. Say what you can do today and what you want to learn. New to coding is a valid answer."
+            }
+            Self::Review => {
+                "Check the baseline Coderune will share with your projects. You can change it later."
+            }
+        }
+    }
+
+    pub fn previous(self) -> Option<Self> {
+        match self {
+            Self::About => None,
+            Self::StartingPoint => Some(Self::About),
+            Self::Review => Some(Self::StartingPoint),
+        }
+    }
+
+    pub fn next(self) -> Option<Self> {
+        match self {
+            Self::About => Some(Self::StartingPoint),
+            Self::StartingPoint => Some(Self::Review),
+            Self::Review => None,
+        }
+    }
+}
+
+/// Profile's two views: the required baseline and the optional details that
+/// live inside the app after onboarding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileTab {
+    Baseline,
+    Details,
+}
+
+/// The optional profile sections. One open at a time keeps the details view
+/// scannable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileSection {
+    Skills,
+    Education,
+    Employment,
+    Projects,
+    Certifications,
+    Links,
+    Preferences,
+}
+
+impl ProfileSection {
+    pub const ALL: [Self; 7] = [
+        Self::Skills,
+        Self::Education,
+        Self::Employment,
+        Self::Projects,
+        Self::Certifications,
+        Self::Links,
+        Self::Preferences,
+    ];
+
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::Skills => "Self-reported skills",
+            Self::Education => "Education",
+            Self::Employment => "Employment",
+            Self::Projects => "Project experience",
+            Self::Certifications => "Certifications",
+            Self::Links => "Links",
+            Self::Preferences => "Learning preferences",
+        }
+    }
+
+    pub fn hint(self) -> &'static str {
+        match self {
+            Self::Skills => "One skill per line: topic | beginner, intermediate, or advanced.",
+            Self::Education => "One per line: institution | qualification | period | details.",
+            Self::Employment => "One per line: employer | role | period | details.",
+            Self::Projects => "One per line: name | role | period | details.",
+            Self::Certifications => "One per line: name | issuer | year.",
+            Self::Links => "One per line: label | https://example.com.",
+            Self::Preferences => "How you like to learn, and any notes for later sessions.",
+        }
+    }
+}
+
 fn edit(value: impl Into<String>) -> TextEdit {
     let mut edit = TextEdit::default();
     edit.text = value.into();
@@ -76,6 +194,14 @@ pub struct ProfileForm {
     pub goals: TextEdit,
     pub stage: Option<ExperienceStage>,
     pub new_to_coding: bool,
+    pub self_reported_skills: TextEdit,
+    pub education: TextEdit,
+    pub employment: TextEdit,
+    pub project_experience: TextEdit,
+    pub certifications: TextEdit,
+    pub links: TextEdit,
+    pub learning_formats: TextEdit,
+    pub learning_notes: TextEdit,
 }
 
 impl ProfileForm {
@@ -84,34 +210,46 @@ impl ProfileForm {
         draft: Option<&coderune_domain::OnboardingDraft>,
     ) -> Self {
         if let Some(profile) = profile {
-            Self {
-                display_name: edit(profile.display_name.clone()),
-                skills: edit(profile.skills_statement.clone()),
-                goals: edit(profile.learning_goals.join(", ")),
-                stage: Some(profile.experience_stage),
-                new_to_coding: profile.new_to_coding,
-            }
+            Self::from_draft(&ProfileDraft::from_profile(profile))
         } else if let Some(draft) = draft {
-            Self {
-                display_name: edit(draft.draft.display_name.clone()),
-                skills: edit(draft.draft.skills_statement.clone()),
-                goals: edit(draft.draft.learning_goals.join(", ")),
-                stage: draft.draft.experience_stage,
-                new_to_coding: draft.draft.new_to_coding,
-            }
+            Self::from_draft(&draft.draft)
         } else {
-            Self {
-                display_name: edit(""),
-                skills: edit(""),
-                goals: edit(""),
-                stage: None,
-                new_to_coding: false,
-            }
+            Self::from_draft(&ProfileDraft::default())
         }
     }
 
-    /// Preserve fields the form does not edit (CV-derived skills, education, employment,
-    /// links, and provenance) and overwrite the visible ones.
+    fn from_draft(draft: &ProfileDraft) -> Self {
+        Self {
+            display_name: edit(draft.display_name.clone()),
+            skills: edit(draft.skills_statement.clone()),
+            goals: edit(draft.learning_goals.join(", ")),
+            stage: draft.experience_stage,
+            new_to_coding: draft.new_to_coding,
+            self_reported_skills: edit(format_skills(&draft.self_reported_skills)),
+            education: edit(format_education(&draft.education)),
+            employment: edit(format_employment(&draft.employment)),
+            project_experience: edit(format_project_experience(&draft.projects)),
+            certifications: edit(format_certifications(&draft.certifications)),
+            links: edit(format_links(&draft.links)),
+            learning_formats: edit(
+                draft
+                    .learning_preferences
+                    .as_ref()
+                    .map(|preferences| preferences.formats.join(", "))
+                    .unwrap_or_default(),
+            ),
+            learning_notes: edit(
+                draft
+                    .learning_preferences
+                    .as_ref()
+                    .and_then(|preferences| preferences.notes.clone())
+                    .unwrap_or_default(),
+            ),
+        }
+    }
+
+    /// Preserve fields the form does not edit (CV provenance) and overwrite the
+    /// visible ones, including the optional sections completed inside the app.
     pub(crate) fn to_draft(&self, base: ProfileDraft) -> ProfileDraft {
         let mut draft = base;
         draft.display_name = self.display_name.text.trim().to_string();
@@ -119,7 +257,40 @@ impl ProfileForm {
         draft.new_to_coding = self.new_to_coding;
         draft.skills_statement = self.skills.text.trim().to_string();
         draft.learning_goals = split_list(&self.goals.text);
+        draft.self_reported_skills = parse_skills(&self.self_reported_skills.text);
+        draft.education = parse_education(&self.education.text);
+        draft.employment = parse_employment(&self.employment.text);
+        draft.projects = parse_project_experience(&self.project_experience.text);
+        draft.certifications = parse_certifications(&self.certifications.text);
+        draft.links = parse_links(&self.links.text);
+        let formats = split_list(&self.learning_formats.text);
+        let notes = self.learning_notes.text.trim().to_string();
+        draft.learning_preferences = if formats.is_empty() && notes.is_empty() {
+            None
+        } else {
+            Some(LearningPreferences {
+                formats,
+                notes: (!notes.is_empty()).then_some(notes),
+            })
+        };
         draft
+    }
+
+    /// Whether the optional sections hold anything at all.
+    pub(crate) fn details_count(&self) -> usize {
+        [
+            &self.self_reported_skills,
+            &self.education,
+            &self.employment,
+            &self.project_experience,
+            &self.certifications,
+            &self.links,
+            &self.learning_formats,
+            &self.learning_notes,
+        ]
+        .into_iter()
+        .filter(|field| !field.text.trim().is_empty())
+        .count()
     }
 }
 
@@ -249,6 +420,10 @@ pub struct CoderuneApp {
     pub(crate) workspace: Option<Workspace>,
     pub(crate) fatal: Option<String>,
     pub view: View,
+    pub(crate) sidebar: PaneState,
+    pub onboarding_step: OnboardingStep,
+    pub profile_tab: ProfileTab,
+    pub profile_section: Option<ProfileSection>,
     pub(crate) profile_form: ProfileForm,
     pub(crate) project_form: ProjectForm,
     pub(crate) document_form: DocumentForm,
@@ -315,6 +490,10 @@ impl CoderuneApp {
             workspace,
             fatal,
             view: View::Home,
+            sidebar: PaneState::new(theme::SIDEBAR).range(200.0, 320.0),
+            onboarding_step: OnboardingStep::About,
+            profile_tab: ProfileTab::Baseline,
+            profile_section: None,
             profile_form,
             project_form,
             document_form: DocumentForm::empty(),
@@ -330,7 +509,31 @@ impl CoderuneApp {
             notice: None,
         };
         app.refresh_captures();
+        app.onboarding_step = app.initial_onboarding_step();
         app
+    }
+
+    /// Resume onboarding at the first step whose required answers are missing.
+    fn initial_onboarding_step(&self) -> OnboardingStep {
+        let Some(workspace) = self.workspace.as_ref() else {
+            return OnboardingStep::About;
+        };
+        let Some(draft) = workspace.onboarding.draft.as_ref() else {
+            return OnboardingStep::About;
+        };
+        let draft = &draft.draft;
+        if draft.display_name.trim().is_empty() || draft.experience_stage.is_none() {
+            OnboardingStep::About
+        } else if (!draft.new_to_coding && draft.skills_statement.trim().is_empty())
+            || draft
+                .learning_goals
+                .iter()
+                .all(|goal| goal.trim().is_empty())
+        {
+            OnboardingStep::StartingPoint
+        } else {
+            OnboardingStep::Review
+        }
     }
 
     fn profile_base(&self) -> ProfileDraft {
@@ -400,18 +603,97 @@ impl CoderuneApp {
     }
 
     pub(crate) fn save_draft(&mut self) {
+        if self.persist_draft() {
+            self.notice = Some("Progress saved. You can close and resume.".to_string());
+        }
+    }
+
+    /// Save the current form as the resumable draft. Returns whether it stuck.
+    fn persist_draft(&mut self) -> bool {
         let base = self.profile_base();
         let draft = self.profile_form.to_draft(base);
         let Some(workspace) = self.workspace.as_mut() else {
-            return;
+            return false;
         };
         match workspace.save_onboarding_draft(draft) {
             Ok(()) => {
-                self.notice = Some("Onboarding draft saved. You can close and resume.".to_string());
                 self.error = None;
+                true
             }
-            Err(error) => self.error = Some(error),
+            Err(error) => {
+                self.error = Some(error);
+                false
+            }
         }
+    }
+
+    /// Why the current onboarding step cannot continue, if it cannot.
+    fn onboarding_blocker(&self) -> Option<&'static str> {
+        match self.onboarding_step {
+            OnboardingStep::About => {
+                if self.profile_form.display_name.text.trim().is_empty() {
+                    Some("Add a display name or pseudonym to continue.")
+                } else if self.profile_form.stage.is_none() {
+                    Some("Choose the experience stage that fits you today.")
+                } else {
+                    None
+                }
+            }
+            OnboardingStep::StartingPoint => {
+                if !self.profile_form.new_to_coding
+                    && self.profile_form.skills.text.trim().is_empty()
+                {
+                    Some("Say what you can do today, or mark that you are new to coding.")
+                } else if split_list(&self.profile_form.goals.text).is_empty() {
+                    Some("Add at least one learning goal to continue.")
+                } else {
+                    None
+                }
+            }
+            OnboardingStep::Review => None,
+        }
+    }
+
+    pub(crate) fn onboarding_next(&mut self) {
+        if self.onboarding_step == OnboardingStep::Review {
+            self.confirm_profile();
+            return;
+        }
+        if let Some(message) = self.onboarding_blocker() {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::Validation,
+                message,
+            ));
+            self.notice = None;
+            return;
+        }
+        if !self.persist_draft() {
+            return;
+        }
+        if let Some(next) = self.onboarding_step.next() {
+            self.onboarding_step = next;
+            self.error = None;
+            self.notice = None;
+        }
+    }
+
+    pub(crate) fn onboarding_back(&mut self) {
+        if let Some(previous) = self.onboarding_step.previous() {
+            self.onboarding_step = previous;
+            self.error = None;
+            self.notice = None;
+        }
+    }
+
+    pub(crate) fn open_profile_details(&mut self) {
+        self.view = View::Profile;
+        self.profile_tab = ProfileTab::Details;
+        self.error = None;
+        self.notice = None;
+    }
+
+    pub(crate) fn toggle_profile_section(&mut self, section: ProfileSection) {
+        self.profile_section = (self.profile_section != Some(section)).then_some(section);
     }
 
     pub(crate) fn confirm_profile(&mut self) {
@@ -423,11 +705,13 @@ impl CoderuneApp {
         match workspace.confirm_profile(draft) {
             Ok(profile) => {
                 self.notice = Some(format!(
-                    "Developer baseline v{} confirmed.",
+                    "Developer baseline v{} confirmed. Add more to your profile whenever you want.",
                     profile.version
                 ));
                 self.error = None;
                 self.view = View::Home;
+                self.profile_tab = ProfileTab::Baseline;
+                self.profile_section = None;
                 self.refresh_profile_form();
             }
             Err(error) => self.error = Some(error),
@@ -887,7 +1171,226 @@ pub fn scene_data(s: &mut CoderuneApp) {
     s.view = View::Data;
 }
 
-fn split_list(value: &str) -> Vec<String> {
+/// Onboarding's second step, with the first step's answers filled in.
+pub fn scene_onboarding_start(s: &mut CoderuneApp) {
+    s.profile_form.display_name = edit("Ada");
+    s.profile_form.stage = Some(ExperienceStage::EarlyCareer);
+    s.onboarding_step = OnboardingStep::StartingPoint;
+}
+
+/// Onboarding's review step, without confirming the baseline.
+pub fn scene_onboarding_review(s: &mut CoderuneApp) {
+    scene_onboarding_start(s);
+    s.profile_form.skills = edit("TypeScript and a little Rust");
+    s.profile_form.goals = edit("Ship the native desktop app, Learn Rune");
+    s.onboarding_step = OnboardingStep::Review;
+}
+
+/// Profile's optional-details view with one section open.
+pub fn scene_profile_details(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.view = View::Profile;
+    s.profile_tab = ProfileTab::Details;
+    s.profile_section = Some(ProfileSection::Skills);
+    s.profile_form.self_reported_skills = edit("Rust | intermediate\nTypeScript | advanced");
+    s.profile_form.education = edit("University of Moratuwa | BSc Computer Science | 2021-2025");
+}
+
+fn opt_field(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_string())
+}
+
+/// Split a details text area into trimmed `|`-separated columns.
+fn rows(value: &str) -> Vec<Vec<String>> {
+    value
+        .lines()
+        .map(|line| {
+            line.split('|')
+                .map(|cell| cell.trim().to_string())
+                .collect()
+        })
+        .filter(|row: &Vec<String>| row.first().is_some_and(|first| !first.is_empty()))
+        .collect()
+}
+
+fn join_fields(fields: &[Option<&str>]) -> String {
+    fields
+        .iter()
+        .map(|field| field.unwrap_or("").trim())
+        .collect::<Vec<_>>()
+        .join(" | ")
+        .trim_end_matches(" | ")
+        .to_string()
+}
+
+fn format_skills(skills: &[SelfReportedSkill]) -> String {
+    skills
+        .iter()
+        .map(|skill| match skill.rating {
+            Some(rating) => format!("{} | {}", skill.topic, rating.label().to_lowercase()),
+            None => skill.topic.clone(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn parse_skills(value: &str) -> Vec<SelfReportedSkill> {
+    rows(value)
+        .into_iter()
+        .filter_map(|row| {
+            let topic = row.first()?.trim().to_string();
+            let rating = row
+                .get(1)
+                .and_then(|rating| match rating.to_lowercase().as_str() {
+                    "beginner" => Some(SkillRating::Beginner),
+                    "intermediate" => Some(SkillRating::Intermediate),
+                    "advanced" => Some(SkillRating::Advanced),
+                    _ => None,
+                });
+            Some(SelfReportedSkill { topic, rating })
+        })
+        .collect()
+}
+
+fn format_education(entries: &[EducationEntry]) -> String {
+    entries
+        .iter()
+        .map(|entry| {
+            join_fields(&[
+                Some(entry.institution.as_str()),
+                entry.qualification.as_deref(),
+                entry.period.as_deref(),
+                entry.details.as_deref(),
+            ])
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn parse_education(value: &str) -> Vec<EducationEntry> {
+    rows(value)
+        .into_iter()
+        .filter_map(|row| {
+            let institution = row.first()?.clone();
+            Some(EducationEntry {
+                institution,
+                qualification: row.get(1).and_then(|value| opt_field(value)),
+                period: row.get(2).and_then(|value| opt_field(value)),
+                details: row.get(3).and_then(|value| opt_field(value)),
+            })
+        })
+        .collect()
+}
+
+fn format_employment(entries: &[EmploymentEntry]) -> String {
+    entries
+        .iter()
+        .map(|entry| {
+            join_fields(&[
+                Some(entry.employer.as_str()),
+                Some(entry.role.as_str()),
+                entry.period.as_deref(),
+                entry.details.as_deref(),
+            ])
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn parse_employment(value: &str) -> Vec<EmploymentEntry> {
+    rows(value)
+        .into_iter()
+        .filter_map(|row| {
+            let employer = row.first()?.clone();
+            Some(EmploymentEntry {
+                employer,
+                role: row.get(1).cloned().unwrap_or_default(),
+                period: row.get(2).and_then(|value| opt_field(value)),
+                details: row.get(3).and_then(|value| opt_field(value)),
+            })
+        })
+        .collect()
+}
+
+fn format_project_experience(entries: &[ProjectExperience]) -> String {
+    entries
+        .iter()
+        .map(|entry| {
+            join_fields(&[
+                Some(entry.name.as_str()),
+                entry.role.as_deref(),
+                entry.period.as_deref(),
+                entry.details.as_deref(),
+            ])
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn parse_project_experience(value: &str) -> Vec<ProjectExperience> {
+    rows(value)
+        .into_iter()
+        .filter_map(|row| {
+            let name = row.first()?.clone();
+            Some(ProjectExperience {
+                name,
+                role: row.get(1).and_then(|value| opt_field(value)),
+                period: row.get(2).and_then(|value| opt_field(value)),
+                details: row.get(3).and_then(|value| opt_field(value)),
+            })
+        })
+        .collect()
+}
+
+fn format_certifications(entries: &[Certification]) -> String {
+    entries
+        .iter()
+        .map(|entry| {
+            join_fields(&[
+                Some(entry.name.as_str()),
+                entry.issuer.as_deref(),
+                entry.year.as_deref(),
+            ])
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn parse_certifications(value: &str) -> Vec<Certification> {
+    rows(value)
+        .into_iter()
+        .filter_map(|row| {
+            let name = row.first()?.clone();
+            Some(Certification {
+                name,
+                issuer: row.get(1).and_then(|value| opt_field(value)),
+                year: row.get(2).and_then(|value| opt_field(value)),
+            })
+        })
+        .collect()
+}
+
+fn format_links(entries: &[Link]) -> String {
+    entries
+        .iter()
+        .map(|entry| join_fields(&[Some(entry.label.as_str()), Some(entry.url.as_str())]))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn parse_links(value: &str) -> Vec<Link> {
+    rows(value)
+        .into_iter()
+        .filter_map(|row| {
+            let label = row.first()?.clone();
+            let url = row.get(1).cloned().unwrap_or_default();
+            (!url.is_empty()).then_some(Link { label, url })
+        })
+        .collect()
+}
+
+pub(crate) fn split_list(value: &str) -> Vec<String> {
     value
         .split([',', '\n', ';'])
         .map(|item| item.trim().to_string())
@@ -895,38 +1398,54 @@ fn split_list(value: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn view(s: &CoderuneApp, _cx: &mut Cx<CoderuneApp>) -> El {
+pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
     let k = theme::kit();
+    let inset = cx.titlebar_inset();
     let body = if let Some(message) = &s.fatal {
-        fatal(message)
+        fatal(message, inset)
     } else if s
         .workspace
         .as_ref()
         .is_some_and(|workspace| workspace.onboarding.can_start_project)
     {
-        workspace(s, k)
+        workspace(s, k, cx)
     } else {
-        screens::onboarding(s, k)
+        screens::onboarding(s, k, inset)
     };
     col().w_full().h_full().fill(theme::bg()).child(body)
 }
 
-fn fatal(message: &str) -> El {
-    col()
-        .w_full()
-        .h_full()
-        .center()
-        .gap(12.0)
-        .fill(theme::bg())
-        .child(
-            text("Coderune could not start")
-                .font(HEADING)
-                .color(theme::ink()),
-        )
-        .child(text(message).font(BODY).color(theme::muted()).wrap())
+fn fatal(message: &str, inset: f32) -> El {
+    use rune_kit::shell::Page;
+
+    Page::new(
+        col()
+            .w_full()
+            .h_full()
+            .center()
+            .gap(12.0)
+            .padding(32.0)
+            .child(
+                text("Coderune could not start")
+                    .font(HEADING)
+                    .color(theme::ink()),
+            )
+            .child(
+                text(message)
+                    .font(BODY)
+                    .color(theme::muted())
+                    .wrap()
+                    .max_w(520.0),
+            ),
+    )
+    .title("Coderune")
+    .titlebar_inset(inset)
+    .toolbar_in_panel()
+    .frame_inset(theme::FRAME)
+    .build(theme::kit())
 }
 
-fn workspace(s: &CoderuneApp, k: &Kit) -> El {
+fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> El {
     let content = match s.view {
         View::Home => screens::home(s, k),
         View::Profile => screens::profile(s, k),
@@ -936,50 +1455,81 @@ fn workspace(s: &CoderuneApp, k: &Kit) -> El {
         View::Capture => screens::capture(s, k),
         View::Data => screens::data(s, k),
     };
-    row()
+    let main = col()
         .w_full()
         .h_full()
-        .fill(theme::bg())
-        .child(sidebar(s, k))
+        .fill(theme::panel())
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        })
+        .scroll_edge_fade(12.0)
         .child(
             col()
-                .grow(1.0)
-                .h_full()
-                .min_h(0.0)
-                .child(topbar(s, k))
+                .w_full()
+                .px(theme::GUTTER)
+                .py(24.0)
+                .items_center()
                 .child(
                     col()
-                        .grow(1.0)
-                        .min_h(0.0)
-                        .scroll(ScrollSpec {
-                            stick_bottom: false,
-                        })
-                        .padding(theme::GUTTER)
-                        .items_center()
-                        .child(
-                            col()
-                                .w_full()
-                                .max_w(theme::CONTAINER)
-                                .gap(24.0)
-                                .child(content),
-                        ),
+                        .w_full()
+                        .max_w(theme::CONTAINER)
+                        .gap(24.0)
+                        .child(content),
                 ),
+        );
+    let mut toolbar =
+        Toolbar::new().leading(text(s.view.label()).font(LABEL).color(theme::muted()));
+    if let Some(project) = s
+        .workspace
+        .as_ref()
+        .and_then(|workspace| workspace.selected_project())
+    {
+        toolbar = toolbar.trailing(ui::badge(&project.name, k)).trailing(
+            text(&project.root_path)
+                .font(CODE_SM)
+                .color(theme::faint())
+                .truncate()
+                .max_w(320.0),
+        );
+    }
+    SplitView::new(main)
+        .sidebar(
+            &s.sidebar,
+            |s: &mut CoderuneApp| &mut s.sidebar,
+            sidebar(s, k),
         )
+        .toolbar(toolbar)
+        .titlebar_inset(cx.titlebar_inset())
+        .toolbar_in_panel()
+        .frame_inset(theme::FRAME)
+        .reduced_motion(cx.is_reduced_motion())
+        .build(k)
 }
 
 fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
-    let mut nav = Vec::new();
+    let brand = row()
+        .key("brand")
+        .h(32.0)
+        .px(8.0)
+        .gap(10.0)
+        .items_center()
+        .child(
+            row()
+                .size(22.0, 22.0)
+                .center()
+                .radius(5.0)
+                .fill(theme::ink())
+                .child(text("C").font(LABEL).color(theme::inverse())),
+        )
+        .child(text("Coderune").font(HEADING_XS).color(theme::ink()));
+    let mut nav = Sidebar::new()
+        .label("Workspace")
+        .inset(8.0)
+        .header(brand)
+        .child(rune::el().key("nav-gap").h(8.0).shrink());
     for view in View::NAV {
-        nav.push(ui::nav_item(
-            match view {
-                View::Home => "nav-home",
-                View::Profile => "nav-profile",
-                View::Projects => "nav-projects",
-                View::Documents => "nav-documents",
-                View::Agents => "nav-agents",
-                View::Capture => "nav-capture",
-                View::Data => "nav-data",
-            },
+        nav = nav.child(ui::nav_item(
+            nav_key(view),
             view.label(),
             view.icon(),
             s.view == view,
@@ -990,78 +1540,90 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
         .workspace
         .as_ref()
         .and_then(|workspace| workspace.profile())
-        .map_or("No baseline", |profile| profile.display_name.as_str());
+        .map_or("No baseline".to_string(), |profile| {
+            profile.display_name.clone()
+        });
     let baseline = s
         .workspace
         .as_ref()
         .and_then(|workspace| workspace.profile())
         .map(|profile| format!("Baseline v{}", profile.version))
         .unwrap_or_else(|| "Developer baseline".to_string());
-    col()
-        .w(theme::SIDEBAR)
-        .h_full()
-        .shrink()
-        .padding(16.0)
-        .gap(4.0)
-        .fill(theme::panel())
-        .border_sides([0.0, 1.0, 0.0, 0.0], theme::line())
+    let footer = col()
+        .key("sidebar-footer-content")
+        .w_full()
+        .gap(2.0)
+        .pt(8.0)
+        .border_sides([1.0, 0.0, 0.0, 0.0], theme::row_line())
         .child(
             row()
-                .gap(12.0)
+                .key("nav-profile-footer")
+                .hit()
+                .focusable(true)
+                .role("button")
+                .label(format!("Profile, {profile_label}"))
+                .h(40.0)
+                .w_full()
                 .items_center()
-                .mb(16.0)
+                .gap(10.0)
+                .px(8.0)
+                .radius(6.0)
+                .hover(theme::hover())
+                .on_press(|s: &mut CoderuneApp| s.navigate(View::Profile))
                 .child(
                     row()
-                        .size(28.0, 28.0)
+                        .size(22.0, 22.0)
                         .center()
-                        .radius(6.0)
-                        .fill(theme::ink())
-                        .child(text("C").font(LABEL).color(theme::inverse())),
+                        .radius(11.0)
+                        .fill(theme::code())
+                        .child(
+                            text(profile_label.chars().next().unwrap_or('?').to_string())
+                                .font(LABEL)
+                                .color(theme::ink())
+                                .a11y_hidden(),
+                        )
+                        .a11y_hidden(),
                 )
-                .child(text("Coderune").font(HEADING_XS).color(theme::ink()))
-                .child(ui::badge("native", k)),
+                .child(
+                    col()
+                        .grow(1.0)
+                        .min_w(0.0)
+                        .child(
+                            text(&profile_label)
+                                .font(LABEL)
+                                .color(theme::ink())
+                                .truncate()
+                                .a11y_hidden(),
+                        )
+                        .child(
+                            text(&baseline)
+                                .font(LABEL_SM)
+                                .color(theme::faint())
+                                .truncate()
+                                .a11y_hidden(),
+                        ),
+                ),
         )
-        .children(nav)
-        .child(rune::el().grow(1.0))
         .child(ui::nav_item(
             "nav-data-footer",
             "Data",
             &icons::GEAR,
             s.view == View::Data,
             |s: &mut CoderuneApp| s.navigate(View::Data),
-        ))
-        .child(
-            col()
-                .gap(4.0)
-                .mt(8.0)
-                .pt(12.0)
-                .border_sides([1.0, 0.0, 0.0, 0.0], theme::row_line())
-                .child(text(profile_label).font(LABEL).color(theme::ink()))
-                .child(text(&baseline).font(LABEL_SM).color(theme::faint())),
-        )
+        ));
+    nav.footer(footer).build(k)
 }
 
-fn topbar(s: &CoderuneApp, k: &Kit) -> El {
-    let project = s
-        .workspace
-        .as_ref()
-        .and_then(|workspace| workspace.selected_project());
-    let mut right = row().gap(8.0).items_center();
-    if let Some(project) = project {
-        right = right
-            .child(ui::badge(&project.name, k))
-            .child(text(&project.root_path).font(CODE_SM).color(theme::faint()));
+fn nav_key(view: View) -> &'static str {
+    match view {
+        View::Home => "nav-home",
+        View::Profile => "nav-profile",
+        View::Projects => "nav-projects",
+        View::Documents => "nav-documents",
+        View::Agents => "nav-agents",
+        View::Capture => "nav-capture",
+        View::Data => "nav-data",
     }
-    row()
-        .w_full()
-        .h(theme::TOPBAR)
-        .px(24.0)
-        .items_center()
-        .fill(theme::panel())
-        .border_sides([0.0, 0.0, 1.0, 0.0], theme::row_line())
-        .child(text(s.view.label()).font(LABEL).color(theme::muted()))
-        .child(rune::el().grow(1.0))
-        .child(right)
 }
 
 // ---------------------------------------------------------------------------
@@ -1089,6 +1651,9 @@ pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, _: &mut rune::Tx) -> bool {
 mod tests {
     use super::*;
     use rune::{Env, Runtime};
+
+    /// Tests that point the app at a temporary data folder must not overlap.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn profile_form_keeps_fields_it_does_not_edit() {
@@ -1142,7 +1707,93 @@ mod tests {
     }
 
     #[test]
+    fn optional_profile_details_round_trip() {
+        let draft = ProfileDraft {
+            display_name: "Ada".to_string(),
+            experience_stage: Some(ExperienceStage::EarlyCareer),
+            skills_statement: "Rust".to_string(),
+            learning_goals: vec!["Ship".to_string()],
+            self_reported_skills: vec![SelfReportedSkill {
+                topic: "Rust".to_string(),
+                rating: Some(SkillRating::Advanced),
+            }],
+            education: vec![EducationEntry {
+                institution: "University".to_string(),
+                qualification: Some("BSc".to_string()),
+                period: Some("2021-2025".to_string()),
+                details: None,
+            }],
+            employment: vec![EmploymentEntry {
+                employer: "Acme".to_string(),
+                role: "Engineer".to_string(),
+                period: None,
+                details: None,
+            }],
+            projects: vec![ProjectExperience {
+                name: "Coderune".to_string(),
+                role: None,
+                period: None,
+                details: None,
+            }],
+            certifications: vec![Certification {
+                name: "AWS".to_string(),
+                issuer: Some("Amazon".to_string()),
+                year: None,
+            }],
+            links: vec![Link {
+                label: "Site".to_string(),
+                url: "https://example.com".to_string(),
+            }],
+            learning_preferences: Some(LearningPreferences {
+                formats: vec!["examples".to_string()],
+                notes: Some("Small runnable examples".to_string()),
+            }),
+            ..Default::default()
+        };
+        let form = ProfileForm::from_draft(&draft);
+        let round_trip = form.to_draft(ProfileDraft::default());
+        assert_eq!(round_trip.self_reported_skills, draft.self_reported_skills);
+        assert_eq!(round_trip.education, draft.education);
+        assert_eq!(round_trip.employment, draft.employment);
+        assert_eq!(round_trip.projects, draft.projects);
+        assert_eq!(round_trip.certifications, draft.certifications);
+        assert_eq!(round_trip.links, draft.links);
+        assert_eq!(round_trip.learning_preferences, draft.learning_preferences);
+    }
+
+    #[test]
+    fn onboarding_blocks_a_step_until_its_two_answers_exist() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        assert_eq!(state.onboarding_step, OnboardingStep::About);
+
+        state.onboarding_next();
+        assert_eq!(state.onboarding_step, OnboardingStep::About);
+        assert!(state.error.is_some());
+
+        state.profile_form.display_name = edit("Ada");
+        state.profile_form.stage = Some(ExperienceStage::EarlyCareer);
+        state.onboarding_next();
+        assert_eq!(state.onboarding_step, OnboardingStep::StartingPoint);
+        assert!(state.error.is_none());
+
+        state.onboarding_next();
+        assert_eq!(state.onboarding_step, OnboardingStep::StartingPoint);
+        assert!(state.error.is_some());
+
+        state.profile_form.new_to_coding = true;
+        state.profile_form.goals = edit("Learn Rust");
+        state.onboarding_next();
+        assert_eq!(state.onboarding_step, OnboardingStep::Review);
+        state.onboarding_back();
+        assert_eq!(state.onboarding_step, OnboardingStep::StartingPoint);
+    }
+
+    #[test]
     fn onboarding_and_workspace_render_headlessly() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("CODERUNE_DATA_DIR", dir.path());
         let env = Env {

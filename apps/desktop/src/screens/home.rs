@@ -31,12 +31,12 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
                 .items_start()
                 .child(ui::card(
                     Some("Developer baseline"),
-                    Some("Starting description used for later progress."),
+                    Some("Starting description for later progress."),
                     vec![
                         text(profile.map(|p| p.display_name.as_str()).unwrap_or("Not set")).font(HEADING_XS).color(theme::ink()),
                         ui::subtle(&profile.map(|p| format!("v{} · {}", p.version, p.experience_stage.label())).unwrap_or_else(|| "Complete onboarding first".to_string())),
                     ],
-                ))
+                ).grow(1.0))
                 .child(ui::card(
                     Some("Projects"),
                     Some("Project context and repository scope."),
@@ -44,15 +44,15 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
                         text(projects.to_string()).font(HEADING).color(theme::ink()),
                         ui::subtle(if projects == 1 { "project configured" } else { "projects configured" }),
                     ],
-                ))
+                ).grow(1.0))
                 .child(ui::card(
                     Some("Context captures"),
-                    Some("Reviewed repository snapshots for the selected project."),
+                    Some("Reviewed snapshots for the selected project."),
                     vec![
                         text(captures.to_string()).font(HEADING).color(theme::ink()),
                         ui::subtle("saved captures"),
                     ],
-                )),
+                ).grow(1.0)),
         );
 
     if let Some(project) = workspace.and_then(|workspace| workspace.selected_project()) {
@@ -92,6 +92,25 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
             ],
         ));
     }
+
+    let details = s.profile_form.details_count();
+    body = body.child(ui::card(
+        Some(if details == 0 {
+            "Finish your profile when you are ready"
+        } else {
+            "Your profile has more to say"
+        }),
+        Some("Education, employment, project experience, skills, certifications, links, and learning preferences are optional."),
+        vec![
+            ui::subtle(if details == 0 {
+                "Onboarding kept it short. Add detail later; nothing is required to start a project."
+            } else {
+                "You have added optional profile detail. You can keep it current from here."
+            }),
+            ghost("Complete profile", |s| s.open_profile_details(), k),
+        ],
+    ));
+
     if let Some(notice) = &s.notice {
         body = body.child(ui::alert(None, notice));
     }

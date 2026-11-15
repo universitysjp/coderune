@@ -52,7 +52,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
     let mut import_children = vec![
         ui::field(
             "Document path",
-            Some("Markdown and plain text are supported in this build. Use manual entry for PDF or DOCX."),
+            Some("PDF, DOCX, Markdown, and plain text are extracted locally. The original file is not copied."),
             TextInput::new(&s.document_form.path)
                 .placeholder("/path/to/cv.md")
                 .label("Document path")

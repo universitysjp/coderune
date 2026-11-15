@@ -10,7 +10,7 @@ Desktop:
 
 - `crates/ui` — Rune theme, icons, and reusable primitives.
 - `apps/desktop/src/screens/` — one module per screen.
-- `apps/desktop/src/app.rs` — state, actions, and the workspace shell.
+- `apps/desktop/src/app.rs` — state, actions, the RuneKit shell, and navigation.
 - `apps/desktop/src/widgets.rs` — app-specific builders shared by screens.
 - `crates/domain`, `crates/storage`, `crates/collectors`, `crates/agents`, and
   `crates/app` — framework-independent services.
@@ -32,7 +32,22 @@ web. The theme is fixed light: neutral paper/ink surfaces, ink focus rings, a
 blue wash for selection, Geist for UI text, and Paper Mono for code, paths, IDs,
 hashes, and JSON. Do not add a dark theme, purple, green success colors, shadows
 on flat surfaces, or a second icon set. `rune-kit` supplies accessible desktop
-buttons, fields, and menus; the web registry supplies the React equivalents.
+buttons, fields, menus, and the shell; the web registry supplies the React
+equivalents.
+
+## Shell
+
+The desktop follows Hex's Rune layout without copying its theme: on macOS the
+content fills the window under the traffic lights, `rune_kit::shell::SplitView`
+draws the sidebar and the framed main pane, and `rune_kit::shell::Page` draws
+full-window onboarding. The sidebar is 236 points and carries navigation,
+profile, and Data; the toolbar shows the current section and the selected
+project. Do not hand-build a second sidebar, titlebar, or tab strip in a screen.
+
+The app icon is composed, not painted into the source PNG. `icon-source.png` is
+the mark alone; `scripts/make-app-icon.py` draws the grey-to-black gradient,
+scales the mark, and writes `icon.icns` plus PNGs. `AppIcon.icon` is the
+editable Icon Composer source.
 
 ## Verification
 
@@ -44,10 +59,11 @@ bun run verify:ui
 bun run --cwd apps/web build
 ```
 
-`verify:ui` renders onboarding and every workspace scene to
-`target/ui-snapshots` through Rune's headless renderer. Debug builds also take
-Rune's `--tree`, `--script`, `--frames`, and `--trace` arguments for element-tree
-and interaction checks.
+`verify:ui` renders onboarding, its later steps, profile completion, and every
+workspace scene to `target/ui-snapshots` through Rune's headless renderer,
+including narrow window sizes. Debug builds also take Rune's `--tree`,
+`--script`, `--frames`, and `--trace` arguments for element-tree and
+interaction checks.
 
 ## Storage
 
