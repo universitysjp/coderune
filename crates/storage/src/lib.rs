@@ -1,29 +1,39 @@
-//! SQLite persistence for Coderune.
+//! SQLite persistence for Coderune, through SeaORM entities and migrations.
 //!
 //! The legacy database name and location are preserved so existing local data
-//! remains discoverable after the native rewrite. JSON payloads are the source
-//! of truth for hydration; normalised columns exist for ordering and queries.
+//! remains discoverable. JSON payloads are the source of truth for hydration;
+//! normalised columns exist for ordering and filtering.
 
-use std::collections::BTreeMap;
+mod entities;
+mod migration;
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::future::Future;
 use std::path::{Path, PathBuf};
+
+pub use entities::*;
 
 use coderune_domain::{
     now_iso, CapturePreview, ContextCapture, DeveloperProfile, DocumentKind, ExportBundle,
     ImportedDocument, OnboardingDraft, OnboardingState, ProfileDraft, Project, ProjectDraft,
     ValidationError,
 };
-use rusqlite::{params, Connection, OptionalExtension};
+use migration::Migrator;
+use sea_orm::sea_query::OnConflict;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder, Set, TransactionTrait,
+};
+use sea_orm_migration::MigratorTrait;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("storage error: {0}")]
-    Sqlite(#[from] rusqlite::Error),
+    #[error("database error: {0}")]
+    Database(#[from] sea_orm::DbErr),
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
     #[error("validation failed: {0}")]
     Validation(#[from] ValidationError),
-    #[error("unsupported database version {0}; expected 4")]
-    UnsupportedVersion(i64),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("not found: {0}")]
@@ -51,15 +61,16 @@ pub fn default_database_path() -> PathBuf {
 }
 
 pub struct Storage {
-    conn: Connection,
+    conn: DatabaseConnection,
+    runtime: tokio::runtime::Runtime,
     path: PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DocumentFilter {
     All,
     Unlinked,
-    Project(&'static str),
+    Project(String),
 }
 
 impl Storage {
@@ -72,99 +83,108 @@ impl Storage {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let conn = Connection::open(&path)?;
-        Self::from_connection(conn, path)
-    }
-
-    pub fn in_memory() -> Result<Self> {
-        let conn = Connection::open_in_memory()?;
-        Self::from_connection(conn, PathBuf::from(":memory:"))
-    }
-
-    fn from_connection(conn: Connection, path: PathBuf) -> Result<Self> {
-        conn.pragma_update(None, "journal_mode", "WAL")?;
-        conn.pragma_update(None, "foreign_keys", "ON")?;
-        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
-        let mut storage = Self { conn, path };
-        storage.migrate()?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let url = format!("sqlite://{}?mode=rwc", path.display());
+        let conn = runtime.block_on(Database::connect(&url))?;
+        runtime.block_on(async {
+            conn.execute_unprepared("PRAGMA journal_mode = WAL;")
+                .await?;
+            conn.execute_unprepared("PRAGMA foreign_keys = ON;").await?;
+            conn.execute_unprepared("PRAGMA busy_timeout = 5000;")
+                .await?;
+            Migrator::up(&conn, None).await?;
+            Ok::<(), sea_orm::DbErr>(())
+        })?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            if let Ok(metadata) = std::fs::metadata(&storage.path) {
+            if let Ok(metadata) = std::fs::metadata(&path) {
                 let mut permissions = metadata.permissions();
                 permissions.set_mode(0o600);
-                let _ = std::fs::set_permissions(&storage.path, permissions);
+                std::fs::set_permissions(&path, permissions)?;
             }
         }
-        Ok(storage)
+        Ok(Self {
+            conn,
+            runtime,
+            path,
+        })
+    }
+
+    pub fn in_memory() -> Result<Self> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let conn = runtime.block_on(Database::connect("sqlite::memory:"))?;
+        runtime.block_on(async {
+            conn.execute_unprepared("PRAGMA foreign_keys = ON;").await?;
+            conn.execute_unprepared("PRAGMA busy_timeout = 5000;")
+                .await?;
+            Migrator::up(&conn, None).await?;
+            Ok::<(), sea_orm::DbErr>(())
+        })?;
+        Ok(Self {
+            conn,
+            runtime,
+            path: PathBuf::from(":memory:"),
+        })
     }
 
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    fn migrate(&mut self) -> Result<()> {
-        self.conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS schema_migrations (
-                version INTEGER PRIMARY KEY,
-                applied_at TEXT NOT NULL
-            );",
-        )?;
-        let applied: std::collections::BTreeSet<i64> = {
-            let mut statement = self.conn.prepare("SELECT version FROM schema_migrations")?;
-            let rows = statement.query_map([], |row| row.get(0))?;
-            rows.collect::<std::result::Result<_, _>>()?
-        };
-        for (version, sql) in MIGRATIONS {
-            if applied.contains(&version) {
-                continue;
-            }
-            let tx = self.conn.transaction()?;
-            tx.execute_batch(sql)?;
-            tx.execute(
-                "INSERT INTO schema_migrations(version, applied_at) VALUES (?1, ?2)",
-                params![version, now_iso()],
-            )?;
-            tx.commit()?;
-        }
-        let current: i64 = self
-            .conn
-            .query_row("SELECT COALESCE(MAX(version), 0) FROM schema_migrations", [], |row| row.get(0))?;
-        if current != 4 {
-            return Err(StorageError::UnsupportedVersion(current));
-        }
-        Ok(())
+    fn run<T>(
+        &self,
+        work: impl Future<Output = std::result::Result<T, StorageError>>,
+    ) -> Result<T> {
+        self.runtime.block_on(work)
     }
 
     pub fn load_onboarding(&self) -> Result<OnboardingState> {
-        Ok(OnboardingState::from_parts(self.get_profile()?, self.get_onboarding_draft()?))
+        Ok(OnboardingState::from_parts(
+            self.get_profile()?,
+            self.get_onboarding_draft()?,
+        ))
     }
 
     pub fn get_profile(&self) -> Result<Option<DeveloperProfile>> {
-        self.conn
-            .query_row("SELECT data FROM developer_profiles WHERE id = 'developer'", [], |row| {
-                row.get::<_, String>(0)
-            })
-            .optional()?
-            .map(|data| serde_json::from_str(&data).map_err(StorageError::from))
+        let model = self.run(async {
+            developer_profile::Entity::find_by_id("developer")
+                .one(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        model
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
             .transpose()
     }
 
     pub fn get_profile_versions(&self) -> Result<Vec<DeveloperProfile>> {
-        let mut statement = self
-            .conn
-            .prepare("SELECT data FROM developer_profile_versions ORDER BY version ASC")?;
-        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
-        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+        let models = self.run(async {
+            developer_profile_version::Entity::find()
+                .order_by_asc(developer_profile_version::Column::Version)
+                .all(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        models
+            .into_iter()
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
+            .collect()
     }
 
     pub fn get_onboarding_draft(&self) -> Result<Option<OnboardingDraft>> {
-        self.conn
-            .query_row("SELECT data FROM onboarding_draft WHERE id = 'onboarding'", [], |row| {
-                row.get::<_, String>(0)
-            })
-            .optional()?
-            .map(|data| serde_json::from_str(&data).map_err(StorageError::from))
+        let model = self.run(async {
+            onboarding_draft::Entity::find_by_id("onboarding")
+                .one(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        model
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
             .transpose()
     }
 
@@ -175,11 +195,25 @@ impl Storage {
             updated_at: now_iso(),
         };
         let data = serde_json::to_string(&draft)?;
-        self.conn.execute(
-            "INSERT INTO onboarding_draft(id, data, updated_at) VALUES ('onboarding', ?1, ?2)
-             ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
-            params![data, draft.updated_at],
-        )?;
+        let updated_at = draft.updated_at.clone();
+        self.run(async {
+            onboarding_draft::Entity::insert(onboarding_draft::ActiveModel {
+                id: Set("onboarding".to_string()),
+                data: Set(data),
+                updated_at: Set(updated_at),
+            })
+            .on_conflict(
+                OnConflict::column(onboarding_draft::Column::Id)
+                    .update_columns([
+                        onboarding_draft::Column::Data,
+                        onboarding_draft::Column::UpdatedAt,
+                    ])
+                    .to_owned(),
+            )
+            .exec(&self.conn)
+            .await
+            .map_err(StorageError::from)
+        })?;
         Ok(draft)
     }
 
@@ -189,48 +223,87 @@ impl Storage {
         let previous = self.get_profile()?;
         let profile = draft.into_profile(previous.as_ref())?;
         let data = serde_json::to_string(&profile)?;
-        let tx = self.conn.transaction()?;
-        tx.execute(
-            "INSERT INTO developer_profiles(id, version, data, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(id) DO UPDATE SET
-                version = excluded.version, data = excluded.data, updated_at = excluded.updated_at",
-            params![profile.id, profile.version, data, profile.created_at, profile.updated_at],
-        )?;
-        tx.execute(
-            "INSERT INTO developer_profile_versions(profile_id, version, data, created_at)
-             VALUES (?1, ?2, ?3, ?4)",
-            params![profile.id, profile.version, data, profile.created_at],
-        )?;
-        tx.execute("DELETE FROM onboarding_draft WHERE id = 'onboarding'", [])?;
-        tx.commit()?;
+        let profile_id = profile.id.clone();
+        let version = profile.version;
+        let created_at = profile.created_at.clone();
+        let updated_at = profile.updated_at.clone();
+        self.run(async {
+            let tx = self.conn.begin().await?;
+            developer_profile::Entity::insert(developer_profile::ActiveModel {
+                id: Set(profile_id.clone()),
+                version: Set(version as i32),
+                data: Set(data.clone()),
+                created_at: Set(created_at.clone()),
+                updated_at: Set(updated_at),
+            })
+            .on_conflict(
+                OnConflict::column(developer_profile::Column::Id)
+                    .update_columns([
+                        developer_profile::Column::Version,
+                        developer_profile::Column::Data,
+                        developer_profile::Column::UpdatedAt,
+                    ])
+                    .to_owned(),
+            )
+            .exec(&tx)
+            .await?;
+            developer_profile_version::ActiveModel {
+                id: sea_orm::ActiveValue::NotSet,
+                profile_id: Set(profile_id),
+                version: Set(version as i32),
+                data: Set(data),
+                created_at: Set(created_at),
+            }
+            .insert(&tx)
+            .await?;
+            onboarding_draft::Entity::delete_by_id("onboarding")
+                .exec(&tx)
+                .await?;
+            tx.commit().await?;
+            Ok(())
+        })?;
         Ok(profile)
     }
 
     pub fn list_projects(&self) -> Result<Vec<Project>> {
-        let mut statement = self
-            .conn
-            .prepare("SELECT data FROM projects ORDER BY created_at ASC")?;
-        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
-        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+        let models = self.run(async {
+            project::Entity::find()
+                .order_by_asc(project::Column::CreatedAt)
+                .all(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        models
+            .into_iter()
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
+            .collect()
     }
 
     pub fn get_project(&self, id: &str) -> Result<Option<Project>> {
-        self.conn
-            .query_row("SELECT data FROM projects WHERE id = ?1", params![id], |row| {
-                row.get::<_, String>(0)
-            })
-            .optional()?
-            .map(|data| serde_json::from_str(&data).map_err(StorageError::from))
+        let model = self.run(async {
+            project::Entity::find_by_id(id)
+                .one(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        model
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
             .transpose()
     }
 
     pub fn get_project_versions(&self) -> Result<Vec<Project>> {
-        let mut statement = self
-            .conn
-            .prepare("SELECT data FROM project_versions ORDER BY project_id ASC, version ASC")?;
-        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
-        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+        let models = self.run(async {
+            project_version::Entity::find()
+                .order_by_asc(project_version::Column::ProjectId)
+                .order_by_asc(project_version::Column::Version)
+                .all(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        models
+            .into_iter()
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
+            .collect()
     }
 
     pub fn save_project(
@@ -259,120 +332,212 @@ impl Storage {
 
     fn write_project(&mut self, project: &Project) -> Result<()> {
         let data = serde_json::to_string(project)?;
-        let tx = self.conn.transaction()?;
-        tx.execute(
-            "INSERT INTO projects(id, version, data, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(id) DO UPDATE SET
-                version = excluded.version, data = excluded.data, updated_at = excluded.updated_at",
-            params![project.id, project.version, data, project.created_at, project.updated_at],
-        )?;
-        tx.execute(
-            "INSERT INTO project_versions(project_id, version, data, created_at)
-             VALUES (?1, ?2, ?3, ?4)",
-            params![project.id, project.version, data, project.created_at],
-        )?;
-        tx.commit()?;
-        Ok(())
+        let id = project.id.clone();
+        let version = project.version;
+        let created_at = project.created_at.clone();
+        let updated_at = project.updated_at.clone();
+        self.run(async {
+            let tx = self.conn.begin().await?;
+            project::Entity::insert(project::ActiveModel {
+                id: Set(id.clone()),
+                version: Set(version as i32),
+                data: Set(data.clone()),
+                created_at: Set(created_at.clone()),
+                updated_at: Set(updated_at),
+            })
+            .on_conflict(
+                OnConflict::column(project::Column::Id)
+                    .update_columns([
+                        project::Column::Version,
+                        project::Column::Data,
+                        project::Column::UpdatedAt,
+                    ])
+                    .to_owned(),
+            )
+            .exec(&tx)
+            .await?;
+            project_version::ActiveModel {
+                id: sea_orm::ActiveValue::NotSet,
+                project_id: Set(id),
+                version: Set(version as i32),
+                data: Set(data),
+                created_at: Set(created_at),
+            }
+            .insert(&tx)
+            .await?;
+            tx.commit().await?;
+            Ok(())
+        })
     }
 
     pub fn delete_project(&mut self, id: &str) -> Result<()> {
-        let tx = self.conn.transaction()?;
-        let capture_ids: Vec<String> = {
-            let mut statement = tx.prepare("SELECT id FROM captures WHERE project_id = ?1")?;
-            let rows = statement.query_map(params![id], |row| row.get(0))?;
-            rows.collect::<std::result::Result<_, _>>()?
-        };
-        for capture_id in capture_ids {
-            delete_capture_rows(&tx, &capture_id)?;
-        }
-        tx.execute("DELETE FROM project_versions WHERE project_id = ?1", params![id])?;
-        tx.execute("DELETE FROM documents WHERE project_id = ?1", params![id])?;
-        tx.execute("DELETE FROM projects WHERE id = ?1", params![id])?;
-        cleanup_orphan_contents(&tx)?;
-        tx.commit()?;
-        Ok(())
+        let id = id.to_string();
+        self.run(async {
+            let tx = self.conn.begin().await?;
+            let capture_ids = capture::Entity::find()
+                .filter(capture::Column::ProjectId.eq(&id))
+                .all(&tx)
+                .await?
+                .into_iter()
+                .map(|capture| capture.id)
+                .collect::<Vec<_>>();
+            if !capture_ids.is_empty() {
+                capture_skipped::Entity::delete_many()
+                    .filter(capture_skipped::Column::CaptureId.is_in(capture_ids.clone()))
+                    .exec(&tx)
+                    .await?;
+                capture_file::Entity::delete_many()
+                    .filter(capture_file::Column::CaptureId.is_in(capture_ids.clone()))
+                    .exec(&tx)
+                    .await?;
+                capture::Entity::delete_many()
+                    .filter(capture::Column::Id.is_in(capture_ids))
+                    .exec(&tx)
+                    .await?;
+            }
+            cleanup_orphan_contents(&tx).await?;
+            project_version::Entity::delete_many()
+                .filter(project_version::Column::ProjectId.eq(&id))
+                .exec(&tx)
+                .await?;
+            document::Entity::delete_many()
+                .filter(document::Column::ProjectId.eq(&id))
+                .exec(&tx)
+                .await?;
+            project::Entity::delete_by_id(&id).exec(&tx).await?;
+            tx.commit().await?;
+            Ok(())
+        })
     }
 
     pub fn list_documents(&self, filter: DocumentFilter) -> Result<Vec<ImportedDocument>> {
-        let (sql, value): (&str, Option<String>) = match filter {
-            DocumentFilter::All => ("SELECT data FROM documents ORDER BY imported_at ASC", None),
-            DocumentFilter::Unlinked => (
-                "SELECT data FROM documents WHERE project_id IS NULL ORDER BY imported_at ASC",
-                None,
-            ),
-            DocumentFilter::Project(id) => (
-                "SELECT data FROM documents WHERE project_id = ?1 ORDER BY imported_at ASC",
-                Some(id.to_string()),
-            ),
-        };
-        let mut statement = self.conn.prepare(sql)?;
-        let rows = match value {
-            Some(id) => statement.query_map(params![id], |row| row.get::<_, String>(0))?.collect::<std::result::Result<Vec<_>, _>>()?,
-            None => statement.query_map([], |row| row.get::<_, String>(0))?.collect::<std::result::Result<Vec<_>, _>>()?,
-        };
-        rows.into_iter()
-            .map(|data| serde_json::from_str(&data).map_err(StorageError::from))
+        let models = self.run(async {
+            let mut query = document::Entity::find().order_by_asc(document::Column::ImportedAt);
+            query = match filter {
+                DocumentFilter::All => query,
+                DocumentFilter::Unlinked => query.filter(document::Column::ProjectId.is_null()),
+                DocumentFilter::Project(id) => query.filter(document::Column::ProjectId.eq(id)),
+            };
+            query.all(&self.conn).await.map_err(StorageError::from)
+        })?;
+        models
+            .into_iter()
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
             .collect()
     }
 
     pub fn save_document(&mut self, document: &ImportedDocument) -> Result<()> {
         let data = serde_json::to_string(document)?;
-        self.conn.execute(
-            "INSERT INTO documents(id, project_id, kind, name, path, hash, size, text, data, imported_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                document.id,
-                document.project_id,
-                match document.kind {
-                    DocumentKind::Cv => "cv",
-                    DocumentKind::Srs => "srs",
-                },
-                document.name,
-                document.source_path.clone().unwrap_or_default(),
-                document.sha256,
-                document.text_bytes as i64,
-                document.text,
-                data,
-                document.created_at
-            ],
-        )?;
+        let kind = match document.kind {
+            DocumentKind::Cv => "cv",
+            DocumentKind::Srs => "srs",
+        };
+        let id = document.id.clone();
+        let project_id = document.project_id.clone();
+        let name = document.name.clone();
+        let path = document.source_path.clone().unwrap_or_default();
+        let hash = document.sha256.clone();
+        let size = document.text_bytes as i64;
+        let text = document.text.clone();
+        let imported_at = document.created_at.clone();
+        self.run(async {
+            document::Entity::insert(document::ActiveModel {
+                id: Set(id),
+                project_id: Set(project_id),
+                kind: Set(kind.to_string()),
+                name: Set(name),
+                path: Set(path),
+                hash: Set(hash),
+                size: Set(size),
+                text: Set(text),
+                data: Set(data),
+                imported_at: Set(imported_at),
+            })
+            .on_conflict(
+                OnConflict::column(document::Column::Id)
+                    .update_columns([
+                        document::Column::ProjectId,
+                        document::Column::Kind,
+                        document::Column::Name,
+                        document::Column::Path,
+                        document::Column::Hash,
+                        document::Column::Size,
+                        document::Column::Text,
+                        document::Column::Data,
+                        document::Column::ImportedAt,
+                    ])
+                    .to_owned(),
+            )
+            .exec(&self.conn)
+            .await
+            .map_err(StorageError::from)
+        })?;
         Ok(())
     }
 
     pub fn list_captures(&self, project_id: &str) -> Result<Vec<ContextCapture>> {
-        let mut statement = self.conn.prepare(
-            "SELECT data FROM captures WHERE project_id = ?1 ORDER BY version DESC",
-        )?;
-        let rows = statement.query_map(params![project_id], |row| row.get::<_, String>(0))?;
-        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+        let models = self.run(async {
+            capture::Entity::find()
+                .filter(capture::Column::ProjectId.eq(project_id))
+                .order_by_desc(capture::Column::Version)
+                .all(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        models
+            .into_iter()
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
+            .collect()
     }
 
     pub fn get_capture(&self, id: &str) -> Result<Option<ContextCapture>> {
-        self.conn
-            .query_row("SELECT data FROM captures WHERE id = ?1", params![id], |row| {
-                row.get::<_, String>(0)
-            })
-            .optional()?
-            .map(|data| serde_json::from_str(&data).map_err(StorageError::from))
+        let model = self.run(async {
+            capture::Entity::find_by_id(id)
+                .one(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        model
+            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
             .transpose()
     }
 
     pub fn capture_contents(&self, capture_id: &str) -> Result<BTreeMap<String, String>> {
-        let mut statement = self.conn.prepare(
-            "SELECT f.path, c.text FROM capture_files f
-             JOIN contents c ON c.hash = f.content_hash
-             WHERE f.capture_id = ?1 ORDER BY f.path ASC",
-        )?;
-        let rows = statement.query_map(params![capture_id], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        let files = self.run(async {
+            capture_file::Entity::find()
+                .filter(capture_file::Column::CaptureId.eq(capture_id))
+                .order_by_asc(capture_file::Column::Path)
+                .all(&self.conn)
+                .await
+                .map_err(StorageError::from)
         })?;
-        let mut contents = BTreeMap::new();
-        for row in rows {
-            let (path, text) = row?;
-            contents.insert(path, text);
+        let hashes = files
+            .iter()
+            .map(|file| file.content_hash.clone())
+            .collect::<Vec<_>>();
+        if hashes.is_empty() {
+            return Ok(BTreeMap::new());
         }
-        Ok(contents)
+        let contents = self.run(async {
+            content::Entity::find()
+                .filter(content::Column::Hash.is_in(hashes))
+                .all(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
+        let text_by_hash = contents
+            .into_iter()
+            .map(|content| (content.hash, content.text))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        Ok(files
+            .into_iter()
+            .filter_map(|file| {
+                text_by_hash
+                    .get(&file.content_hash)
+                    .cloned()
+                    .map(|text| (file.path, text))
+            })
+            .collect())
     }
 
     /// Persist a reviewed capture. The caller has already checked the preview
@@ -382,18 +547,14 @@ impl Storage {
         preview: &CapturePreview,
         contents: &BTreeMap<String, String>,
     ) -> Result<ContextCapture> {
-        if let Some(latest) = self.list_captures(&preview.project_id)?.into_iter().next() {
-            if latest.fingerprint == preview.fingerprint {
-                return Ok(latest);
-            }
+        let latest = self.list_captures(&preview.project_id)?.into_iter().next();
+        if latest
+            .as_ref()
+            .is_some_and(|capture| capture.fingerprint == preview.fingerprint)
+        {
+            return Ok(latest.expect("checked as some"));
         }
-        let version = self
-            .list_captures(&preview.project_id)?
-            .into_iter()
-            .map(|capture| capture.version)
-            .max()
-            .unwrap_or(0)
-            + 1;
+        let version = latest.map(|capture| capture.version).unwrap_or(0) + 1;
         let capture = ContextCapture {
             id: coderune_domain::new_id(),
             project_id: preview.project_id.clone(),
@@ -408,62 +569,95 @@ impl Storage {
             created_at: now_iso(),
         };
         let data = serde_json::to_string(&capture)?;
-        let tx = self.conn.transaction()?;
-        tx.execute(
-            "INSERT INTO captures(id, project_id, version, fingerprint, data, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![capture.id, capture.project_id, capture.version, capture.fingerprint, data, capture.created_at],
-        )?;
-        for file in &capture.files {
-            if let Some(text) = contents.get(&file.path) {
-                tx.execute(
-                    "INSERT INTO contents(hash, text, size) VALUES (?1, ?2, ?3)
-                     ON CONFLICT(hash) DO NOTHING",
-                    params![file.sha256, text, file.bytes as i64],
-                )?;
+        let id = capture.id.clone();
+        let project_id = capture.project_id.clone();
+        let version = capture.version;
+        let fingerprint = capture.fingerprint.clone();
+        let created_at = capture.created_at.clone();
+        let files = capture.files.clone();
+        let skipped = capture.skipped.clone();
+        let contents = contents.clone();
+        self.run(async {
+            let tx = self.conn.begin().await?;
+            capture::ActiveModel {
+                id: Set(id.clone()),
+                project_id: Set(project_id),
+                version: Set(version as i32),
+                fingerprint: Set(fingerprint),
+                data: Set(data),
+                created_at: Set(created_at),
             }
-            tx.execute(
-                "INSERT INTO capture_files(capture_id, path, content_hash, size, category)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![capture.id, file.path, file.sha256, file.bytes as i64, file.category],
-            )?;
-        }
-        for skipped in &capture.skipped {
-            tx.execute(
-                "INSERT INTO capture_skipped(capture_id, path, reason) VALUES (?1, ?2, ?3)",
-                params![capture.id, skipped.path, skipped.reason],
-            )?;
-        }
-        tx.commit()?;
+            .insert(&tx)
+            .await?;
+            for file in &files {
+                if let Some(text) = contents.get(&file.path) {
+                    content::Entity::insert(content::ActiveModel {
+                        hash: Set(file.sha256.clone()),
+                        text: Set(text.clone()),
+                        size: Set(file.bytes as i64),
+                    })
+                    .on_conflict(
+                        OnConflict::column(content::Column::Hash)
+                            .update_columns([content::Column::Text, content::Column::Size])
+                            .to_owned(),
+                    )
+                    .exec(&tx)
+                    .await?;
+                }
+                capture_file::ActiveModel {
+                    capture_id: Set(id.clone()),
+                    path: Set(file.path.clone()),
+                    content_hash: Set(file.sha256.clone()),
+                    size: Set(file.bytes as i64),
+                    category: Set(file.category.clone()),
+                }
+                .insert(&tx)
+                .await?;
+            }
+            for skipped in &skipped {
+                capture_skipped::ActiveModel {
+                    capture_id: Set(id.clone()),
+                    path: Set(skipped.path.clone()),
+                    reason: Set(skipped.reason.clone()),
+                }
+                .insert(&tx)
+                .await?;
+            }
+            tx.commit().await?;
+            Ok(())
+        })?;
         Ok(capture)
     }
 
     pub fn delete_capture(&mut self, id: &str) -> Result<()> {
-        let tx = self.conn.transaction()?;
-        delete_capture_rows(&tx, id)?;
-        cleanup_orphan_contents(&tx)?;
-        tx.commit()?;
-        Ok(())
+        let id = id.to_string();
+        self.run(async {
+            let tx = self.conn.begin().await?;
+            delete_capture_rows(&tx, &id).await?;
+            cleanup_orphan_contents(&tx).await?;
+            tx.commit().await?;
+            Ok(())
+        })
     }
 
     pub fn delete_all_data(&mut self) -> Result<()> {
-        let tx = self.conn.transaction()?;
-        for table in [
-            "capture_skipped",
-            "capture_files",
-            "captures",
-            "contents",
-            "documents",
-            "project_versions",
-            "projects",
-            "developer_profile_versions",
-            "developer_profiles",
-            "onboarding_draft",
-        ] {
-            tx.execute(&format!("DELETE FROM {table}"), [])?;
-        }
-        tx.commit()?;
-        Ok(())
+        self.run(async {
+            let tx = self.conn.begin().await?;
+            capture_skipped::Entity::delete_many().exec(&tx).await?;
+            capture_file::Entity::delete_many().exec(&tx).await?;
+            capture::Entity::delete_many().exec(&tx).await?;
+            content::Entity::delete_many().exec(&tx).await?;
+            document::Entity::delete_many().exec(&tx).await?;
+            project_version::Entity::delete_many().exec(&tx).await?;
+            project::Entity::delete_many().exec(&tx).await?;
+            developer_profile_version::Entity::delete_many()
+                .exec(&tx)
+                .await?;
+            developer_profile::Entity::delete_many().exec(&tx).await?;
+            onboarding_draft::Entity::delete_many().exec(&tx).await?;
+            tx.commit().await?;
+            Ok(())
+        })
     }
 
     pub fn export_bundle(&self) -> Result<ExportBundle> {
@@ -487,7 +681,9 @@ impl Storage {
 
     /// Resolve the first project whose real path matches `directory`.
     pub fn find_project_by_path(&self, directory: &Path) -> Result<Option<Project>> {
-        let canonical = directory.canonicalize().unwrap_or_else(|_| directory.to_path_buf());
+        let canonical = directory
+            .canonicalize()
+            .unwrap_or_else(|_| directory.to_path_buf());
         Ok(self.list_projects()?.into_iter().find(|project| {
             Path::new(&project.root_path)
                 .canonicalize()
@@ -497,113 +693,45 @@ impl Storage {
     }
 }
 
-fn delete_capture_rows(tx: &rusqlite::Transaction<'_>, capture_id: &str) -> Result<()> {
-    tx.execute("DELETE FROM capture_skipped WHERE capture_id = ?1", params![capture_id])?;
-    tx.execute("DELETE FROM capture_files WHERE capture_id = ?1", params![capture_id])?;
-    tx.execute("DELETE FROM captures WHERE id = ?1", params![capture_id])?;
+async fn delete_capture_rows(
+    tx: &sea_orm::DatabaseTransaction,
+    capture_id: &str,
+) -> std::result::Result<(), sea_orm::DbErr> {
+    capture_skipped::Entity::delete_many()
+        .filter(capture_skipped::Column::CaptureId.eq(capture_id))
+        .exec(tx)
+        .await?;
+    capture_file::Entity::delete_many()
+        .filter(capture_file::Column::CaptureId.eq(capture_id))
+        .exec(tx)
+        .await?;
+    capture::Entity::delete_by_id(capture_id).exec(tx).await?;
     Ok(())
 }
 
-fn cleanup_orphan_contents(tx: &rusqlite::Transaction<'_>) -> Result<()> {
-    tx.execute(
-        "DELETE FROM contents WHERE hash NOT IN (SELECT DISTINCT content_hash FROM capture_files)",
-        [],
-    )?;
+async fn cleanup_orphan_contents(
+    tx: &sea_orm::DatabaseTransaction,
+) -> std::result::Result<(), sea_orm::DbErr> {
+    let used = capture_file::Entity::find()
+        .all(tx)
+        .await?
+        .into_iter()
+        .map(|file| file.content_hash)
+        .collect::<BTreeSet<_>>();
+    let all = content::Entity::find().all(tx).await?;
+    let orphaned = all
+        .into_iter()
+        .filter(|content| !used.contains(&content.hash))
+        .map(|content| content.hash)
+        .collect::<Vec<_>>();
+    if !orphaned.is_empty() {
+        content::Entity::delete_many()
+            .filter(content::Column::Hash.is_in(orphaned))
+            .exec(tx)
+            .await?;
+    }
     Ok(())
 }
-
-const MIGRATIONS: &[(i64, &str)] = &[
-    (
-        1,
-        "CREATE TABLE IF NOT EXISTS developer_profiles (
-            id TEXT PRIMARY KEY,
-            version INTEGER NOT NULL,
-            data TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS developer_profile_versions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            profile_id TEXT NOT NULL,
-            version INTEGER NOT NULL,
-            data TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            UNIQUE(profile_id, version)
-        );
-        CREATE TABLE IF NOT EXISTS onboarding_draft (
-            id TEXT PRIMARY KEY CHECK (id = 'onboarding'),
-            data TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );",
-    ),
-    (
-        2,
-        "CREATE TABLE IF NOT EXISTS projects (
-            id TEXT PRIMARY KEY,
-            version INTEGER NOT NULL,
-            data TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS project_versions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id TEXT NOT NULL,
-            version INTEGER NOT NULL,
-            data TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            UNIQUE(project_id, version)
-        );",
-    ),
-    (
-        3,
-        "CREATE TABLE IF NOT EXISTS documents (
-            id TEXT PRIMARY KEY,
-            project_id TEXT,
-            kind TEXT NOT NULL,
-            name TEXT NOT NULL,
-            path TEXT NOT NULL,
-            hash TEXT NOT NULL,
-            size INTEGER NOT NULL,
-            text TEXT NOT NULL,
-            data TEXT NOT NULL,
-            imported_at TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS documents_project_id ON documents(project_id);
-        CREATE INDEX IF NOT EXISTS documents_hash ON documents(hash);",
-    ),
-    (
-        4,
-        "CREATE TABLE IF NOT EXISTS contents (
-            hash TEXT PRIMARY KEY,
-            text TEXT NOT NULL,
-            size INTEGER NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS captures (
-            id TEXT PRIMARY KEY,
-            project_id TEXT NOT NULL,
-            version INTEGER NOT NULL,
-            fingerprint TEXT NOT NULL,
-            data TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            UNIQUE(project_id, version)
-        );
-        CREATE INDEX IF NOT EXISTS captures_project_id ON captures(project_id);
-        CREATE TABLE IF NOT EXISTS capture_files (
-            capture_id TEXT NOT NULL,
-            path TEXT NOT NULL,
-            content_hash TEXT NOT NULL,
-            size INTEGER NOT NULL,
-            category TEXT NOT NULL,
-            PRIMARY KEY (capture_id, path)
-        );
-        CREATE TABLE IF NOT EXISTS capture_skipped (
-            capture_id TEXT NOT NULL,
-            path TEXT NOT NULL,
-            reason TEXT NOT NULL,
-            PRIMARY KEY (capture_id, path)
-        );",
-    ),
-];
 
 #[cfg(test)]
 mod tests {
@@ -618,6 +746,20 @@ mod tests {
             learning_goals: vec!["Ship".to_string()],
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn opening_twice_keeps_data_and_records_seed_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("context-bridge.sqlite");
+        {
+            let mut storage = Storage::open(&path).unwrap();
+            storage.confirm_profile(profile_draft()).unwrap();
+        }
+        let storage = Storage::open(&path).unwrap();
+        let profile = storage.get_profile().unwrap().unwrap();
+        assert_eq!(profile.display_name, "Ada");
+        assert_eq!(profile.version, 1);
     }
 
     #[test]
