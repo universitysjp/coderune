@@ -40,6 +40,7 @@ interface MenuState {
   /** The row under the last touch or pen press, for a long press that fires no contextmenu event. */
   pressed: React.RefObject<HTMLElement | null>;
 }
+
 const MenuContext = React.createContext<MenuState>({
   mode: "click",
   mark: () => {},
@@ -76,6 +77,7 @@ function rowOf(from: EventTarget | null | undefined, area?: Element | null) {
   if (!(from instanceof Element)) {
     return null;
   }
+
   const row = from.closest<HTMLElement>(TARGET);
   const within = area ?? row?.closest("[data-menu-area]");
 
@@ -99,6 +101,7 @@ function DropdownMenu({
     if (row === target.current) {
       return;
     }
+
     delete target.current?.dataset.menuTargetOpen;
     target.current = row;
     row?.setAttribute("data-menu-target-open", "");
@@ -204,11 +207,13 @@ function DropdownMenuTrigger({
           if (!(event.shiftKey && event.key === "F10")) {
             return;
           }
+
           const from = document.activeElement as HTMLElement | null;
 
           if (!from || !event.currentTarget.contains(from)) {
             return;
           }
+
           event.preventDefault();
           const box = from.getBoundingClientRect();
           // Near the row's reading start: its left, or its right in right-to-left text.

@@ -115,6 +115,7 @@ function Status({
       'Status: variant="field" renders as plain. Put data-status on the frame and the word in its header.'
     );
   }
+
   const word =
     children ?? (typeof label === "string" ? label : statusLabels[status]);
 
@@ -144,6 +145,7 @@ function Status({
       </span>
     );
   }
+
   return (
     <span
       data-slot="status"

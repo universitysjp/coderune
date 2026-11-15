@@ -63,6 +63,7 @@ function maskSecret(value: string, tail = 4, capacity = Infinity) {
   if (value.length <= prefix + tail) {
     return "•".repeat(value.length);
   }
+
   const hidden = value.length - prefix - tail;
   const floor = Math.min(4, hidden);
   let head = prefix;
@@ -71,6 +72,7 @@ function maskSecret(value: string, tail = 4, capacity = Infinity) {
   if (head + dots + tail > capacity) {
     dots = Math.max(floor, capacity - head - tail);
   }
+
   if (head + dots + tail > capacity) {
     head = 0;
     dots = Math.max(floor, Math.min(hidden + prefix, capacity - tail));
@@ -88,6 +90,7 @@ function useCapacity(ref: { current: HTMLInputElement | null }) {
     if (!el) {
       return;
     }
+
     const measure = () => {
       const cs = getComputedStyle(el);
       const ctx = document.createElement("canvas").getContext("2d");
@@ -95,6 +98,7 @@ function useCapacity(ref: { current: HTMLInputElement | null }) {
       if (!ctx) {
         return;
       }
+
       ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
       const char = ctx.measureText("0").width;
 
@@ -164,6 +168,7 @@ function SecretMode({
     if (!shown || !after) {
       return;
     }
+
     const t = setTimeout(() => setRevealed(false), after);
 
     return () => clearTimeout(t);

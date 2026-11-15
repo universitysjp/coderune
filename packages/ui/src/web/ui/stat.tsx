@@ -251,6 +251,7 @@ function StatDelta({
   ) {
     return null;
   }
+
   const computed = known ? deltaOf(from, to) : undefined;
   const trend = given ?? computed?.trend ?? "flat";
 
@@ -258,6 +259,7 @@ function StatDelta({
   if (computed && from === 0 && to === 0 && children === undefined) {
     return null;
   }
+
   return (
     <div
       data-slot="stat-delta"
@@ -313,6 +315,7 @@ function StatTrend({
   if (data.length < 2) {
     return null;
   }
+
   const values = data.filter(
     (v): v is number => v !== null && Number.isFinite(v)
   );

@@ -442,6 +442,7 @@ function FieldError({
   if (errors && !unique.length && children === undefined) {
     return null;
   }
+
   const base =
     "flex min-w-0 items-start gap-2 type-body-sm text-fail-text [overflow-wrap:anywhere]";
 
@@ -449,6 +450,7 @@ function FieldError({
     if (!always) {
       return null;
     }
+
     const { render: _render, ...rest } = props;
 
     return (

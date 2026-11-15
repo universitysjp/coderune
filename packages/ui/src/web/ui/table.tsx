@@ -487,6 +487,7 @@ function TableEmpty({
 interface RowActionsContextValue {
   setMenuOpen: (open: boolean) => void;
 }
+
 const RowActionsContext = React.createContext<RowActionsContextValue | null>(
   null
 );
@@ -693,6 +694,7 @@ function useWindowedRows({
     if (placedAt.current === estimateSize) {
       return;
     }
+
     placedAt.current = estimateSize;
     virtualizer.measure();
   }, [estimateSize, virtualizer]);
@@ -705,6 +707,7 @@ function useWindowedRows({
     if (!el) {
       return;
     }
+
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
     atBottomRef.current = bottom;
     setAtBottom(bottom);
@@ -714,6 +717,7 @@ function useWindowedRows({
     if (!count) {
       return;
     }
+
     if (enabled) {
       virtualizer.scrollToIndex(count - 1, { align: "end" });
 
@@ -830,10 +834,14 @@ function selectColumn<TData>(): ColumnDef<TData> {
 
             for (const r of rows.slice(a, b + 1)) {
               if (r.getCanSelect()) {
-                if (to) next[r.id] = true;
-                else delete next[r.id];
+                if (to) {
+                  next[r.id] = true;
+                } else {
+                  delete next[r.id];
+                }
               }
             }
+
             table.setRowSelection(next);
 
             if (anchor) {
@@ -897,9 +905,11 @@ function sortWords<TData>(
   if (!sorted) {
     return "not sorted";
   }
+
   if (column.columnDef.meta?.severity) {
     return sorted === "desc" ? "sorted worst first" : "sorted best first";
   }
+
   return sorted === "asc" ? "sorted ascending" : "sorted descending";
 }
 
@@ -923,6 +933,7 @@ function DataTableColumnHeader<TData>({
     if (!row || at < 0) {
       return;
     }
+
     const land = () => {
       const heads = [...row.children] as HTMLElement[];
 
@@ -970,6 +981,7 @@ function DataTableColumnHeader<TData>({
     if (!row || !th || !fitHead) {
       return;
     }
+
     const measure = () => {
       const style = getComputedStyle(th);
       const previous = row.style.width;
@@ -1285,6 +1297,7 @@ function useControlled<T>(
       if (value === undefined) {
         setInner(updater);
       }
+
       onChange?.(updater);
     },
     [value, onChange]
@@ -1321,6 +1334,7 @@ function useLoadingPhase(
           if (p !== "shown") {
             shownAt.current = Date.now();
           }
+
           return "shown";
         }),
       cssNumber(ref.current, "--dur-skeleton-delay", 150)
@@ -1332,6 +1346,7 @@ function useLoadingPhase(
     if (loading || phase !== "shown") {
       return;
     }
+
     const left =
       cssNumber(ref.current, "--dur-skeleton-hold", 400) -
       (Date.now() - shownAt.current);
@@ -1431,6 +1446,7 @@ function DataTable<TData>({
     if (!box || !hasTime) {
       return;
     }
+
     const measure = () => {
       const probe = document.createElement("span");
       probe.className = cn(
@@ -1466,24 +1482,29 @@ function DataTable<TData>({
       if (!meta?.severity && !meta?.unit && !meta?.time && head === undefined) {
         return c;
       }
+
       const next: ColumnDef<TData, any> = { ...c };
 
       if (meta?.time && timeWidth !== null && c.size === undefined) {
         next.size = timeWidth;
       }
+
       // A status column is as wide as the token plus its padding, so its words stand in one right-aligned column.
       if (meta?.severity && c.size === undefined) {
         next.size = statusWidth;
       }
+
       if (head !== undefined) {
         next.minSize = Math.min(
           Math.max(c.minSize ?? 60, head),
           c.maxSize ?? 800
         );
       }
+
       if (!meta?.severity && !meta?.unit) {
         return next;
       }
+
       if (meta.severity) {
         next.sortingFn = c.sortingFn ?? (severitySort as SortingFn<TData>);
         next.sortDescFirst = c.sortDescFirst ?? true;
@@ -1526,6 +1547,7 @@ function DataTable<TData>({
         ),
       });
     }
+
     return out;
   }, [
     columnsProp,
@@ -1547,6 +1569,7 @@ function DataTable<TData>({
       if (!unit || !key) {
         continue;
       }
+
       // A missing value stays missing: it reads as an en dash, not 0ms, and does not pick the column's unit.
       const raw = data.map((row) => (row as Record<string, unknown>)[key]);
 
@@ -1585,6 +1608,7 @@ function DataTable<TData>({
     if (!el) {
       return;
     }
+
     const observer = new ResizeObserver(([entry]) =>
       setBoxWidth(entry.contentRect.width)
     );
@@ -1598,6 +1622,7 @@ function DataTable<TData>({
     if (boxWidth === null) {
       return [];
     }
+
     return columns
       .filter((c) => c.meta?.hideBelow && boxWidth < c.meta.hideBelow)
       .map(columnKey)
@@ -1608,8 +1633,11 @@ function DataTable<TData>({
     const merged = { ...userVisibility };
 
     for (const id of autoHidden) {
-      if (userVisibility[id] !== true) merged[id] = false;
+      if (userVisibility[id] !== true) {
+        merged[id] = false;
+      }
     }
+
     return merged;
   }, [userVisibility, autoHidden]);
 
@@ -1620,9 +1648,11 @@ function DataTable<TData>({
     const stored = { ...next };
 
     for (const id of autoHidden) {
-      if (stored[id] === false && userVisibility[id] === undefined)
+      if (stored[id] === false && userVisibility[id] === undefined) {
         delete stored[id];
+      }
     }
+
     setUserVisibility(stored);
   };
 
@@ -1695,9 +1725,11 @@ function DataTable<TData>({
       if (rowStatus) {
         return rowStatus(row.original);
       }
+
       if (!severityId) {
         return undefined;
       }
+
       const rank = severityOf(row.getValue(severityId));
 
       return rank === statusRank.fail
@@ -1735,6 +1767,7 @@ function DataTable<TData>({
     if (virtual) {
       windowed.virtualizer.scrollToIndex(next, { align: "auto" });
     }
+
     requestAnimationFrame(() =>
       scrollRef.current
         ?.querySelector<HTMLElement>(`tr[data-index="${next}"]`)
@@ -1750,6 +1783,7 @@ function DataTable<TData>({
     if (event.target !== event.currentTarget) {
       return;
     }
+
     const page = Math.max(
       1,
       Math.floor((scrollRef.current?.clientHeight ?? 400) / rowHeight) - 1
@@ -1784,6 +1818,7 @@ function DataTable<TData>({
       if (!column) {
         return "";
       }
+
       return `${columnLabel(column)} ${column.columnDef.meta?.severity ? (s.desc ? "worst first" : "best first") : s.desc ? "descending" : "ascending"}`;
     })
     .filter(Boolean)

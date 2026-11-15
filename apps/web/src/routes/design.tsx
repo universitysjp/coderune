@@ -52,22 +52,22 @@ const modules = [
       "Native Rust/Rune desktop application with local, reviewable context.",
   },
   {
-    location: "packages/core",
+    location: "crates/domain",
     responsibility:
       "Domain models, onboarding rules, draft schemas, capture operations, and effect interfaces.",
   },
   {
-    location: "packages/collectors",
+    location: "crates/collectors",
     responsibility:
       "Repository and Git capture, selected-document text extraction, scope enforcement, and hashes.",
   },
   {
-    location: "packages/storage",
+    location: "crates/storage",
     responsibility:
       "Bun SQLite schema, migrations, transactions, versions, history, retention, and export reads.",
   },
   {
-    location: "packages/agents",
+    location: "crates/agents",
     responsibility:
       "Adapters for Codex, Claude Code, OpenCode, and Antigravity, limited to reviewed document-draft jobs in this increment.",
   },

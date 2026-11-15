@@ -48,12 +48,14 @@ function pickUnit(
   while (i < units.length - 1 && max >= threshold(i + 1)) {
     i++;
   }
+
   while (
     i < units.length - 1 &&
     roundTo(max / units[i].size, digits(i)) * units[i].size >= threshold(i + 1)
   ) {
     i++;
   }
+
   return i;
 }
 
@@ -147,22 +149,26 @@ export function formatElapsed(ms: number) {
   if (Math.round(v) < 1000) {
     return `${Math.round(v)}ms`;
   }
+
   const tenths = Math.round(v / 100);
 
   if (tenths < 600) {
     return `${(tenths / 10).toFixed(1)}s`;
   }
+
   const pad = (n: number) => String(n).padStart(2, "0");
   const secs = Math.round(v / 1000);
 
   if (secs < 3600) {
     return `${Math.floor(secs / 60)}m ${pad(secs % 60)}s`;
   }
+
   const mins = Math.round(v / 60_000);
 
   if (mins < 24 * 60) {
     return `${Math.floor(mins / 60)}h ${pad(mins % 60)}m`;
   }
+
   const hours = Math.round(v / 3_600_000);
 
   return `${Math.floor(hours / 24)}d ${pad(hours % 24)}h`;
@@ -186,6 +192,7 @@ function bytesIn(bytes: number, i: number) {
   if (i === 0) {
     return Math.round(bytes);
   }
+
   const v = bytes / byteUnits[i].size;
   const tenths = roundTo(v, 1);
 
@@ -199,6 +206,7 @@ function byteUnitFor(bytes: number) {
   while (i < byteUnits.length - 1 && bytesIn(bytes, i) >= 1000) {
     i++;
   }
+
   return i;
 }
 

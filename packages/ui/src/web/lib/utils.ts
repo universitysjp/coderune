@@ -98,8 +98,12 @@ export function withDefaults<T extends object, G extends object = Partial<T>>(
   const out = { ...defaults } as Record<string, unknown>;
 
   if (given) {
-    for (const [key, value] of Object.entries(given))
-      if (value !== undefined) out[key] = value;
+    for (const [key, value] of Object.entries(given)) {
+      if (value !== undefined) {
+        out[key] = value;
+      }
+    }
   }
+
   return out as T & Omit<G, keyof T>;
 }

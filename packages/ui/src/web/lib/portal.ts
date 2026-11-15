@@ -65,6 +65,7 @@ function inertOutside(keep: HTMLElement) {
     if (!parent) {
       break;
     }
+
     for (const sibling of [...parent.children]) {
       if (
         sibling === node ||
@@ -74,6 +75,7 @@ function inertOutside(keep: HTMLElement) {
       ) {
         continue;
       }
+
       sibling.inert = true;
       set.push(sibling);
     }
@@ -105,9 +107,11 @@ export function UiPortalProvider({
     if (role === "dir") {
       return { container, lock: parent!.lock };
     }
+
     if (role === "stage") {
       return { container, lock: noLock };
     }
+
     return {
       container,
       lock: () => {
@@ -116,12 +120,14 @@ export function UiPortalProvider({
         if (count.current === 1 && container) {
           undo.current = inertOutside(container);
         }
+
         let released = false;
 
         return () => {
           if (released) {
             return;
           }
+
           released = true;
           count.current -= 1;
 
@@ -174,6 +180,7 @@ export function useUiModal(active: boolean) {
     if (!active || !lock || !ready) {
       return;
     }
+
     return lock();
   }, [active, lock, ready]);
 }
@@ -192,9 +199,11 @@ function tabbablesIn(popup: HTMLElement) {
     ) {
       return false;
     }
+
     if (el.closest("[inert]") || el.closest("[hidden]")) {
       return false;
     }
+
     return (
       el.getClientRects().length > 0 &&
       getComputedStyle(el).visibility !== "hidden"
@@ -228,12 +237,14 @@ export function cycleTab(event: {
   ) {
     return;
   }
+
   const popup = event.currentTarget;
   const target = event.target as HTMLElement;
 
   if (!popup.contains(target)) {
     return;
   }
+
   const stops = tabbablesIn(popup);
 
   if (!stops.length) {

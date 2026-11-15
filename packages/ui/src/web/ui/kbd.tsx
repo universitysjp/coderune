@@ -124,6 +124,7 @@ function Kbd({ className, keys, children, ...props }: KbdProps) {
   if (keys !== undefined) {
     return <KbdShortcut keys={keys} className={className} {...props} />;
   }
+
   return (
     <kbd data-slot="kbd" className={cn(kbdClass, className)} {...props}>
       {children}

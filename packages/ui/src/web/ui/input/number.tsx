@@ -61,6 +61,7 @@ function autoStep(value: number | null, direction: 1 | -1) {
   if (magnitude < 10) {
     return 1;
   }
+
   return 10 ** (Math.floor(Math.log10(magnitude)) - 1);
 }
 
@@ -97,6 +98,7 @@ function readNumber(text: string, locale: string, percent: boolean) {
   if (!cleaned || cleaned === "-" || Number.isNaN(n)) {
     return null;
   }
+
   return percent ? n / 100 : n;
 }
 
@@ -176,6 +178,7 @@ function NumberMode({
     if (!el) {
       return;
     }
+
     const observer = new ResizeObserver(([entry]) =>
       setCompact(entry.contentRect.width < 128)
     );
@@ -189,6 +192,7 @@ function NumberMode({
     if (disabled || readOnly) {
       return false;
     }
+
     // Step from what the text says. A number typed but not yet committed counts, so the shown text, the
     // value and the submitted value never part ways.
     const el = inputEl.current;
@@ -214,6 +218,7 @@ function NumberMode({
     if (next === now) {
       return false;
     }
+
     latest.current = next;
     set(next);
 
@@ -222,6 +227,7 @@ function NumberMode({
     if (el && document.activeElement === el) {
       writeText(el, fmt.format(next));
     }
+
     return true;
   };
 
@@ -241,6 +247,7 @@ function NumberMode({
     if (e.button !== 0) {
       return;
     }
+
     e.preventDefault();
     const multiplier = e.shiftKey ? 10 : 1;
     stopRepeat();
@@ -248,6 +255,7 @@ function NumberMode({
     if (!nudge(direction, multiplier)) {
       return;
     }
+
     const tick = () => {
       repeat.current = nudge(direction, multiplier)
         ? setTimeout(tick, 60)
@@ -274,6 +282,7 @@ function NumberMode({
     if (!hit) {
       return;
     }
+
     e.preventDefault();
     e.preventBaseUIHandler?.();
     nudge(hit[0], e.shiftKey ? hit[1] * 10 : hit[1]);

@@ -16,9 +16,13 @@ function useOffscreen<E extends HTMLElement = HTMLElement>(active = true) {
     if (!el || !active || typeof IntersectionObserver === "undefined") {
       return;
     }
+
     const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) delete el.dataset.offscreen;
-      else el.dataset.offscreen = "";
+      if (entry.isIntersecting) {
+        delete el.dataset.offscreen;
+      } else {
+        el.dataset.offscreen = "";
+      }
     });
 
     io.observe(el);

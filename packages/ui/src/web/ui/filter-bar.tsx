@@ -183,6 +183,7 @@ function FilterChip({
         ) {
           return;
         }
+
         if (select?.isConnected) {
           select.focus();
         }
@@ -229,6 +230,7 @@ function FilterBarClear({
           ) {
             return;
           }
+
           bar
             ?.querySelector<HTMLElement>(
               "[data-mode=search] [data-control], [data-slot=filter-bar-select]"
@@ -340,6 +342,7 @@ interface FilterBarSelectBase {
   disabled?: boolean;
   className?: string;
 }
+
 type FilterBarSelectSingle = FilterBarSelectBase & {
   multiple?: false;
   value?: string | null;
@@ -374,6 +377,7 @@ function useControllable<T>(
     if (!controlled) {
       setInner(v);
     }
+
     onChange?.(v);
   };
 
@@ -680,6 +684,7 @@ function FilterBarAdd({
       </Chip>
     );
   }
+
   return (
     <MenuPrimitive.Root>
       <MenuPrimitive.Trigger
@@ -805,19 +810,23 @@ function useFilteredRows<T>(
       if (q && match && !match(row, q)) {
         continue;
       }
+
       if (!tests.every((t) => t(row))) {
         continue;
       }
+
       const pass = fields.map((f) => passes(f, row));
 
       if (pass.every(Boolean)) {
         out.push(row);
       }
+
       fields.forEach((f, i) => {
         // A row counts toward this field's options when it passes every other field.
         if (!pass.every((p, j) => j === i || p)) {
           return;
         }
+
         for (const v of values(f, row)) {
           counts[f.id][v] = (counts[f.id][v] ?? 0) + 1;
         }

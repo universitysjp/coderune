@@ -125,6 +125,7 @@ function visibleName(el: HTMLElement): string {
   if (label.trim() || el.getAttribute("aria-labelledby")) {
     return label || "labelledby";
   }
+
   let text = "";
 
   const walk = (node: Node) => {
@@ -140,6 +141,7 @@ function visibleName(el: HTMLElement): string {
     ) {
       return;
     }
+
     if (node instanceof Element && node.getAttribute("role") === "img") {
       text += node.getAttribute("aria-label") ?? "";
 
@@ -168,10 +170,11 @@ function useNameCheck(
     if (process.env.NODE_ENV === "production" || !node.current) {
       return;
     }
+
     if (visibleName(node.current)) {
-      node.current.removeAttribute("data-unnamed");
+      delete node.current.dataset.unnamed;
     } else {
-      node.current.setAttribute("data-unnamed", "");
+      node.current.dataset.unnamed = "";
       console.error(
         `UI ${component} has no accessible name. ${hint}`,
         node.current

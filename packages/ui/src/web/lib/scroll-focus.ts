@@ -38,6 +38,7 @@ export function useScrollTabStop(
       for (const child of el.children) {
         resize.observe(child);
       }
+
       measure();
     };
 

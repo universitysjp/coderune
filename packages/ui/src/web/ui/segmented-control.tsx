@@ -60,6 +60,7 @@ interface Mode {
   multiple: boolean;
   countMax?: number;
 }
+
 const ModeContext = React.createContext<Mode>({
   size: "default",
   multiple: false,
@@ -198,6 +199,7 @@ function useOverflow<T extends HTMLElement>() {
     if (!el) {
       return;
     }
+
     const check = () => setOver(el.scrollWidth > el.clientWidth + 1);
     check();
     const ro = new ResizeObserver(check);
@@ -235,6 +237,7 @@ function SegmentedControlItem({
   if (count !== undefined) {
     seen.current = Math.max(seen.current, count);
   }
+
   const reserve = itemMax ?? groupMax ?? seen.current;
   const title = over && typeof children === "string" ? children : undefined;
 
@@ -313,6 +316,7 @@ function SegmentedControlItem({
       </TogglePrimitive>
     );
   }
+
   return (
     <RadioPrimitive.Root {...shared} {...props}>
       {content}

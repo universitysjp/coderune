@@ -52,6 +52,7 @@ function overlayOpenChanged(model: OverlayModel, open: boolean): OverlayModel {
   if (model.open === open) {
     return model;
   }
+
   return {
     open,
     session: model.session + 1,
@@ -70,6 +71,7 @@ function overlayRunStarted(model: OverlayModel): OverlayModel | null {
   if (model.pending) {
     return null;
   }
+
   return { ...model, pending: true, error: null };
 }
 
@@ -88,12 +90,14 @@ function overlayRunSettled(
   if (session !== model.session || !model.pending) {
     return { model, close: false };
   }
+
   if (outcome.ok) {
     return {
       model: { ...model, pending: false },
       close: closeAfter && model.open,
     };
   }
+
   return {
     model: { ...model, pending: false, error: outcome.error },
     close: false,
@@ -150,6 +154,7 @@ function useOverlayOpen<D extends ChangeDetails>({
     if (next === modelRef.current) {
       return;
     }
+
     modelRef.current = next;
     setModel(next);
   }, []);
@@ -180,6 +185,7 @@ function useOverlayOpen<D extends ChangeDetails>({
     if (!latest.current.controlled) {
       setOpenState(next);
     }
+
     latest.current.onOpenChange?.(next, full);
   }, []);
 
@@ -190,6 +196,7 @@ function useOverlayOpen<D extends ChangeDetails>({
       if (!started) {
         return;
       }
+
       let result: unknown;
 
       try {
@@ -206,6 +213,7 @@ function useOverlayOpen<D extends ChangeDetails>({
         if (closeAfter) {
           setOpen(false);
         }
+
         return;
       }
 
@@ -289,6 +297,7 @@ function modeOf(footer: HTMLElement): DefaultAction {
   if (declared === "primary" || declared === "dismiss" || declared === "none") {
     return declared;
   }
+
   // Undeclared: a destructive primary makes dismiss the default, so Enter fails safe.
   return footer.querySelector(
     '[data-dialog-action="primary"][data-variant="destructive"]'
@@ -310,12 +319,15 @@ function actionOf(
   if (!el) {
     return null;
   }
+
   if (busy && el.matches('[aria-busy="true"]')) {
     return el;
   }
+
   if (el.matches(':disabled, [aria-disabled="true"], [data-disabled]')) {
     return null;
   }
+
   return el;
 }
 
@@ -350,9 +362,11 @@ function useDefaultAction<E extends HTMLElement>({
     ) {
       return;
     }
+
     if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
       return;
     }
+
     const popup = event.currentTarget;
     const target = event.target as HTMLElement;
 
@@ -363,24 +377,29 @@ function useDefaultAction<E extends HTMLElement>({
     if (target !== popup && target.closest(CONTROL)) {
       return;
     }
+
     if (target instanceof HTMLInputElement && target.form) {
       return;
     } // the form submits itself
+
     const footer = footerOf(popup);
 
     if (!footer) {
       return;
     }
+
     const mode = modeOf(footer);
 
     if (mode === "none" || (mode === "dismiss" && target.matches(FIELD))) {
       return;
     }
+
     const button = actionOf(footer, mode);
 
     if (!button) {
       return;
     }
+
     event.preventDefault();
     button.click();
   };
@@ -393,26 +412,31 @@ function useDefaultAction<E extends HTMLElement>({
       if (!popup) {
         return true;
       }
+
       // A finger: a focused text field raises the keyboard before anyone asked for it, so the panel
       // takes focus and the person taps the field.
       if (coarsePointer()) {
         return popup;
       }
+
       const auto = popup.querySelector<HTMLElement>("[data-autofocus]");
 
       if (auto) {
         return auto;
       }
+
       const footer = footerOf(popup);
 
       if (!footer) {
         return true;
       }
+
       const mode = modeOf(footer);
 
       if (mode === "dismiss") {
         return actionOf(footer, "dismiss") ?? true;
       }
+
       if (mode === "primary") {
         return (
           popup.querySelector<HTMLElement>(FIELD) ??
@@ -420,6 +444,7 @@ function useDefaultAction<E extends HTMLElement>({
           true
         );
       }
+
       // none: no button may hold focus on open, or Enter would press it. The first field, else the panel.
       return popup.querySelector<HTMLElement>(FIELD) ?? popup;
     });
@@ -472,6 +497,7 @@ function useScrollFade<E extends HTMLElement>({
     if (!el) {
       return;
     }
+
     const update = () => {
       const start = el.scrollTop > 1;
       const end = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
@@ -482,6 +508,7 @@ function useScrollFade<E extends HTMLElement>({
       } else {
         delete el.dataset.fade;
       }
+
       if (focusable) {
         if (el.scrollHeight > el.clientHeight + 1) {
           el.tabIndex = 0;
@@ -499,6 +526,7 @@ function useScrollFade<E extends HTMLElement>({
     for (const child of [...el.children]) {
       ro.observe(child);
     }
+
     // Content that changes without resizing the scroller (a filtered list) changes what is behind it.
     const mo = new MutationObserver(update);
     mo.observe(el, { childList: true, subtree: true });

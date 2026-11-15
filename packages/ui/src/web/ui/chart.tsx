@@ -170,6 +170,7 @@ function Silhouette({
       </>
     );
   }
+
   if (shape === "status") {
     return (
       <span
@@ -185,6 +186,7 @@ function Silhouette({
       </span>
     );
   }
+
   const points = silhouette
     .map((h, i) => `${(i / (silhouette.length - 1)) * 100},${100 - h}`)
     .join(" ");
@@ -249,6 +251,7 @@ function ChartFrame({
     if (state === "error" || !retryFocused.current) {
       return;
     }
+
     retryFocused.current = false;
 
     if (!document.activeElement || document.activeElement === document.body) {
@@ -526,7 +529,10 @@ function Chart(props: ChartProps) {
     for (const row of props.data as ChartRow[]) {
       for (const key of keys) {
         const v = numberAt(row, key);
-        if (v !== null) values.push(v);
+
+        if (v !== null) {
+          values.push(v);
+        }
       }
     }
   } else if (props.type === "sparkline") {
@@ -534,6 +540,7 @@ function Chart(props: ChartProps) {
   } else {
     values = (props.data as StatusBarBucket[]).map((b) => b.count);
   }
+
   const format = props.valueFormat ?? unitFormat(unit, values);
   const isEmpty = !loading && !error && props.data.length === 0;
   // An empty chart still has its table, one row saying so, for a screen reader; the sentence it shows is
@@ -632,6 +639,7 @@ function Chart(props: ChartProps) {
     if (showLegend) {
       footer = <ChartLegend series={series} />;
     }
+
     if (props.table) {
       const f = format ?? formatCompact;
       tableNode = (
@@ -747,6 +755,7 @@ function Chart(props: ChartProps) {
         </span>
       );
     }
+
     return chart;
   }
 

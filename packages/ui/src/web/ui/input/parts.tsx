@@ -54,12 +54,14 @@ function InputRoot({
     if (target.closest("button, a, input, textarea, [role=button]")) {
       return;
     }
+
     const control =
       e.currentTarget.querySelector<HTMLElement>("[data-control]");
 
     if (!control || disabled) {
       return;
     }
+
     e.preventDefault();
     control.focus();
   };
@@ -152,6 +154,7 @@ function actionClass(box: ControlSize, icon = true) {
       box === "sm" ? "size-5" : box === "lg" ? "size-9" : "size-6"
     );
   }
+
   return cn(
     "rounded-inner",
     box === "sm" ? "type-label-sm h-5 px-2" : box === "lg" ? "h-9" : "h-6 px-2"
@@ -220,6 +223,7 @@ function useControllable<T>(
     if (value === undefined) {
       setInner(next);
     }
+
     onChange?.(next);
   };
 
@@ -270,6 +274,7 @@ function splitBox<T extends Record<string, unknown>>(props: T) {
       ? box
       : rest)[k] = v;
   }
+
   return { box, rest: rest as T };
 }
 

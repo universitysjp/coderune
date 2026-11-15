@@ -166,6 +166,7 @@ function Chip(props: ChipProps) {
       />
     );
   }
+
   const {
     className,
     variant = "secondary",
@@ -201,6 +202,7 @@ function focusAfterRemove(
   if (!scope) {
     return () => {};
   }
+
   const all = [
     ...scope.querySelectorAll<HTMLElement>(
       "[data-slot=chip-remove]:not(:disabled)"

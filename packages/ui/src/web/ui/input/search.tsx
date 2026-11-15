@@ -44,6 +44,7 @@ interface ShortcutEntry {
   key: string;
   disabled: boolean;
 }
+
 const shortcuts = new Set<ShortcutEntry>();
 
 function onShortcutKey(e: globalThis.KeyboardEvent) {
@@ -57,6 +58,7 @@ function onShortcutKey(e: globalThis.KeyboardEvent) {
   ) {
     return;
   }
+
   // An open listbox or a combobox's popup owns every printable key for its typeahead, "/" included.
   if (
     e.target instanceof Element &&
@@ -66,6 +68,7 @@ function onShortcutKey(e: globalThis.KeyboardEvent) {
   ) {
     return;
   }
+
   // Inside an open dialog or menu the key stays there; it never pulls focus to a field behind the overlay.
   const layer =
     e.target instanceof Element
@@ -88,6 +91,7 @@ function onShortcutKey(e: globalThis.KeyboardEvent) {
   if (!owners.length) {
     return;
   }
+
   e.preventDefault();
   owners[0].focus();
 }
@@ -96,6 +100,7 @@ function claimShortcut(entry: ShortcutEntry) {
   if (!shortcuts.size) {
     window.addEventListener("keydown", onShortcutKey);
   }
+
   shortcuts.add(entry);
 
   return () => {
@@ -136,6 +141,7 @@ function SearchMode({
     if (!shortcut || !shortcutOwner || disabled) {
       return;
     }
+
     return claimShortcut({
       el: () => inner.current,
       key: shortcut,
@@ -181,6 +187,7 @@ function SearchMode({
           if (e.key !== "Escape" || e.nativeEvent.isComposing) {
             return;
           }
+
           if (current) {
             e.preventDefault();
             e.stopPropagation();

@@ -167,6 +167,7 @@ function ChartPlot({
     if (!rect) {
       return null;
     }
+
     const values = series
       .map((key) => numberAt(data[index], key))
       .filter((v): v is number => v !== null);
@@ -196,6 +197,7 @@ function ChartPlot({
     if (active === null) {
       return;
     }
+
     const close = () => {
       if (!ref.current?.contains(document.activeElement)) {
         hide();
@@ -320,6 +322,7 @@ function ChartPlot({
               if ((n - 1 - i) % xLabelEvery !== 0) {
                 return null;
               }
+
               // The last label hangs inward from the edge, so a label within one label's room of it would overlap it.
               if (
                 mode === "point" &&
@@ -328,6 +331,7 @@ function ChartPlot({
               ) {
                 return null;
               }
+
               // The first label hangs inward from the start edge and the last from the end edge.
               const first = rtl ? "end" : "start";
               const last = rtl ? "start" : "end";
@@ -494,6 +498,7 @@ function runs(
       if (current.length) {
         out.push(current);
       }
+
       current = [];
 
       return;
@@ -505,6 +510,7 @@ function runs(
   if (current.length) {
     out.push(current);
   }
+
   return out;
 }
 
@@ -562,6 +568,7 @@ function LineChartPlot({
           if (v === null) {
             return null;
           }
+
           return (
             <g key={key} {...seriesTone(config, key)}>
               {/* The active point is a square: round means a person. */}
@@ -808,8 +815,8 @@ function BarChartPlot({
 
         if (stacked) {
           return data.map((row, i) => {
-            let down = 0,
-              up = 0;
+            let down = 0;
+            let up = 0;
 
             const x0 = s.x(i) - width / 2;
 
@@ -821,6 +828,7 @@ function BarChartPlot({
                   if (!v) {
                     return null;
                   }
+
                   const from = v > 0 ? up : down;
                   const to = from + v;
 
@@ -829,6 +837,7 @@ function BarChartPlot({
                   } else {
                     down = to;
                   }
+
                   const top = Math.min(s.y(from), s.y(to));
 
                   const h =
@@ -870,6 +879,7 @@ function BarChartPlot({
               if (v === null) {
                 return null;
               }
+
               const dim = highlight !== null && highlight !== key;
 
               return (

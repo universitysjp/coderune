@@ -79,21 +79,27 @@ function Input(props: InputProps) {
     case "password": {
       return <PasswordMode {...props} />;
     }
+
     case "secret": {
       return <SecretMode {...props} />;
     }
+
     case "copy": {
       return <CopyMode {...props} />;
     }
+
     case "search": {
       return <SearchMode {...props} />;
     }
+
     case "number": {
       return <NumberMode {...props} />;
     }
+
     case "otp": {
       return <OtpMode {...props} />;
     }
+
     default: {
       return <TextMode {...props} />;
     }

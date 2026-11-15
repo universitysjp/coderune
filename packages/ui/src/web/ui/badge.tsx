@@ -155,12 +155,15 @@ function codeStatus(code: number | string | undefined): CodeTagStatus {
   if (!Number.isInteger(n)) {
     return "neutral";
   }
+
   if (n >= 500 && n < 600) {
     return "fail";
   }
+
   if (n >= 400 && n < 500) {
     return "warn";
   }
+
   return "neutral";
 }
 

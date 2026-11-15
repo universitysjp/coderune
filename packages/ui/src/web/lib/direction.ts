@@ -57,6 +57,7 @@ export function useDomDirection(target: DirectionTarget): Direction {
     if (!doc) {
       return;
     }
+
     const read = () => {
       const el = resolve(target) ?? doc.documentElement;
       setDir(getComputedStyle(el).direction === "rtl" ? "rtl" : "ltr");

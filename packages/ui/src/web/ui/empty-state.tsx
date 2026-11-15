@@ -84,6 +84,7 @@ function Empty({
   if (align === "center" && process.env.NODE_ENV !== "production") {
     warnCentred();
   }
+
   return (
     <EmptyTone.Provider value={tone}>
       <div
@@ -105,6 +106,7 @@ function warnCentred() {
   if (warned) {
     return;
   }
+
   warned = true;
   console.warn(
     'UI empty states sit top-left; align="center" renders as start.'
@@ -282,6 +284,7 @@ function EmptyRetry({
     if (pending) {
       return;
     }
+
     setPending(true);
 
     try {

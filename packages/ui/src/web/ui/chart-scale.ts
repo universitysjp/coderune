@@ -24,6 +24,7 @@ function niceScale(min: number, max: number, count = 4) {
   if (min > max) {
     [min, max] = [max, min];
   }
+
   count = Math.max(1, Math.round(count) || 1);
 
   if (min === max) {
@@ -44,6 +45,7 @@ function niceScale(min: number, max: number, count = 4) {
   for (let t = lo; t <= hi + step / 2; t += step) {
     ticks.push(Number(t.toPrecision(12)));
   }
+
   return { min: lo, max: hi, ticks };
 }
 
@@ -65,6 +67,7 @@ function unitFormat(
   if (!unit) {
     return undefined;
   }
+
   // The unit is picked from the largest value as it will show, so 59,999ms is a minute, not 60.0s. A tick
   // takes one decimal under 10 and none above, decided after rounding, and zero never reads "-0".
   const { unit: name, size } =
@@ -81,6 +84,7 @@ function unitFormat(
     if (size === 1) {
       return `${unit === "duration" ? fixed(x, 0) : plain.format(x)}${name}`;
     }
+
     return `${fixed(x, Math.abs(Number(x.toFixed(1))) >= 10 ? 0 : 1)}${name}`;
   };
 }
@@ -97,6 +101,7 @@ function monotonePath(points: Point[]) {
   if (points.length < 3) {
     return linearPath(points);
   }
+
   const n = points.length;
 
   const dx: number[] = [];
@@ -114,6 +119,7 @@ function monotonePath(points: Point[]) {
       slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2
     );
   }
+
   tangent.push(slope[n - 2]);
 
   for (let i = 0; i < n - 1; i++) {

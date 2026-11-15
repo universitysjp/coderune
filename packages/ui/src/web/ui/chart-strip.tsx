@@ -62,6 +62,7 @@ function trendWords(values: number[], format: (v: number) => string) {
   if (!values.length) {
     return "no data";
   }
+
   const first = values[0]!;
   const last = values.at(-1)!;
 
@@ -112,6 +113,7 @@ function Sparkline({
       if (run.length) {
         segments.push(run);
       }
+
       run = [];
 
       return;
@@ -138,6 +140,7 @@ function Sparkline({
     if (!svg || !rect) {
       return;
     }
+
     // The drawing is mirrored in a right-to-left sparkline, so its points count from the right edge.
     const along = (x(i) / viewW) * rect.width;
     const rtl = getComputedStyle(svg).direction === "rtl";
@@ -264,6 +267,7 @@ function Sparkline({
           if (v === null || !Number.isFinite(v)) {
             return null;
           }
+
           return (
             <span
               aria-hidden
@@ -422,6 +426,7 @@ function StatusBar({
     if (b.description) {
       return b.description;
     }
+
     const parts = [b.count ? noun(b.count) : `No ${unit[1]}`];
 
     if (b.status && b.status !== "ok") {
@@ -429,6 +434,7 @@ function StatusBar({
         `${b.issues ?? ""} ${b.status === "fail" ? "failed" : "with warnings"}`.trim()
       );
     }
+
     return parts.join(", ");
   };
 

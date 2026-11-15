@@ -63,6 +63,7 @@ function useChart() {
   if (!context) {
     throw new Error("useChart must be used within a <ChartContainer/>");
   }
+
   return context;
 }
 
@@ -100,6 +101,7 @@ function ChartContainer({
         } else {
           next.add(key);
         }
+
         return next;
       }),
     []
@@ -143,6 +145,7 @@ function WithChart({
   if (context || !config) {
     return children;
   }
+
   return <ChartContainer config={config}>{children}</ChartContainer>;
 }
 
@@ -171,9 +174,11 @@ function seriesTone(
   if (status) {
     return { "data-status": status, ...dash };
   }
+
   if (kind) {
     return { "data-kind": kind, ...dash };
   }
+
   const inkIndex = Math.max(
     0,
     Object.keys(config)
@@ -236,6 +241,7 @@ function useElementWidth<T extends HTMLElement>() {
     if (!el) {
       return;
     }
+
     setWidth(el.clientWidth);
 
     const observer = new ResizeObserver(([entry]) =>
@@ -300,6 +306,7 @@ function useRovingPoints(
     if (!(event.key in keys)) {
       return;
     }
+
     event.preventDefault();
     move(keys[event.key]);
   };
@@ -362,6 +369,7 @@ function ChartTooltip({ anchor, children, className }: ChartTooltipProps) {
   if (!anchor || container === null) {
     return null;
   }
+
   const tooltip = (
     <div
       ref={ref}
@@ -441,6 +449,7 @@ interface ChartDataTableColumn {
   key: string;
   label: ReactNode;
 }
+
 interface ChartDataTableRow {
   key: string;
   label: ReactNode;
@@ -477,12 +486,14 @@ const ChartDataTable = memo(
     // The scrolling region takes its name from the caption, whatever the caption holds: a string as the
     // label, anything else by reference.
     const captionId = useId();
+
     const named =
       tab === 0
         ? typeof caption === "string"
           ? { "aria-label": caption }
           : { "aria-labelledby": captionId }
         : {};
+
     return (
       <div
         ref={box}
