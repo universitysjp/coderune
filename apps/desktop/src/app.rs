@@ -112,11 +112,8 @@ impl ProfileForm {
 
     /// Preserve fields the form does not edit (CV-derived skills, education, employment,
     /// links, and provenance) and overwrite the visible ones.
-    pub(crate) fn to_draft(
-        &self,
-        previous: Option<&coderune_domain::DeveloperProfile>,
-    ) -> ProfileDraft {
-        let mut draft = previous.map(ProfileDraft::from_profile).unwrap_or_default();
+    pub(crate) fn to_draft(&self, base: ProfileDraft) -> ProfileDraft {
+        let mut draft = base;
         draft.display_name = self.display_name.text.trim().to_string();
         draft.experience_stage = self.stage;
         draft.new_to_coding = self.new_to_coding;
@@ -199,7 +196,7 @@ impl ProjectForm {
                 .parse::<u64>()
                 .ok()
                 .filter(|value| *value > 0)
-                .map(|value| value * 1024)
+                .and_then(|value| value.checked_mul(1024))
                 .unwrap_or(defaults.per_file_bytes),
             per_capture_bytes: self
                 .per_capture_mib
@@ -208,7 +205,7 @@ impl ProjectForm {
                 .parse::<u64>()
                 .ok()
                 .filter(|value| *value > 0)
-                .map(|value| value * 1024 * 1024)
+                .and_then(|value| value.checked_mul(1024 * 1024))
                 .unwrap_or(defaults.per_capture_bytes),
         };
         draft
@@ -337,6 +334,27 @@ impl CoderuneApp {
         }
     }
 
+    fn profile_base(&self) -> ProfileDraft {
+        self.workspace
+            .as_ref()
+            .map(|workspace| {
+                workspace
+                    .onboarding
+                    .profile
+                    .as_ref()
+                    .map(ProfileDraft::from_profile)
+                    .or_else(|| {
+                        workspace
+                            .onboarding
+                            .draft
+                            .as_ref()
+                            .map(|draft| draft.draft.clone())
+                    })
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
+
     pub(crate) fn refresh_profile_form(&mut self) {
         if let Some(workspace) = self.workspace.as_ref() {
             self.profile_form = ProfileForm::from_value(
@@ -356,11 +374,8 @@ impl CoderuneApp {
     }
 
     pub(crate) fn save_draft(&mut self) {
-        let previous = self
-            .workspace
-            .as_ref()
-            .and_then(|workspace| workspace.profile().cloned());
-        let draft = self.profile_form.to_draft(previous.as_ref());
+        let base = self.profile_base();
+        let draft = self.profile_form.to_draft(base);
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };
@@ -374,11 +389,8 @@ impl CoderuneApp {
     }
 
     pub(crate) fn confirm_profile(&mut self) {
-        let previous = self
-            .workspace
-            .as_ref()
-            .and_then(|workspace| workspace.profile().cloned());
-        let draft = self.profile_form.to_draft(previous.as_ref());
+        let base = self.profile_base();
+        let draft = self.profile_form.to_draft(base);
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };
@@ -397,11 +409,8 @@ impl CoderuneApp {
     }
 
     pub(crate) fn save_profile(&mut self) {
-        let previous = self
-            .workspace
-            .as_ref()
-            .and_then(|workspace| workspace.profile().cloned());
-        let draft = self.profile_form.to_draft(previous.as_ref());
+        let base = self.profile_base();
+        let draft = self.profile_form.to_draft(base);
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };

@@ -31,6 +31,8 @@ pub struct Workspace {
 #[derive(Debug, Clone)]
 pub struct PreviewSession {
     pub collected: CollectedRepository,
+    pub scope: CollectionScope,
+    pub limits: CaptureLimits,
 }
 
 impl Workspace {
@@ -164,8 +166,8 @@ impl Workspace {
             .ok_or_else(|| AppError::new(ErrorCode::NotFound, "Select a project first."))?;
         let request = CollectRequest {
             root: PathBuf::from(&project.root_path),
-            scope,
-            limits,
+            scope: scope.clone(),
+            limits: limits.clone(),
             project_id: project.id.clone(),
             project_version: project.version,
             project_updated_at: project.updated_at.clone(),
@@ -179,7 +181,11 @@ impl Workspace {
             ),
             other => AppError::new(ErrorCode::UnreadablePath, other.to_string()),
         })?;
-        Ok(PreviewSession { collected })
+        Ok(PreviewSession {
+            collected,
+            scope,
+            limits,
+        })
     }
 
     /// Re-collect before saving so a changed source cannot be saved from a stale
@@ -206,8 +212,8 @@ impl Workspace {
         })?;
         let fresh = collectors::collect(&CollectRequest {
             root: PathBuf::from(&project.root_path),
-            scope: project.scope.clone(),
-            limits: project.limits.clone(),
+            scope: session.scope.clone(),
+            limits: session.limits.clone(),
             project_id: project.id.clone(),
             project_version: project.version,
             project_updated_at: project.updated_at.clone(),
@@ -600,6 +606,30 @@ mod tests {
         assert!(!reloaded.scope.respect_gitignore);
         assert_eq!(reloaded.limits.per_file_bytes, 2048);
         assert_eq!(reloaded.limits.per_capture_bytes, 4096);
+    }
+
+    #[test]
+    fn save_uses_the_scope_the_developer_previewed() {
+        let mut workspace = workspace();
+        workspace.confirm_profile(profile()).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("README.md"), "# Demo").unwrap();
+        std::fs::create_dir_all(root.path().join("src")).unwrap();
+        std::fs::write(root.path().join("src/main.ts"), "export {}").unwrap();
+        let project = workspace
+            .create_project(project_draft(root.path()))
+            .unwrap();
+        let preview_scope = CollectionScope {
+            include_paths: vec!["README.md".to_string()],
+            ..CollectionScope::default()
+        };
+        let session = workspace
+            .preview_capture(&project.id, preview_scope, project.limits.clone())
+            .unwrap();
+        assert_eq!(session.collected.preview.files.len(), 1);
+        let capture = workspace.save_capture(&session, true).unwrap();
+        assert_eq!(capture.files.len(), 1);
+        assert_eq!(capture.files[0].path, "README.md");
     }
 
     #[test]

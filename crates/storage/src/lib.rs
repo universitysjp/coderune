@@ -105,7 +105,7 @@ impl Storage {
             if let Ok(metadata) = std::fs::metadata(&path) {
                 let mut permissions = metadata.permissions();
                 permissions.set_mode(0o600);
-                std::fs::set_permissions(&path, permissions)?;
+                let _ = std::fs::set_permissions(&path, permissions);
             }
         }
         Ok(Self {
@@ -762,6 +762,49 @@ mod tests {
         let profile = storage.get_profile().unwrap().unwrap();
         assert_eq!(profile.display_name, "Ada");
         assert_eq!(profile.version, 1);
+    }
+
+    #[test]
+    fn opens_a_database_created_by_the_legacy_schema() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("context-bridge.sqlite");
+        let url = format!("sqlite://{}?mode=rwc", path.display());
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let profile = ProfileDraft {
+            display_name: "Legacy".to_string(),
+            experience_stage: Some(ExperienceStage::Experienced),
+            skills_statement: "Rust".to_string(),
+            learning_goals: vec!["Keep data".to_string()],
+            ..Default::default()
+        }
+        .into_profile(None)
+        .unwrap();
+        let data = serde_json::to_string(&profile).unwrap();
+        runtime.block_on(async {
+            let conn = Database::connect(&url).await.unwrap();
+            conn.execute_unprepared(
+                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+                 CREATE TABLE developer_profiles (id TEXT PRIMARY KEY, version INTEGER NOT NULL, data TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);",
+            )
+            .await
+            .unwrap();
+            conn.execute_unprepared(&format!(
+                "INSERT INTO developer_profiles VALUES ('developer', 1, '{}', '{}', '{}');",
+                data.replace('\'', "''"),
+                profile.created_at,
+                profile.updated_at
+            ))
+            .await
+            .unwrap();
+        });
+        drop(runtime);
+        let storage = Storage::open(&path).unwrap();
+        let loaded = storage.get_profile().unwrap().unwrap();
+        assert_eq!(loaded.display_name, "Legacy");
+        assert_eq!(loaded.version, 1);
     }
 
     #[test]
