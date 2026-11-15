@@ -12,11 +12,11 @@ use rune_kit::{Badge, Kit, TextInput};
 pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();
     let documents = workspace
-        .map(|workspace| workspace.documents.clone())
-        .unwrap_or_default();
+        .map(|workspace| workspace.documents.as_slice())
+        .unwrap_or(&[]);
     let projects = workspace
-        .map(|workspace| workspace.projects.clone())
-        .unwrap_or_default();
+        .map(|workspace| workspace.projects.as_slice())
+        .unwrap_or(&[]);
 
     let mut kind_chips = Vec::new();
     for kind in [DocumentKind::Cv, DocumentKind::Srs] {
@@ -35,7 +35,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
         ));
     }
     let mut project_chips = Vec::new();
-    for project in &projects {
+    for project in projects {
         let id = project.id.clone();
         project_chips.push(option_chip(
             format!("doc-project-{}", project.id),
@@ -89,7 +89,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
                         .child(text(&extracted.name).font(LABEL).color(theme::ink()))
                         .child(ui::badge(&format!("{} bytes", extracted.bytes), k)),
                 )
-                .child(ui::code_well_tall(extracted.text.clone()))
+                .child(ui::code_well_tall(&extracted.text))
                 .child(primary(
                     "Save reviewed import",
                     |s| s.save_document_import(),
@@ -99,7 +99,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
     }
 
     let mut document_rows = Vec::new();
-    for document in &documents {
+    for document in documents {
         let selected = s.document_form.selected_document.as_deref() == Some(document.id.as_str());
         let id = document.id.clone();
         let project_name = document
@@ -161,13 +161,12 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
         .document_form
         .selected_document
         .as_deref()
-        .and_then(|id| documents.iter().find(|document| document.id == id))
-        .cloned();
+        .and_then(|id| documents.iter().find(|document| document.id == id));
     let agents = workspace
-        .map(|workspace| workspace.agents.clone())
-        .unwrap_or_default();
+        .map(|workspace| workspace.agents.as_slice())
+        .unwrap_or(&[]);
     let mut agent_chips = Vec::new();
-    for status in &agents {
+    for status in agents {
         let id = status.id;
         let enabled = status.availability == AgentAvailability::Ready;
         agent_chips.push(option_chip(
@@ -183,7 +182,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
         ));
     }
     let mut draft_children = vec![];
-    if let Some(document) = &selected_document {
+    if let Some(document) = selected_document {
         draft_children.push(ui::subtle(&format!(
             "Selected: {} ({})",
             document.name,
@@ -207,7 +206,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             preview.max_input_bytes,
             if preview.fits { "fits" } else { "too large" }
         )));
-        draft_children.push(ui::code_well_tall(preview.text.clone()));
+        draft_children.push(ui::code_well_tall(&preview.text));
         draft_children.push(ui::tiny("Draft execution runs through Claude Code's headless mode in the service layer. Review the exact text before requesting."));
     }
     if let Some(error) = &s.error {

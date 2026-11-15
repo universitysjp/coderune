@@ -4,6 +4,7 @@
 //! These helpers add Coderune's frame, type, and spacing roles on top.
 
 use rune::{col, icon, row, text, El, Icon, ScrollSpec};
+use rune_kit::{Badge, Kit};
 
 /// Rune has no conditional builder; this keeps the call sites declarative.
 pub trait WhenExt: Sized {
@@ -19,7 +20,6 @@ impl WhenExt for El {
         }
     }
 }
-use rune_kit::{Badge, Kit};
 
 use crate::theme::{
     self, BODY, BODY_SM, CODE, HEADING_LG, HEADING_SM, HEADING_XS, LABEL, LABEL_SM,
@@ -131,7 +131,7 @@ pub fn nav_item<S: 'static>(
         .on_press(on_press)
 }
 
-pub fn code_well(text_value: String) -> El {
+pub fn code_well(text_value: &str) -> El {
     col()
         .w_full()
         .fill(theme::code())
@@ -140,7 +140,7 @@ pub fn code_well(text_value: String) -> El {
         .child(text(text_value).font(CODE).color(theme::ink()).wrap())
 }
 
-pub fn code_well_tall(text_value: String) -> El {
+pub fn code_well_tall(text_value: &str) -> El {
     col()
         .w_full()
         .h(theme::FIELD_MAX_HEIGHT)

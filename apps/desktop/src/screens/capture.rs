@@ -10,15 +10,8 @@ use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit};
 
 pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();
-    let project = workspace
-        .and_then(|workspace| workspace.selected_project())
-        .cloned();
-    let captures = project
-        .as_ref()
-        .and_then(|project| {
-            workspace.and_then(|workspace| workspace.list_captures(&project.id).ok())
-        })
-        .unwrap_or_default();
+    let project = workspace.and_then(|workspace| workspace.selected_project());
+    let captures = &s.captures;
     let mut body = col()
         .w_full()
         .gap(24.0)
@@ -30,7 +23,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                 secondary("Refresh", |s| s.refresh_capture(), k),
             ],
         ));
-    if let Some(project) = &project {
+    if let Some(project) = project {
         body = body.child(ui::card(
             Some(&project.name),
             Some("Effective scope and limits for the next preview."),
@@ -158,7 +151,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     }
 
     let mut capture_rows = Vec::new();
-    for capture in &captures {
+    for capture in captures {
         let id = capture.id.clone();
         let inspect_id = id.clone();
         let delete_id = id.clone();
@@ -216,9 +209,8 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     if let Some(detail) = &s.capture_detail {
         let selected_content = detail
             .selected_path
-            .as_ref()
-            .and_then(|path| detail.contents.get(path).cloned())
-            .unwrap_or_default();
+            .as_deref()
+            .and_then(|path| detail.contents.get(path));
         let mut file_buttons = Vec::new();
         for file in &detail.capture.files {
             let path = file.path.clone();
@@ -259,11 +251,9 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                         stick_bottom: false,
                     })
                     .children(file_buttons),
-                ui::code_well_tall(if selected_content.is_empty() {
-                    "No stored content for this path.".to_string()
-                } else {
-                    selected_content
-                }),
+                ui::code_well_tall(
+                    selected_content.map_or("No stored content for this path.", String::as_str),
+                ),
             ],
         ));
     }

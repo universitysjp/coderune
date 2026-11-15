@@ -254,6 +254,7 @@ pub struct CoderuneApp {
     pub(crate) document_form: DocumentForm,
     pub(crate) capture_session: Option<PreviewSession>,
     pub(crate) capture_reviewed: bool,
+    pub(crate) captures: Vec<ContextCapture>,
     pub(crate) capture_detail: Option<CaptureDetail>,
     pub(crate) confirm_delete_project: Option<String>,
     pub(crate) confirm_delete_capture: Option<String>,
@@ -310,7 +311,7 @@ impl CoderuneApp {
                 })
                 .unwrap_or_else(|_| "coderune-export.json".to_string()),
         );
-        Self {
+        let mut app = Self {
             workspace,
             fatal,
             view: View::Home,
@@ -319,6 +320,7 @@ impl CoderuneApp {
             document_form: DocumentForm::empty(),
             capture_session: None,
             capture_reviewed: false,
+            captures: Vec::new(),
             capture_detail: None,
             confirm_delete_project: None,
             confirm_delete_capture: None,
@@ -326,7 +328,9 @@ impl CoderuneApp {
             export_path,
             error: None,
             notice: None,
-        }
+        };
+        app.refresh_captures();
+        app
     }
 
     fn profile_base(&self) -> ProfileDraft {
@@ -355,6 +359,26 @@ impl CoderuneApp {
         self.capture_reviewed = false;
         self.capture_detail = None;
         self.confirm_delete_capture = None;
+    }
+
+    fn refresh_captures(&mut self) {
+        let project_id = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.selected_project_id.clone());
+        let result = project_id.as_deref().and_then(|id| {
+            self.workspace
+                .as_ref()
+                .map(|workspace| workspace.list_captures(id))
+        });
+        match result {
+            Some(Ok(captures)) => self.captures = captures,
+            Some(Err(error)) => {
+                self.captures.clear();
+                self.error = Some(error);
+            }
+            None => self.captures.clear(),
+        }
     }
 
     pub(crate) fn refresh_profile_form(&mut self) {
@@ -442,6 +466,7 @@ impl CoderuneApp {
         if let Some(workspace) = self.workspace.as_mut() {
             workspace.select_project(Some(project.id));
         }
+        self.refresh_captures();
     }
 
     pub(crate) fn new_project_form(&mut self) {
@@ -456,6 +481,7 @@ impl CoderuneApp {
         if let Some(workspace) = self.workspace.as_mut() {
             workspace.select_project(None);
         }
+        self.refresh_captures();
     }
 
     pub(crate) fn save_project(&mut self) {
@@ -489,6 +515,7 @@ impl CoderuneApp {
                 self.project_form = ProjectForm::from_project(&project);
                 self.confirm_delete_project = None;
                 self.reset_capture_state();
+                self.refresh_captures();
             }
             Err(error) => self.error = Some(error),
         }
@@ -539,32 +566,35 @@ impl CoderuneApp {
     }
 
     pub(crate) fn save_document_import(&mut self) {
-        let Some(extracted) = self.document_form.extracted.clone() else {
+        let Some(extracted) = self.document_form.extracted.take() else {
             return;
         };
-        let Some(workspace) = self.workspace.as_mut() else {
-            return;
-        };
-        match workspace.save_document(
-            self.document_form.kind,
-            self.document_form.project_id.clone(),
-            extracted.name.clone(),
-            extracted.source_path.clone(),
-            extracted.text.clone(),
-            true,
-        ) {
-            Ok(document) => {
+        let result = self.workspace.as_mut().map(|workspace| {
+            workspace.save_document(
+                self.document_form.kind,
+                self.document_form.project_id.clone(),
+                &extracted.name,
+                extracted.source_path.as_deref(),
+                &extracted.text,
+                true,
+            )
+        });
+        match result {
+            Some(Ok(document)) => {
                 self.notice = Some(format!(
                     "Saved {} import {}.",
                     document.kind.label(),
                     document.name
                 ));
                 self.error = None;
-                self.document_form.extracted = None;
                 self.document_form.draft_preview = None;
                 self.document_form.selected_document = Some(document.id);
             }
-            Err(error) => self.error = Some(error),
+            Some(Err(error)) => {
+                self.document_form.extracted = Some(extracted);
+                self.error = Some(error);
+            }
+            None => self.document_form.extracted = Some(extracted),
         }
     }
 
@@ -670,6 +700,7 @@ impl CoderuneApp {
                 self.error = None;
                 self.capture_reviewed = false;
                 self.capture_session = None;
+                self.refresh_captures();
             }
             Err(error) => {
                 if error.code == coderune_domain::ErrorCode::CaptureStale {
@@ -681,16 +712,15 @@ impl CoderuneApp {
     }
 
     pub(crate) fn inspect_capture(&mut self, id: &str) {
+        let Some(capture) = self
+            .captures
+            .iter()
+            .find(|capture| capture.id == id)
+            .cloned()
+        else {
+            return;
+        };
         let Some(workspace) = self.workspace.as_ref() else {
-            return;
-        };
-        let Some(project_id) = workspace.selected_project_id.clone() else {
-            return;
-        };
-        let Ok(captures) = workspace.list_captures(&project_id) else {
-            return;
-        };
-        let Some(capture) = captures.into_iter().find(|capture| capture.id == id) else {
             return;
         };
         match workspace.capture_contents(&capture.id) {
@@ -723,6 +753,7 @@ impl CoderuneApp {
                     self.capture_detail = None;
                 }
                 self.confirm_delete_capture = None;
+                self.refresh_captures();
             }
             Err(error) => self.error = Some(error),
         }
@@ -775,6 +806,7 @@ impl CoderuneApp {
                 self.project_form = ProjectForm::empty(None);
                 self.document_form = DocumentForm::empty();
                 self.refresh_profile_form();
+                self.refresh_captures();
             }
             Err(error) => self.error = Some(error),
         }
@@ -863,9 +895,8 @@ fn split_list(value: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
+pub fn view(s: &CoderuneApp, _cx: &mut Cx<CoderuneApp>) -> El {
     let k = theme::kit();
-    let _ = cx;
     let body = if let Some(message) = &s.fatal {
         fatal(message)
     } else if s
@@ -873,9 +904,9 @@ pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
         .as_ref()
         .is_some_and(|workspace| workspace.onboarding.can_start_project)
     {
-        workspace(s, &k)
+        workspace(s, k)
     } else {
-        screens::onboarding(s, &k)
+        screens::onboarding(s, k)
     };
     col().w_full().h_full().fill(theme::bg()).child(body)
 }
@@ -959,8 +990,7 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
         .workspace
         .as_ref()
         .and_then(|workspace| workspace.profile())
-        .map(|profile| profile.display_name.clone())
-        .unwrap_or_else(|| "No baseline".to_string());
+        .map_or("No baseline", |profile| profile.display_name.as_str());
     let baseline = s
         .workspace
         .as_ref()
@@ -1006,7 +1036,7 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
                 .mt(8.0)
                 .pt(12.0)
                 .border_sides([1.0, 0.0, 0.0, 0.0], theme::row_line())
-                .child(text(&profile_label).font(LABEL).color(theme::ink()))
+                .child(text(profile_label).font(LABEL).color(theme::ink()))
                 .child(text(&baseline).font(LABEL_SM).color(theme::faint())),
         )
 }

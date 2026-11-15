@@ -14,13 +14,7 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
     let projects = workspace
         .map(|workspace| workspace.projects.len())
         .unwrap_or(0);
-    let captures = workspace
-        .and_then(|workspace| workspace.selected_project())
-        .and_then(|project| {
-            workspace.and_then(|workspace| workspace.list_captures(&project.id).ok())
-        })
-        .map(|captures| captures.len())
-        .unwrap_or(0);
+    let captures = s.captures.len();
 
     let mut body = col()
         .w_full()

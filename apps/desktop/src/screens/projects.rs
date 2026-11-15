@@ -11,12 +11,12 @@ use rune_kit::{Badge, Kit};
 pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();
     let projects = workspace
-        .map(|workspace| workspace.projects.clone())
-        .unwrap_or_default();
-    let selected = s.project_form.editing.clone();
+        .map(|workspace| workspace.projects.as_slice())
+        .unwrap_or(&[]);
+    let selected = s.project_form.editing.as_deref();
     let mut rows = Vec::new();
-    for project in &projects {
-        let active = selected.as_deref() == Some(project.id.as_str());
+    for project in projects {
+        let active = selected == Some(project.id.as_str());
         let id = project.id.clone();
         rows.push(
             col()

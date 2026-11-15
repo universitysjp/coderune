@@ -12,10 +12,10 @@ pub(crate) fn agents(s: &CoderuneApp, k: &Kit) -> El {
     let agents = s
         .workspace
         .as_ref()
-        .map(|workspace| workspace.agents.clone())
-        .unwrap_or_default();
+        .map(|workspace| workspace.agents.as_slice())
+        .unwrap_or(&[]);
     let mut cards = Vec::new();
-    for status in &agents {
+    for status in agents {
         let ready = status.availability == AgentAvailability::Ready;
         cards.push(ui::card(
             Some(status.id.label()),

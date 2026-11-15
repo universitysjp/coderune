@@ -317,9 +317,9 @@ impl Workspace {
         &mut self,
         kind: DocumentKind,
         project_id: Option<String>,
-        name: String,
-        source_path: Option<String>,
-        text: String,
+        name: &str,
+        source_path: Option<&str>,
+        text: &str,
         confirmed: bool,
     ) -> AppResult<ImportedDocument> {
         require_profile(&self.onboarding)?;
@@ -353,11 +353,11 @@ impl Workspace {
             id: coderune_domain::new_id(),
             kind,
             project_id,
-            name,
-            source_path,
+            name: name.to_string(),
+            source_path: source_path.map(str::to_string),
             sha256: collectors::sha256_hex(text.as_bytes()),
             text_bytes: text.len(),
-            text,
+            text: text.to_string(),
             created_at: now_iso(),
         };
         self.storage.save_document(&document).map_err(map_storage)?;
@@ -654,9 +654,9 @@ mod tests {
             .save_document(
                 DocumentKind::Cv,
                 None,
-                name,
-                Some(path.display().to_string()),
-                text,
+                &name,
+                Some(path.to_string_lossy().as_ref()),
+                &text,
                 true,
             )
             .unwrap();

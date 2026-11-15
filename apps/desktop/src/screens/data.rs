@@ -22,7 +22,7 @@ pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
             Some("Local database"),
             Some("One per-user SQLite database, outside project repositories."),
             vec![
-                ui::code_well(data_path.clone()),
+                ui::code_well(&data_path),
                 secondary("Open data folder", move |s| {
                     if let Some(parent) = data_path_for_open.parent() {
                         s.open_folder(parent.to_path_buf());
