@@ -29,6 +29,10 @@ pub fn non_blank(values: impl IntoIterator<Item = String>) -> Vec<String> {
         .collect()
 }
 
+fn has_non_blank(values: &[String]) -> bool {
+    values.iter().any(|value| !value.trim().is_empty())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ExperienceStage {
@@ -240,7 +244,7 @@ impl ProfileDraft {
         if !self.new_to_coding && self.skills_statement.trim().is_empty() {
             missing.push("initial skills statement".to_string());
         }
-        if non_blank(self.learning_goals.clone()).is_empty() {
+        if !has_non_blank(&self.learning_goals) {
             missing.push("learning goal".to_string());
         }
         missing
@@ -531,7 +535,7 @@ impl ProjectDraft {
         if self.root_path.trim().is_empty() {
             missing.push("root folder".to_string());
         }
-        if non_blank(self.goals.clone()).is_empty() {
+        if !has_non_blank(&self.goals) {
             missing.push("goal".to_string());
         }
         missing
