@@ -1,5 +1,5 @@
-#!/usr/bin/env node
-// legacy.mjs: the legacy inventory and its ratchet. Node 18+, no dependencies.
+#!/usr/bin/env bun
+// legacy.mts: the legacy inventory and its ratchet. Node 18+, no dependencies.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,8 +12,8 @@ const DEFAULT_SCAN = ["src", "app", "pages", "components", "lib"];
 const PLACEHOLDER_LEGACY = "^REPLACE-with-your-legacy-module";
 const PLACEHOLDER_SYSTEM = "^REPLACE-with-your-system-module";
 
-const HELP = `legacy.mjs [--inventory | --record | --zero [<kinds>]] [--root <dir>] [--config <file>] [--baseline <file>] [--paths "<glob> ..."]
-legacy.mjs --init-config | --self-test | --help
+const HELP = `legacy.mts [--inventory | --record | --zero [<kinds>]] [--root <dir>] [--config <file>] [--baseline <file>] [--paths "<glob> ..."]
+legacy.mts --init-config | --self-test | --help
 
 Counts legacy usage per file and kind (${KINDS.join(", ")}), as occurrences, and holds the count to a committed baseline.
   (no flag)     fail when a count rose, a file with findings is not in the baseline, a count fell without being
@@ -160,7 +160,7 @@ function main(argv) {
 	const { counts, mixed } = result;
 	const kindsAsked = o.zero ? o.zero.split(",").map((k) => k.trim()).filter(Boolean) : [...KINDS, "mixed"];
 	const problem = configProblem(cfg, result, kindsAsked);
-	if (problem) { console.error(`legacy.mjs: ${problem} (${cfgFile})`); return 2; }
+	if (problem) { console.error(`legacy.mts: ${problem} (${cfgFile})`); return 2; }
 	scannedCount = result.scanned;
 	if (o.inventory) {
 		for (const f of Object.keys(counts).sort()) for (const k of KINDS) if (counts[f][k]) console.log(`${k}\t${f}\t${counts[f][k]}`);

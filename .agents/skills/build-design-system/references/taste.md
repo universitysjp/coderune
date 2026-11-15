@@ -34,4 +34,4 @@ Applies to copy a run writes: empty states, toasts, docs.
 
 ## Rule pack
 
-The checks load a rule pack from the project. None ships here. `check-system.mjs` carries the generic rules (raw values, palette use, arbitrary values, native controls, div buttons). A project adds its own as lint rules or config, and each rule is seen failing on a planted violation before it counts.
+The checks load a rule pack from the project. None ships here. `check-system.mts` carries the generic rules (raw values, palette use, arbitrary values, native controls, div buttons). A project adds its own as lint rules or config, and each rule is seen failing on a planted violation before it counts.

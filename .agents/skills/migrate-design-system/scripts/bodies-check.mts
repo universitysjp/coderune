@@ -1,5 +1,5 @@
-#!/usr/bin/env node
-// bodies-check.mjs: accepts a before/after request-body pair only when one logged browser run produced both files.
+#!/usr/bin/env bun
+// bodies-check.mts: accepts a before/after request-body pair only when one logged browser run produced both files.
 // Node 18+, no dependencies.
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -8,8 +8,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const HELP = `bodies-check.mjs log <run log> start|end <RUN_ID> [rc]     append one run-log line around a browser run
-bodies-check.mjs <dir> --expect <procs> --before-ports a,b --after-ports c,d --log <run log> [--slack 5]
+const HELP = `bodies-check.mts log <run log> start|end <RUN_ID> [rc]     append one run-log line around a browser run
+bodies-check.mts <dir> --expect <procs> --before-ports a,b --after-ports c,d --log <run log> [--slack 5]
 
 Reads <dir>/bodies.before.json and <dir>/bodies.after.json, each {"run": "<RUN_ID>", "rows": [{url, proc, body, capturedAt}]}.
 Rejects (exit 2) unless all of these hold
@@ -20,16 +20,16 @@ Rejects (exit 2) unless all of these hold
   5. every procedure in --expect (comma list) has rows in both files
      The expected list comes from the verifier brief, written from the diff's write lines before the run.
 Exit 0 when valid and every procedure's bodies match between before and after. Exit 1 when valid and some
-procedure's bodies differ, printed as "DIFF <proc> <before count> <after count>". land.mjs lands a DIFF only when
+procedure's bodies differ, printed as "DIFF <proc> <before count> <after count>". land.mts lands a DIFF only when
 decisions.tsv (or its --intended file) holds an intended change row naming the surface and that procedure.
 
 Making the two files: serve the base commit's build (a separate worktree) and the run branch's build at the same
 time on different ports, then wrap both captures in one logged run:
-  rc=0; node bodies-check.mjs log runs.log start RUN-7
-  node capture.mjs --base http://localhost:5183 --kind before ... --run RUN-7 --bodies <dir>/bodies.before.json || rc=1
-  node capture.mjs --base http://localhost:5173 --kind after ... --run RUN-7 --bodies <dir>/bodies.after.json || rc=1
-  node bodies-check.mjs log runs.log end RUN-7 $rc
-capture.mjs is in build-design-system's scripts. Drive the changed write in both captures with the same --states
+  rc=0; bun bodies-check.mts log runs.log start RUN-7
+  bun capture.mts --base http://localhost:5183 --kind before ... --run RUN-7 --bodies <dir>/bodies.before.json || rc=1
+  bun capture.mts --base http://localhost:5173 --kind after ... --run RUN-7 --bodies <dir>/bodies.after.json || rc=1
+  bun bodies-check.mts log runs.log end RUN-7 $rc
+capture.mts is in build-design-system's scripts. Drive the changed write in both captures with the same --states
 step, so both runs send it.
 
 Run log: tab separated, one line per event: <event>\\t<iso time>\\t<slot>\\t<RUN_ID>\\t<rc>
@@ -198,7 +198,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	else if (o.selfTest) selfTest();
 	else if (o._[0] === "log") {
 		const [, file, event, id, rc = ""] = o._;
-		if (!file || !["start", "end"].includes(event) || !id) { console.error("usage: bodies-check.mjs log <run log> start|end <RUN_ID> [rc]"); process.exit(2); }
+		if (!file || !["start", "end"].includes(event) || !id) { console.error("usage: bodies-check.mts log <run log> start|end <RUN_ID> [rc]"); process.exit(2); }
 		appendFileSync(file, `${event}\t${new Date().toISOString()}\tmain\t${id}\t${event === "end" ? rc : ""}\n`);
 	} else {
 		if (!o._[0] || !o.beforePorts.length || !o.afterPorts.length || !o.log) { console.error("needs <dir> --before-ports --after-ports --log (and --expect). See --help"); process.exit(2); }

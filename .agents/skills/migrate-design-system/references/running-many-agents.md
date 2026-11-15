@@ -1,6 +1,6 @@
 # Running many agents
 
-One migration ran hundreds of workers over several days. The limit was never the number of agents. It was load, wedged servers and waiting. These are the few rules that paid for themselves. The one script is `scripts/land.mjs`. The rest is judgement and a few shell lines.
+One migration ran hundreds of workers over several days. The limit was never the number of agents. It was load, wedged servers and waiting. These are the few rules that paid for themselves. The one script is `scripts/land.mts`. The rest is judgement and a few shell lines.
 
 ## Load valve
 
@@ -45,7 +45,7 @@ A file every lane writes, such as a ratchet, a baseline, a registry or a docs in
 
 ## Landing
 
-`land.mjs --help` has the flags. It refuses the default branch and the branch the run started on, takes a lock, builds the commit in a private index from HEAD, asserts the commit's file list lies inside the named paths, then resets only those paths in the shared index. A stale shared index once reverted a landed route, and a shared list file committed whole once carried another worker's uncommitted changes. Name exact files, and read `git show --stat HEAD` after every landing. The repo's git hooks run on each landing. Read them first, because a hook that formats or stages files makes `land.mjs` exit 3. `--no-verify` skips them only when the person allowed it, and the report says so.
+`land.mts --help` has the flags. It refuses the default branch and the branch the run started on, takes a lock, builds the commit in a private index from HEAD, asserts the commit's file list lies inside the named paths, then resets only those paths in the shared index. A stale shared index once reverted a landed route, and a shared list file committed whole once carried another worker's uncommitted changes. Name exact files, and read `git show --stat HEAD` after every landing. The repo's git hooks run on each landing. Read them first, because a hook that formats or stages files makes `land.mts` exit 3. `--no-verify` skips them only when the person allowed it, and the report says so.
 
 ## When the base moves
 

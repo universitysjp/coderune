@@ -1,27 +1,27 @@
-#!/usr/bin/env node
-// capture.mjs: screenshots of every route, width, theme and state, behind capture-guard. Node 18+, Playwright 1.49+.
-// Run `node capture.mjs --help` for usage.
+#!/usr/bin/env bun
+// capture.mts: screenshots of every route, width, theme and state, behind capture-guard. Node 18+, Playwright 1.49+.
+// Run `node capture.mts --help` for usage.
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { launchChromium, repoRoot } from "./find-chromium.mjs";
-import { installGuard, isLocalHost, prove } from "./capture-guard.mjs";
+import { launchChromium, repoRoot } from "./find-chromium.mts";
+import { installGuard, isLocalHost, prove } from "./capture-guard.mts";
 
 const SELF = fileURLToPath(import.meta.url);
 
-const HELP = `capture.mjs: screenshots and accessibility trees for every route, width and theme, with every write blocked
+const HELP = `capture.mts: screenshots and accessibility trees for every route, width and theme, with every write blocked
 
 Usage
-  node capture.mjs --base <url> --kind before|after --out <folder> (--routes <r>... | --surfaces <tsv>)
+  bun capture.mts --base <url> --kind before|after --out <folder> (--routes <r>... | --surfaces <tsv>)
                    (--writes <file> | --no-backend) [options]
-  node capture.mjs --base <url> --status (--routes <r>... | --surfaces <tsv>)
-  node capture.mjs --self-test | --help
+  bun capture.mts --base <url> --status (--routes <r>... | --surfaces <tsv>)
+  bun capture.mts --self-test | --help
 
   Example, with the app served on port 3000:
-  node capture.mjs --base http://localhost:3000 --kind before --out .design-system/captures \\
+  bun capture.mts --base http://localhost:3000 --kind before --out .design-system/captures \\
     --surfaces .design-system/surfaces.tsv --writes .design-system/writes.txt
 
 Routes
@@ -41,7 +41,7 @@ Files, in --out
   guard.log                                 one JSON line per network decision, with the body of every write
   bodies.json                               with --run: the request bodies of every write, for bodies-check
 
-The guard (capture-guard.mjs) is installed on the browser context before the first navigation. It aborts every
+The guard (capture-guard.mts) is installed on the browser context before the first navigation. It aborts every
 non-local host, every PUT, PATCH and DELETE, and every POST not listed as a read. Service workers are blocked so
 no request goes around it. A WebSocket is not guarded: an app that writes over one is not safe to capture live.
 A capture needs one of these two, so no run starts before its writes are proven blocked:
@@ -57,7 +57,7 @@ A capture needs one of these two, so no run starts before its writes are proven 
   --app-origin <url>...    origins that serve the app. Default: any local host
   --allow-host <host>...   a non-local host the page may reach. A non-local --base is refused unless named here
 
-Request bodies, for bodies-check.mjs in migrate-design-system
+Request bodies, for bodies-check.mts in migrate-design-system
   --run <RUN_ID>       write bodies.json in --out: {"run", "rows": [{url, proc, body, capturedAt}]}, one row per
                        write the page sent, blocked or not. A GraphQL row's proc is graphql/<operation name>
   --bodies <file>      write it here instead, such as <evidence>/bodies.before.json
@@ -318,7 +318,7 @@ fetch("/api/ping").catch(() => {});
 		const before = hits.length;
 		r = await run("--base", base, "--kind", "before", "--out", join(dir, "leak"), "--routes", "/", "--writes", join(dir, "writes.txt"), "--read-procedures", "items/update");
 		t("a write the guard would let through stops the run before any request", r.code === 2 && /LEAK\tPOST/.test(r.out) && hits.length === before, r.out);
-		const pw = spawnSync(process.execPath, [join(SELF, "..", "find-chromium.mjs"), "--root", dir], { encoding: "utf8" });
+		const pw = spawnSync(process.execPath, [join(SELF, "..", "find-chromium.mts"), "--root", dir], { encoding: "utf8" });
 		if (pw.status !== 0) {
 			console.log(`self-test: the browser checks did not run, because no Playwright and Chromium were found:\n${(pw.stderr || pw.stdout).trim()}`);
 			return 2;

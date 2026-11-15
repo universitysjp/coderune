@@ -2,7 +2,7 @@
 
 Dozens of behaviour regressions in one migration passed typecheck, lint, unit tests and the system's check. A verifier driving a browser caught them, and many first verdicts were not clean. Each class below is a table you run on the old control and the new one with the same inputs. Every differing row is approved by a person or fixed.
 
-`parity.mjs number|date --old <module or json> --new <module or json>` runs the first two classes. A results file needs a result for every input (and a date file every zone) on both sides, or the row fails. For the rest, drive the app and fill the table by hand or with the host's browser tool.
+`parity.mts number|date --old <module or json> --new <module or json>` runs the first two classes. A results file needs a result for every input (and a date file every zone) on both sides, or the row fails. For the rest, drive the app and fill the table by hand or with the host's browser tool.
 
 ## The classes
 
@@ -41,4 +41,4 @@ Columns: case, old result, new result, expectation, verdict. Expectations are `s
 
 ## When there is no browser
 
-Run the pure functions with `parity.mjs` and say in the verdict that the control itself was `blocked`. A write surface is never `verified` on that.
+Run the pure functions with `parity.mts` and say in the verdict that the control itself was `blocked`. A write surface is never `verified` on that.

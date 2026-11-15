@@ -1,5 +1,5 @@
-#!/usr/bin/env node
-// land.mjs: commit the named paths and nothing else, in a checkout other workers share. Node 18+, git 2.20+, no dependencies.
+#!/usr/bin/env bun
+// land.mts: commit the named paths and nothing else, in a checkout other workers share. Node 18+, git 2.20+, no dependencies.
 import { spawnSync, execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,9 +8,9 @@ import { fileURLToPath } from "node:url";
 
 const SELF = fileURLToPath(import.meta.url);
 
-const HELP = `land.mjs <surface> <subject> [flags] -- <paths...>
-land.mjs --check-commit <sha> -- <paths...>
-land.mjs --self-test | --help
+const HELP = `land.mts <surface> <subject> [flags] -- <paths...>
+land.mts --check-commit <sha> -- <paths...>
+land.mts --self-test | --help
 
 Commits the working-tree state of the named paths and nothing else. Name exact files, because a folder takes everything
 under it, other workers' dirty files included.
@@ -20,7 +20,7 @@ under it, other workers' dirty files included.
   3. Builds the commit in a private index seeded from HEAD, so a stale shared index cannot reach it.
   4. Refuses when write lines (mutate(, mutateAsync(, onSubmit, execute(, useMutation, non-GET fetch) were added,
      removed or moved and --bodies-check does not pass. Decide the tier by this diff, not by a row label. Exit 0
-     passes. Exit 1 with "DIFF <proc>" lines (bodies-check.mjs) passes only when every DIFF procedure has an
+     passes. Exit 1 with "DIFF <proc>" lines (bodies-check.mts) passes only when every DIFF procedure has an
      intended change row: a line of the --intended file holding "intended change", the surface id and the
      procedure. Any other exit, or a DIFF no row explains, refuses.
   5. Refuses when a changed row in an --also file (a ratchet, baseline or list file every worker shares) names a
@@ -130,7 +130,7 @@ async function lock(wait) {
 			if (e.code !== "EEXIST") throw e;
 			let holder = 0;
 			try { holder = Number(readFileSync(join(dir, "pid"), "utf8")); } catch { /* holder is between mkdir and writing its pid */ }
-			if (holder && !pidAlive(holder)) { console.error(`land.mjs: taking over a lock whose holder ${holder} is gone`); rmSync(dir, { recursive: true, force: true }); continue; }
+			if (holder && !pidAlive(holder)) { console.error(`land.mts: taking over a lock whose holder ${holder} is gone`); rmSync(dir, { recursive: true, force: true }); continue; }
 			if (Date.now() > until) die(7, `lock ${dir} still held by pid ${holder || "unknown"}; do not delete it while that process runs`);
 			await new Promise((r) => setTimeout(r, 200));
 		}
@@ -244,14 +244,14 @@ export async function land(o) {
 				const { diffs, explained, unexplained } = explainDiffs(b.stdout, surface, existsSync(file) ? readFileSync(file, "utf8") : "");
 				if (!diffs.length) die(4, "the bodies check exited 1 with no DIFF line, so the body evidence is not valid. Nothing was committed");
 				if (unexplained.length) die(4, `request bodies differ for ${unexplained.join(", ")} and no intended change row in ${relative(root, file)} names surface ${surface} and that procedure. Nothing was committed`);
-				for (const e of explained) console.error(`land.mjs: DIFF ${e.proc} lands as an intended change: ${e.row.trim().slice(0, 160)}`);
+				for (const e of explained) console.error(`land.mts: DIFF ${e.proc} lands as an intended change: ${e.row.trim().slice(0, 160)}`);
 			} else if (b.status !== 0) die(4, "the bodies check failed, so the body evidence is not valid. Nothing was committed");
 		}
 		if (notes.length && !o.allowNotes) die(5, `added comments read like working notes. Describe the product, not the process:\n${notes.join("\n")}`);
 
 		if (o.dry) { console.log("dry run, would commit:\n" + git(["diff-index", "--cached", "--name-only", "--no-renames", "HEAD", "--"], { env }).trim()); return; }
 
-		if (o.noVerify) console.error("land.mjs: WARN --no-verify: the repo's git hooks did not run on this commit. Say so in the report");
+		if (o.noVerify) console.error("land.mts: WARN --no-verify: the repo's git hooks did not run on this commit. Say so in the report");
 		const msg = join(tmp, "message");
 		writeFileSync(msg, message);
 		const before = git(["rev-parse", "HEAD"]).trim();
@@ -312,7 +312,7 @@ function selfTest() {
 	check("stale shared index: commit lists only other.txt", sh(r, "show", "--name-only", "--format=", "HEAD"), "other.txt");
 	check("stale shared index: landed route is still v2", sh(r, "show", "HEAD:route.txt"), "route v2");
 
-	// land.mjs once committed on whatever branch was checked out, the default branch included.
+	// land.mts once committed on whatever branch was checked out, the default branch included.
 	r = mk();
 	w(r, "route.txt", "route v2\n");
 	sh(r, "switch", "-q", "main");
@@ -428,6 +428,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
 		else if (o.selfTest) process.exitCode = selfTest();
 		else await land(o);
 	} catch (e) {
-		if (e instanceof Exit) { console.error(`land.mjs: ${e.message}`); process.exitCode = e.code; } else throw e;
+		if (e instanceof Exit) { console.error(`land.mts: ${e.message}`); process.exitCode = e.code; } else throw e;
 	}
 }

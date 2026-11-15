@@ -1,20 +1,20 @@
-#!/usr/bin/env node
-// check-system.mjs: the design system check, a starter. Node 18+, no dependencies.
+#!/usr/bin/env bun
+// check-system.mts: the design system check, a starter. Node 18+, no dependencies.
 // Reads whole JSX tags, not lines, so a multi-line <div onClick> is still one tag.
-// Run `node scripts/check-system.mjs --help` for usage.
+// Run `node scripts/check-system.mts --help` for usage.
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { execFileSync, execSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-// oklch.mjs beside this script names the nearest color token. Without it, raw-value findings name no color token.
+// oklch.mts beside this script names the nearest color token. Without it, raw-value findings name no color token.
 let oklch = null;
-try { oklch = await import(new URL("./oklch.mjs", import.meta.url).href); } catch {}
+try { oklch = await import(new URL("./oklch.mts", import.meta.url).href); } catch {}
 
-const HELP = `check-system.mjs: design system check (starter)
+const HELP = `check-system.mts: design system check (starter)
 
-Usage: node scripts/check-system.mjs [options] [--files <file>...]
+Usage: node scripts/check-system.mts [options] [--files <file>...]
 
 With no options it checks the repo against the allowlist, after the self-test when
 the repo keeps planted cases (below). Exit 0 clean, 1 on findings or a failed
@@ -672,7 +672,7 @@ function jsMotionTraps(cfg, rel, code, mask, hit) {
 
 // ---------- nearest token ----------
 // A raw value's nearest token, chosen by the job of the property it sits on and then by distance: color tokens by
-// deltaE OK (oklch.mjs), lengths by px. Token values come from the repo's own CSS, light and :root blocks only.
+// deltaE OK (oklch.mts), lengths by px. Token values come from the repo's own CSS, light and :root blocks only.
 const PALETTE_TOKEN = new RegExp(`^--(?:color-)?(?:${PALETTE})-\\d+$`);
 const hsl2rgb = (h, s, l) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return [0, 8, 4].map((n) => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)))); };
 function colorLab(v, vars, depth = 0) {

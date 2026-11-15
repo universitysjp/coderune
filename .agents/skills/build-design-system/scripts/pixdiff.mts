@@ -1,10 +1,10 @@
-#!/usr/bin/env node
-// pixdiff.mjs: compare two saved screenshots, or two folders of same-named PNGs.
+#!/usr/bin/env bun
+// pixdiff.mts: compare two saved screenshots, or two folders of same-named PNGs.
 //
-//   node pixdiff.mjs /abs/before.png /abs/after.png
-//   node pixdiff.mjs /abs/baseline/ /abs/after/ [--surface <name>,...] [--max <percent>] [--tolerance <n>] [--out <dir>] [--no-image] [--root <dir>]
+//   node pixdiff.mts /abs/before.png /abs/after.png
+//   node pixdiff.mts /abs/baseline/ /abs/after/ [--surface <name>,...] [--max <percent>] [--tolerance <n>] [--out <dir>] [--no-image] [--root <dir>]
 //
-// In folder mode, when the first folder holds capture.mjs names (<surface>-before-<width>.png),
+// In folder mode, when the first folder holds capture.mts names (<surface>-before-<width>.png),
 // each before file pairs with its -after- name in the second folder, which may be the same
 // folder. Otherwise files pair by the same relative path. Every width and theme is compared.
 // --surface keeps only the named surfaces' files (every width, theme and state) and prints
@@ -18,7 +18,7 @@
 // Exits 1 when any pair differs in size, is missing, or changes more pixels than
 // --max (percent, default 0).
 //
-// Needs Playwright (`playwright` or `playwright-core`) and a Chromium. find-chromium.mjs
+// Needs Playwright (`playwright` or `playwright-core`) and a Chromium. find-chromium.mts
 // finds both: PW_CHROMIUM, Playwright's own download, any other Playwright download in
 // the cache, then the system Chrome. Playwright is looked for first in --root, which defaults to the git root of the
 // first image path, else of the current folder. Relative image paths resolve against the current folder.
@@ -28,9 +28,9 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
-import { launchChromium, repoRoot } from "./find-chromium.mjs";
+import { launchChromium, repoRoot } from "./find-chromium.mts";
 
-const USAGE = "usage: node pixdiff.mjs <before.png|dir> <after.png|dir> [--surface <name>,...] [--max <percent>] [--tolerance <n>] [--out <dir>] [--no-image] [--root <dir>]\n       node pixdiff.mjs --self-test\nTwo folders pair capture.mjs -before- files with their -after- names (the folders may be the same), else files of the same name\n--surface keeps only those surfaces' capture.mjs files and counts the rest as skipped\n--tolerance is the per-channel delta, 0 to 255, a pixel may move and still count as unchanged. Default 0. Keep 0 to prove a value-identical swap\n--root is where Playwright is looked for first. Default: the git root of the first path, else of the current folder";
+const USAGE = "usage: node pixdiff.mts <before.png|dir> <after.png|dir> [--surface <name>,...] [--max <percent>] [--tolerance <n>] [--out <dir>] [--no-image] [--root <dir>]\n       node pixdiff.mts --self-test\nTwo folders pair capture.mts -before- files with their -after- names (the folders may be the same), else files of the same name\n--surface keeps only those surfaces' capture.mts files and counts the rest as skipped\n--tolerance is the per-channel delta, 0 to 255, a pixel may move and still count as unchanged. Default 0. Keep 0 to prove a value-identical swap\n--root is where Playwright is looked for first. Default: the git root of the first path, else of the current folder";
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) { console.log(USAGE); process.exit(0); }
 if (args.includes("--self-test")) process.exit(selfTest());
@@ -112,10 +112,10 @@ const walk = (d) => readdirSync(d).flatMap((e) => {
   return statSync(p).isDirectory() ? walk(p) : p.endsWith(".png") && !p.includes(".diff.") ? [p] : [];
 });
 const dirMode = statSync(A).isDirectory();
-// capture.mjs names files <surface>-before-<width>[-<theme>].png, so when the before
+// capture.mts names files <surface>-before-<width>[-<theme>].png, so when the before
 // folder holds such names, each pairs with the same name with -after- in the after folder.
 const kinded = dirMode && walk(A).some((f) => basename(f).includes("-before-"));
-if (only && !kinded) { console.error("pixdiff: --surface needs two folders of capture.mjs names (<surface>-before-<width>.png)"); process.exit(2); }
+if (only && !kinded) { console.error("pixdiff: --surface needs two folders of capture.mts names (<surface>-before-<width>.png)"); process.exit(2); }
 // A state capture is <surface>.<state>-before-..., so the surface is the name up to the first dot.
 const surfaceOf = (f) => basename(f).split("-before-")[0].split(".")[0];
 const befores = dirMode ? walk(A).filter((f) => !kinded || basename(f).includes("-before-")) : [];

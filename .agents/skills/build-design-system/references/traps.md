@@ -1,6 +1,6 @@
 # Traps
 
-Behaviour traps that hold in any app. Each has a stable ID that specs, reviews and checks cite, so a finding, a spec line and a failing check name one thing. Where `check-system.mjs` flags a trap it uses the same ID (`--explain <id>` prints the rule). A trap outranks the app's majority: when the app does it everywhere, the fix still wins and the conflict becomes a gate whose default is the fix. Add a trap only after it cost a real run. Every ID appears once.
+Behaviour traps that hold in any app. Each has a stable ID that specs, reviews and checks cite, so a finding, a spec line and a failing check name one thing. Where `check-system.mts` flags a trap it uses the same ID (`--explain <id>` prints the rule). A trap outranks the app's majority: when the app does it everywhere, the fix still wins and the conflict becomes a gate whose default is the fix. Add a trap only after it cost a real run. Every ID appears once.
 
 A person describing a symptom rather than a component:
 

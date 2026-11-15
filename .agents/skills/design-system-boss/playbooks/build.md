@@ -1,6 +1,6 @@
 # Build
 
-1. Triage: system installed or not, raw values in occurrences (`build-design-system/scripts/check-system.mjs --no-allowlist --no-self-test --json`, counted by rule), duplicate families, surface count. A small app (8 surfaces or fewer) gets one worker and no window.
+1. Triage: system installed or not, raw values in occurrences (`build-design-system/scripts/check-system.mts --no-allowlist --no-self-test --json`, counted by rule), duplicate families, surface count. A small app (8 surfaces or fewer) gets one worker and no window.
 2. Frame the complaint in the person's words, pick the pilot flow, accept the taste file.
 3. Run `build-design-system` steps 1 to 6 with one writing step at a time. Judge each return from `git diff`, never from its message.
 4. Run the readiness audits. Open rows go in the report, and the playbook ends check-first.

@@ -23,7 +23,7 @@ A row whose job cannot be read is ambiguous when the jobs it might do give two o
 ## Normalising
 
 - Lengths to px. A 16 px root for `rem` unless the project sets another. Line height to a unitless ratio.
-- Colours to OKLCH plus alpha. `build-design-system/scripts/oklch.mjs` reads hex (3, 4, 6, 8 digits), `rgb()`, `hsl()`, `hwb()`, `oklch()`, `oklab()` and the CSS named colours, each with its alpha, and prints the OKLCH. It does not read `color()`, `lab()`, `lch()`, `color-mix()` or a relative colour. Resolve those with a browser's computed style, and say so in Source. Compare by delta E OK (OKLab distance times 100), which `oklch.mjs --delta` prints. Under 0.5 is identical, which absorbs 8-bit rounding.
+- Colours to OKLCH plus alpha. `build-design-system/scripts/oklch.mts` reads hex (3, 4, 6, 8 digits), `rgb()`, `hsl()`, `hwb()`, `oklch()`, `oklab()` and the CSS named colours, each with its alpha, and prints the OKLCH. It does not read `color()`, `lab()`, `lch()`, `color-mix()` or a relative colour. Resolve those with a browser's computed style, and say so in Source. Compare by delta E OK (OKLab distance times 100), which `oklch.mts --delta` prints. Under 0.5 is identical, which absorbs 8-bit rounding.
 - Alpha is part of the colour. `#0F172A` at 80% is not `#0F172A`: `--delta` prints both alphas and says `alpha differs` past the opacity tolerance, and such a pair is never Exact.
 
 ## Tolerances

@@ -1,25 +1,25 @@
-#!/usr/bin/env node
-// capture-guard.mjs: deny-by-default network guard for any script that drives a browser against a live app.
+#!/usr/bin/env bun
+// capture-guard.mts: deny-by-default network guard for any script that drives a browser against a live app.
 // Node 18+, no dependencies. Works as a module (installGuard, decide, classifyName) and as a CLI.
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const HELP = `capture-guard.mjs: deny-by-default network guard for browser capture scripts
+const HELP = `capture-guard.mts: deny-by-default network guard for browser capture scripts
 
 Usage
-  node capture-guard.mjs names <procedure>... [--procedure-style rpc-post|rest] [--read-procedures a,b] [--read-verbs ...]
+  bun capture-guard.mts names <procedure>... [--procedure-style rpc-post|rest] [--read-procedures a,b] [--read-verbs ...]
       Prints read or deny for each procedure name. Run it on the app's real procedure list before a capture.
-  node capture-guard.mjs decide --method POST --url <url> [--body <text>] [--fixtures <json>] [options]
+  bun capture-guard.mts decide --method POST --url <url> [--body <text>] [--fixtures <json>] [options]
       Prints the decision as JSON: {action: fulfill|continue|abort, reason}.
-  node capture-guard.mjs prove --writes <file> [options]
+  bun capture-guard.mts prove --writes <file> [options]
       The dry run before any run that can reach a backend. Each line of the file is "METHOD URL" for a write the
       app really sends, copied from its network log in the shape it has there, or "METHOD URL BODY" when the
       endpoint is GraphQL, with the request body as one line of JSON. Exits 1 if any one would continue.
       Pass the same options the capture uses. Then fire the same writes from the page and read guard.log.
-  node capture-guard.mjs --self-test
-  node capture-guard.mjs --help
+  bun capture-guard.mts --self-test
+  bun capture-guard.mts --help
 
 Options (CLI and the opts object of decide and installGuard)
   --procedure-style <s>   rpc-post (default) or rest. Many RPC styles send reads as POST, so
@@ -36,11 +36,11 @@ Options (CLI and the opts object of decide and installGuard)
   --fixtures <json>       {"<procedure or last segment>": {"status":200,"body":{...}}}. Matched calls are
                           fulfilled in the browser and never reach the backend, whatever the method.
   --log <file>            JSON lines, one per decision (installGuard writes it as guard.log). A request that is
-                          not GET, HEAD or OPTIONS carries its body, so capture.mjs can export request bodies.
+                          not GET, HEAD or OPTIONS carries its body, so capture.mts can export request bodies.
   hold                    installGuard only: procedure names to leave unanswered, to capture a pending state.
                           releaseAll() aborts them before the page closes.
 
-capture.mjs installs this guard on every browser context before the first navigation. A script of your own
+capture.mts installs this guard on every browser context before the first navigation. A script of your own
 does the same: await installGuard(context, opts).ready, then navigate. Create the context with
 serviceWorkers: "block", because a service worker's requests go around page and context routes. A WebSocket
 is never routed, so an app that writes over one is not guarded.
@@ -466,5 +466,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		for (const l of leaks) console.log(`LEAK\t${l.method} ${l.url}\t${l.reason}`);
 		console.log(leaks.length ? `${leaks.length} writes would reach the backend` : "every write is blocked");
 		process.exitCode = leaks.length ? 1 : 0;
-	} else { console.error("usage: capture-guard.mjs names|decide|prove|--self-test|--help"); process.exit(2); }
+	} else { console.error("usage: capture-guard.mts names|decide|prove|--self-test|--help"); process.exit(2); }
 }

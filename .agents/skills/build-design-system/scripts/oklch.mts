@@ -1,13 +1,13 @@
-#!/usr/bin/env node
-// oklch.mjs: read a CSS color, print it as OKLCH, and measure the OK distance (deltaE OK, x100 scale) between two.
-// Node 18+, no dependencies. Run `node scripts/oklch.mjs --help`.
+#!/usr/bin/env bun
+// oklch.mts: read a CSS color, print it as OKLCH, and measure the OK distance (deltaE OK, x100 scale) between two.
+// Node 18+, no dependencies. Run `node scripts/oklch.mts --help`.
 
-const HELP = `oklch.mjs: a CSS color to OKLCH, and deltaE OK between two colors
+const HELP = `oklch.mts: a CSS color to OKLCH, and deltaE OK between two colors
 
 Usage:
-  node scripts/oklch.mjs <color>...          one line per color: input, oklch(L C H / alpha), L in 0 to 1
-  node scripts/oklch.mjs --delta <a> <b>     the deltaE OK between two colors, 0 to about 100, and their alphas
-  node scripts/oklch.mjs --self-test         known values
+  bun scripts/oklch.mts <color>...          one line per color: input, oklch(L C H / alpha), L in 0 to 1
+  bun scripts/oklch.mts --delta <a> <b>     the deltaE OK between two colors, 0 to about 100, and their alphas
+  bun scripts/oklch.mts --self-test         known values
 
 A color is hex (#rgb, #rgba, #rrggbb, #rrggbbaa), rgb() or rgba(), hsl() or hsla(), hwb(), oklch(), oklab(),
 a named color (the CSS list, transparent included). Commas or spaces both work, alpha after a slash or a fourth

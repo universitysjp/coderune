@@ -1,5 +1,5 @@
-#!/usr/bin/env node
-// parity.mjs: the number and date parity tables. Node 18+, no dependencies.
+#!/usr/bin/env bun
+// parity.mts: the number and date parity tables. Node 18+, no dependencies.
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,9 +8,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SELF = fileURLToPath(import.meta.url);
 
-const HELP = `parity.mjs number|date --old <module.mjs|results.json> --new <module.mjs|results.json> [--fn <name>] [--expect <file>] [--json]
-parity.mjs date ... [--tz A,B,C] [--cases <file>]
-parity.mjs --print-inputs | --self-test | --help
+const HELP = `parity.mts number|date --old <module.mjs|results.json> --new <module.mjs|results.json> [--fn <name>] [--expect <file>] [--json]
+parity.mts date ... [--tz A,B,C] [--cases <file>]
+parity.mts --print-inputs | --self-test | --help
 
 Runs the same inputs through the old and the new code and prints one row per input
   case | old result | new result | expectation | verdict
@@ -160,7 +160,7 @@ async function cli(argv) {
 	const flag = (f) => (argv.includes(f) ? argv[argv.indexOf(f) + 1] : undefined);
 	const unknown = argv.filter((a) => a.startsWith("--") && !["--old", "--new", "--fn", "--expect", "--json", "--tz", "--cases"].includes(a));
 	if (unknown.length) { console.error(`parity: unknown flag ${unknown.join(", ")}. See --help`); process.exitCode = 2; return; }
-	if (!["number", "date"].includes(kind) || !flag("--old") || !flag("--new")) { console.error("usage: parity.mjs number|date --old <x> --new <y>. See --help"); process.exitCode = 2; return; }
+	if (!["number", "date"].includes(kind) || !flag("--old") || !flag("--new")) { console.error("usage: parity.mts number|date --old <x> --new <y>. See --help"); process.exitCode = 2; return; }
 	const rows = runParity({
 		kind, oldSpec: flag("--old"), newSpec: flag("--new"), fn: flag("--fn") || (kind === "number" ? "parse" : "toPayload"),
 		inputs: kind === "date" && flag("--cases") ? JSON.parse(readFileSync(flag("--cases"), "utf8")) : kind === "date" ? DATE_CASES : INPUTS,

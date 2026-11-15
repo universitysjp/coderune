@@ -9,7 +9,7 @@ One meaning per word, for every skill in this set. A skill uses these words and 
 **Surface**: One route, the shared layout every route renders, or a smaller part such as a modal. A brief, a capture, a commit and a verdict each name one. People say page or screen, and prose may too, but an id says surface.
 _Avoid_: page or screen (as the id in a brief, a verdict or a file name)
 
-**Run branch**: The branch a writing run commits to, cut from HEAD at the start. When the person names a branch, that branch is the run branch and no other is cut. Otherwise the branch the run started on is written to `.design-system/start-branch`, and `land.mjs` refuses it and the default branch. Audit mode cuts none. Merging is the person's call.
+**Run branch**: The branch a writing run commits to, cut from HEAD at the start. When the person names a branch, that branch is the run branch and no other is cut. Otherwise the branch the run started on is written to `.design-system/start-branch`, and `land.mts` refuses it and the default branch. Audit mode cuts none. Merging is the person's call.
 _Avoid_: feature branch, working branch
 
 **Coordinator**: The agent that splits the work and starts workers. A **worker** does one brief and starts nobody.

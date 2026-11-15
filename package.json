@@ -23,8 +23,9 @@
     "build:desktop": "cargo build --release -p coderune-desktop",
     "check:desktop": "cargo check -p coderune-desktop",
     "test:desktop": "cargo test",
-    "setup:rune": "bash scripts/fetch-rune.sh",
-    "verify:ui": "bash scripts/verify-ui.sh"
+    "setup:rune": "bash scripts/setup-rune.sh",
+    "verify:ui": "bash scripts/verify-ui.sh",
+    "skills:ts": "bun scripts/skills-to-typescript.ts"
   },
   "dependencies": {},
   "devDependencies": {
