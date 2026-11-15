@@ -177,8 +177,19 @@ impl ProjectForm {
 
     /// Preserve project fields the form does not edit (purpose, business logic, rules,
     /// constraints, decisions, acceptance criteria, knowledge) and overwrite visible ones.
-    pub(crate) fn to_draft(&self, previous: Option<&coderune_domain::Project>) -> ProjectDraft {
-        let defaults = coderune_domain::CaptureLimits::default();
+    pub(crate) fn to_draft(
+        &self,
+        previous: Option<&coderune_domain::Project>,
+    ) -> Result<ProjectDraft, AppError> {
+        let parse = |value: &str, multiplier: u64, field: &str| {
+            value
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .filter(|value| *value > 0)
+                .and_then(|value| value.checked_mul(multiplier))
+                .ok_or_else(|| AppError::validation(vec![field.to_string()]))
+        };
         let mut draft = previous.map(ProjectDraft::from_project).unwrap_or_default();
         draft.name = self.name.text.trim().to_string();
         draft.root_path = self.root.text.trim().to_string();
@@ -189,26 +200,10 @@ impl ProjectForm {
             respect_gitignore: self.respect_gitignore,
         };
         draft.limits = coderune_domain::CaptureLimits {
-            per_file_bytes: self
-                .per_file_kib
-                .text
-                .trim()
-                .parse::<u64>()
-                .ok()
-                .filter(|value| *value > 0)
-                .and_then(|value| value.checked_mul(1024))
-                .unwrap_or(defaults.per_file_bytes),
-            per_capture_bytes: self
-                .per_capture_mib
-                .text
-                .trim()
-                .parse::<u64>()
-                .ok()
-                .filter(|value| *value > 0)
-                .and_then(|value| value.checked_mul(1024 * 1024))
-                .unwrap_or(defaults.per_capture_bytes),
+            per_file_bytes: parse(&self.per_file_kib.text, 1024, "per-file limit")?,
+            per_capture_bytes: parse(&self.per_capture_mib.text, 1024 * 1024, "per-capture limit")?,
         };
-        draft
+        Ok(draft)
     }
 }
 
@@ -355,6 +350,13 @@ impl CoderuneApp {
             .unwrap_or_default()
     }
 
+    fn reset_capture_state(&mut self) {
+        self.capture_session = None;
+        self.capture_reviewed = false;
+        self.capture_detail = None;
+        self.confirm_delete_capture = None;
+    }
+
     pub(crate) fn refresh_profile_form(&mut self) {
         if let Some(workspace) = self.workspace.as_ref() {
             self.profile_form = ProfileForm::from_value(
@@ -436,6 +438,7 @@ impl CoderuneApp {
         self.project_form = ProjectForm::from_project(&project);
         self.confirm_delete_project = None;
         self.error = None;
+        self.reset_capture_state();
         if let Some(workspace) = self.workspace.as_mut() {
             workspace.select_project(Some(project.id));
         }
@@ -449,6 +452,7 @@ impl CoderuneApp {
         self.project_form = ProjectForm::empty(initial_root);
         self.confirm_delete_project = None;
         self.error = None;
+        self.reset_capture_state();
         if let Some(workspace) = self.workspace.as_mut() {
             workspace.select_project(None);
         }
@@ -461,7 +465,13 @@ impl CoderuneApp {
                 .and_then(|workspace| workspace.projects.iter().find(|project| project.id == id))
                 .cloned()
         });
-        let draft = self.project_form.to_draft(previous.as_ref());
+        let draft = match self.project_form.to_draft(previous.as_ref()) {
+            Ok(draft) => draft,
+            Err(error) => {
+                self.error = Some(error);
+                return;
+            }
+        };
         let Some(workspace) = self.workspace.as_mut() else {
             return;
         };
@@ -478,6 +488,7 @@ impl CoderuneApp {
                 self.error = None;
                 self.project_form = ProjectForm::from_project(&project);
                 self.confirm_delete_project = None;
+                self.reset_capture_state();
             }
             Err(error) => self.error = Some(error),
         }
@@ -660,7 +671,12 @@ impl CoderuneApp {
                 self.capture_reviewed = false;
                 self.capture_session = None;
             }
-            Err(error) => self.error = Some(error),
+            Err(error) => {
+                if error.code == coderune_domain::ErrorCode::CaptureStale {
+                    self.capture_reviewed = false;
+                }
+                self.error = Some(error);
+            }
         }
     }
 
@@ -752,8 +768,7 @@ impl CoderuneApp {
                 self.error = None;
                 self.confirm_delete_all = false;
                 self.view = View::Home;
-                self.capture_session = None;
-                self.capture_detail = None;
+                self.reset_capture_state();
                 self.confirm_delete_project = None;
                 self.confirm_delete_capture = None;
                 self.confirm_delete_all = false;
@@ -1044,6 +1059,57 @@ pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, _: &mut rune::Tx) -> bool {
 mod tests {
     use super::*;
     use rune::{Env, Runtime};
+
+    #[test]
+    fn profile_form_keeps_fields_it_does_not_edit() {
+        let mut draft = ProfileDraft {
+            display_name: "Ada".to_string(),
+            experience_stage: Some(ExperienceStage::EarlyCareer),
+            skills_statement: "Rust".to_string(),
+            learning_goals: vec!["Ship".to_string()],
+            self_reported_skills: vec![coderune_domain::SelfReportedSkill {
+                topic: "Rust".to_string(),
+                rating: Some(coderune_domain::SkillRating::Advanced),
+            }],
+            links: vec![coderune_domain::Link {
+                label: "Site".to_string(),
+                url: "https://example.com".to_string(),
+            }],
+            ..Default::default()
+        };
+        draft.display_name = "Ada".to_string();
+        let profile = draft.into_profile(None).unwrap();
+        let form = ProfileForm::from_value(Some(&profile), None);
+        let round_trip = form.to_draft(ProfileDraft::from_profile(&profile));
+        assert_eq!(round_trip.self_reported_skills.len(), 1);
+        assert_eq!(round_trip.links.len(), 1);
+    }
+
+    #[test]
+    fn project_form_keeps_fields_it_does_not_edit() {
+        let root = std::env::temp_dir();
+        let project = ProjectDraft {
+            name: "Demo".to_string(),
+            root_path: root.display().to_string(),
+            goals: vec!["Ship".to_string()],
+            purpose: Some("Purpose".to_string()),
+            rules: vec!["Rule".to_string()],
+            ..Default::default()
+        }
+        .into_project(None)
+        .unwrap();
+        let form = ProjectForm::from_project(&project);
+        let round_trip = form.to_draft(Some(&project)).unwrap();
+        assert_eq!(round_trip.purpose.as_deref(), Some("Purpose"));
+        assert_eq!(round_trip.rules, vec!["Rule"]);
+    }
+
+    #[test]
+    fn invalid_capture_limit_is_rejected() {
+        let mut form = ProjectForm::empty(None);
+        form.per_file_kib = edit("not-a-number");
+        assert!(form.to_draft(None).is_err());
+    }
 
     #[test]
     fn onboarding_and_workspace_render_headlessly() {

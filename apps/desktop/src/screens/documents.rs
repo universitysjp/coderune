@@ -7,7 +7,7 @@ use coderune_ui::components as ui;
 use coderune_ui::theme::{self, CODE_SM, LABEL};
 use coderune_ui::WhenExt;
 use rune::{col, row, text, El};
-use rune_kit::{Badge, Kit};
+use rune_kit::{Badge, Kit, TextInput};
 
 pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();
@@ -29,6 +29,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
                 if kind == DocumentKind::Cv {
                     s.document_form.project_id = None;
                 }
+                s.document_form.extracted = None;
                 s.document_form.draft_preview = None;
             },
         ));
@@ -42,13 +43,28 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             s.document_form.project_id.as_deref() == Some(project.id.as_str()),
             move |s: &mut CoderuneApp| {
                 s.document_form.project_id = Some(id.clone());
+                s.document_form.extracted = None;
                 s.document_form.draft_preview = None;
             },
         ));
     }
 
     let mut import_children = vec![
-        ui::field("Document path", Some("Markdown and plain text are supported in this build. Use manual entry for PDF or DOCX."), text_input(&s.document_form.path, "/path/to/cv.md", "Document path", |s| &mut s.document_form.path, k)),
+        ui::field(
+            "Document path",
+            Some("Markdown and plain text are supported in this build. Use manual entry for PDF or DOCX."),
+            TextInput::new(&s.document_form.path)
+                .placeholder("/path/to/cv.md")
+                .label("Document path")
+                .width(None)
+                .height(32.0)
+                .on_edit(|s: &mut CoderuneApp| &mut s.document_form.path)
+                .on_change(|s: &mut CoderuneApp, _| {
+                    s.document_form.extracted = None;
+                    s.document_form.draft_preview = None;
+                })
+                .build(k),
+        ),
         ui::field("Kind", None, row().gap(8.0).children(kind_chips)),
     ];
     if s.document_form.kind == DocumentKind::Srs {

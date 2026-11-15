@@ -341,6 +341,14 @@ impl Workspace {
                 "Choose the project this SRS belongs to.",
             ));
         }
+        if let Some(project_id) = project_id.as_deref() {
+            if !self.projects.iter().any(|project| project.id == project_id) {
+                return Err(AppError::new(
+                    ErrorCode::NotFound,
+                    "The selected project no longer exists.",
+                ));
+            }
+        }
         let document = ImportedDocument {
             id: coderune_domain::new_id(),
             kind,

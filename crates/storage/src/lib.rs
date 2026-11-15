@@ -15,8 +15,8 @@ pub use entities::*;
 
 use coderune_domain::{
     now_iso, CapturePreview, ContextCapture, DeveloperProfile, DocumentKind, ExportBundle,
-    ImportedDocument, OnboardingDraft, OnboardingState, ProfileDraft, Project, ProjectDraft,
-    ValidationError,
+    ExportContent, ImportedDocument, OnboardingDraft, OnboardingState, ProfileDraft, Project,
+    ProjectDraft, ValidationError,
 };
 use migration::Migrator;
 use sea_orm::sea_query::OnConflict;
@@ -249,14 +249,22 @@ impl Storage {
             )
             .exec(&tx)
             .await?;
-            developer_profile_version::ActiveModel {
+            developer_profile_version::Entity::insert(developer_profile_version::ActiveModel {
                 id: sea_orm::ActiveValue::NotSet,
                 profile_id: Set(profile_id),
                 version: Set(version as i32),
                 data: Set(data),
                 created_at: Set(created_at),
-            }
-            .insert(&tx)
+            })
+            .on_conflict(
+                OnConflict::columns([
+                    developer_profile_version::Column::ProfileId,
+                    developer_profile_version::Column::Version,
+                ])
+                .do_nothing()
+                .to_owned(),
+            )
+            .exec(&tx)
             .await?;
             onboarding_draft::Entity::delete_by_id("onboarding")
                 .exec(&tx)
@@ -351,14 +359,22 @@ impl Storage {
             )
             .exec(&tx)
             .await?;
-            project_version::ActiveModel {
+            project_version::Entity::insert(project_version::ActiveModel {
                 id: sea_orm::ActiveValue::NotSet,
                 project_id: Set(id),
                 version: Set(version as i32),
                 data: Set(data),
                 created_at: Set(created_at),
-            }
-            .insert(&tx)
+            })
+            .on_conflict(
+                OnConflict::columns([
+                    project_version::Column::ProjectId,
+                    project_version::Column::Version,
+                ])
+                .do_nothing()
+                .to_owned(),
+            )
+            .exec(&tx)
             .await?;
             tx.commit().await?;
             Ok(())
@@ -483,18 +499,6 @@ impl Storage {
             .into_iter()
             .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
             .collect()
-    }
-
-    pub fn get_capture(&self, id: &str) -> Result<Option<ContextCapture>> {
-        let model = self.run(async {
-            capture::Entity::find_by_id(id)
-                .one(&self.conn)
-                .await
-                .map_err(StorageError::from)
-        })?;
-        model
-            .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
-            .transpose()
     }
 
     pub fn capture_contents(&self, capture_id: &str) -> Result<BTreeMap<String, String>> {
@@ -660,6 +664,12 @@ impl Storage {
         for project in &projects {
             captures.extend(self.list_captures(&project.id)?);
         }
+        let contents = self.run(async {
+            content::Entity::find()
+                .all(&self.conn)
+                .await
+                .map_err(StorageError::from)
+        })?;
         Ok(ExportBundle {
             exported_at: now_iso(),
             application: "Coderune".to_string(),
@@ -670,6 +680,14 @@ impl Storage {
             project_versions: self.get_project_versions()?,
             documents: self.list_documents(DocumentFilter::All)?,
             captures,
+            contents: contents
+                .into_iter()
+                .map(|content| ExportContent {
+                    hash: content.hash,
+                    text: content.text,
+                    size: content.size.max(0) as u64,
+                })
+                .collect(),
         })
     }
 
@@ -860,6 +878,9 @@ mod tests {
         let duplicate = storage.save_capture(&preview, &contents).unwrap();
         assert_eq!(duplicate.id, first.id);
         assert_eq!(storage.capture_contents(&first.id).unwrap().len(), 1);
+        let export = storage.export_bundle().unwrap();
+        assert_eq!(export.contents.len(), 1);
+        assert_eq!(export.contents[0].text, "main");
         storage.delete_project(&project.id).unwrap();
         assert!(storage.list_projects().unwrap().is_empty());
         assert!(storage.list_captures(&project.id).unwrap().is_empty());

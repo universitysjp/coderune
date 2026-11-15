@@ -682,6 +682,13 @@ pub struct ContextCapture {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExportContent {
+    pub hash: String,
+    pub text: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportBundle {
     #[serde(rename = "exportedAt")]
     pub exported_at: String,
@@ -696,6 +703,7 @@ pub struct ExportBundle {
     pub project_versions: Vec<Project>,
     pub documents: Vec<ImportedDocument>,
     pub captures: Vec<ContextCapture>,
+    pub contents: Vec<ExportContent>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
