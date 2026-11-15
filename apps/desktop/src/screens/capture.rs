@@ -50,7 +50,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     if let Some(session) = &s.capture_session {
         let preview = &session.collected.preview;
         let mut file_rows = Vec::new();
-        for file in preview.files.iter().take(200) {
+        for file in &preview.files {
             file_rows.push(
                 row()
                     .w_full()
@@ -108,7 +108,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                     .scroll(ScrollSpec {
                         stick_bottom: false,
                     })
-                    .children(preview.skipped.iter().take(100).map(|file| {
+                    .children(preview.skipped.iter().map(|file| {
                         row()
                             .gap(8.0)
                             .items_center()
@@ -220,7 +220,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
             .and_then(|path| detail.contents.get(path).cloned())
             .unwrap_or_default();
         let mut file_buttons = Vec::new();
-        for file in detail.capture.files.iter().take(200) {
+        for file in &detail.capture.files {
             let path = file.path.clone();
             let selected = detail.selected_path.as_deref() == Some(path.as_str());
             file_buttons.push(

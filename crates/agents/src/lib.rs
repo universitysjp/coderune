@@ -261,8 +261,13 @@ fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, 
                 "Claude Code could not be started. Install it or sign in with its own CLI.",
             )
         })?;
-    if let Some(stdin) = child.stdin.as_mut() {
-        let _ = stdin.write_all(preview.text.as_bytes());
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(preview.text.as_bytes()).map_err(|_| {
+            AppError::new(
+                ErrorCode::AgentFailed,
+                "The agent process did not accept the request text.",
+            )
+        })?;
     }
     let deadline = Instant::now() + Duration::from_secs(120);
     loop {

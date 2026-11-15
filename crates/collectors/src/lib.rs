@@ -371,6 +371,9 @@ impl RootIgnore {
 }
 
 fn protected_directory(path: &Path, root: &Path) -> bool {
+    if !path.is_dir() {
+        return false;
+    }
     let relative = relative(root, path);
     if relative.is_empty() {
         return false;
