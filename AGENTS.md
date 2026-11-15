@@ -1,10 +1,10 @@
 ---
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
+description: Coderune monorepo guide. Use Bun for tooling, Rust/Rune for the desktop app, and follow the skills workflow.
+globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, *.rs, *.toml, package.json"
 alwaysApply: false
 ---
 
-Instructions in this document appear without a order so read and cache them on your temp. One thing not to do is erase work while you are working. 
+Instructions in this document appear in no particular order, so read and cache them in your working memory. One thing not to do is erase work while you are working.
 
 # Preserve user changes
 
@@ -12,7 +12,7 @@ Instructions in this document appear without a order so read and cache them on y
 - Before editing a file, inspect its current contents and working-tree diff. Use narrow patches that preserve unrelated edits.
 - Recheck the working tree before each write. Treat newly appearing changes as active user work and preserve them; if an edit conflicts, stop and ask how to proceed.
 
-# AI Development Skills & Workflows (Strickly follow this, do not let a featuere implement without going through these steps and making docs and tickets)
+# AI Development Skills & Workflows (Strictly follow this, do not let a feature be implemented without going through these steps and making docs and tickets)
 
 ## 1. Getting Started
 
@@ -112,32 +112,81 @@ Instructions in this document appear without a order so read and cache them on y
 - **`/domain-modeling`**  
   Prevents the AI from using generic terminology by aligning code structure directly with the defined glossary.
 
+## 7. Other installed skills
+
+Skills live in `.agents/skills/` and are recorded in `skills-lock.json`. Besides the ones above, the repository also has design-system skills (`build-design-system`, `component-docs`, `design-system-boss`, `migrate-design-system`, `token-mapping`, `ui-review`, `oklch-skill`), `untangle-codebase`, `rust-best-practices`, `turborepo`, `setup-ts-deep-modules`, `pr`, `wizard`, and writing skills (`writing-for-agents`, `writing-beats`, `writing-fragments`, `writing-shape`). Use `rust-best-practices` for Rust changes and `turborepo` for `turbo.json` or task-pipeline changes.
+
+# Project overview
+
+Coderune researches local shared context and assumption verification for AI coding assistants. It is a Bun + Turborepo monorepo with a native Rust desktop app and a web app. The proposal and architecture are in `docs/presentation.pdf`.
+
+| Path | What it is |
+| --- | --- |
+| `apps/desktop` | Native Rust desktop app built with [Rune](https://github.com/anomalyco/rune) (`coderune-desktop`, binary `coderune`). `src/app.rs` holds state and actions, `src/screens/` has one view module per screen, `src/widgets.rs` has shared controls. |
+| `apps/web` | Web app: React 19, TanStack Router, Tailwind v4, built with Vite+ (`vp`). |
+| `crates/ui` | Rune design system for the desktop: tokens, icons, cards, fields, alerts. |
+| `crates/domain`, `crates/storage`, `crates/collectors`, `crates/agents`, `crates/app` | Framework-independent domain and application operations (SeaORM/SQLite storage, context collectors, coding-agent connections). |
+| `packages/ui` | Shared React component registry for the web app (`src/web`). |
+| `packages/tokens` | Shared design tokens and fonts for the web app. |
+| `scripts/` | Repo scripts: `setup-rune.sh`, `verify-ui.sh`, `render-wbs.ts`, `skills-to-typescript.ts`, and `ui-lint/` (custom oxlint rules). |
+| `docs/` | `adr/`, `rune/` (desktop notes), `wbs/` (work breakdown), `agents/` (skills conventions), plus design notes. |
+
+Architecture rules:
+
+- Screens never own data, and service crates never import the UI. Keep the desktop views thin over `coderune-app`.
+- Keep UI logic in `crates/ui` and `apps/desktop`; keep the shared React UI in `packages/ui`.
+- Local-only directories are git-ignored: `.rune/` (pinned Rune checkout), `.hex/`, `target/`, `.design-system/`, `.ui-review/`, `.playwright-cli/`, `.turbo/`. Never commit them and never edit the vendored crates under `.rune/vendor/`.
+
+# Commands
+
+Run everything from the repository root. Use Bun, never npm, yarn, or pnpm.
+
+```sh
+bun install                 # install JS dependencies
+bun run setup:rune          # clone the pinned Rune checkout into .rune (required before any cargo command)
+bun run dev                 # web app only
+bun run dev:all             # web and desktop
+bun run dev:desktop         # desktop only (cargo run -p coderune-desktop also works)
+bun run build               # turbo build
+bun run build:desktop       # release desktop build
+bun run check               # vp check: format, lint, and types for JS/TS
+bun run fix                 # vp check --fix
+bun run check-types         # tsc through turbo
+bun run check:desktop       # cargo check for the desktop app
+bun run lint                # lint apps and crates (oxlint and clippy)
+bun run format              # format apps and crates (scoped, so vendored Rune members are untouched)
+bun run test                # tests for apps and crates
+bun run test:desktop        # desktop tests only
+bun run verify:ui           # render every desktop scene headlessly into target/ui-snapshots
+bun run wbs:render          # re-render the work breakdown structure
+bun run skills:ts           # convert installed skill scripts to TypeScript
+```
+
+Notes:
+
+- `rust-toolchain.toml` pins Rust (`1.99.1`, with `rustfmt` and `clippy`). Cargo cannot resolve the workspace without `.rune`, so run `bun run setup:rune` first on a fresh clone.
+- Run `cargo fmt` only through `bun run format`. Calling it directly rewrites the vendored Rune workspace members.
+- Turborepo drives the Cargo workspace (`experimentalCargoWorkspaces`). Vendored Rune patches are workspace members only so Turbo can hash them; they are not default members.
+- A pre-commit hook runs `vp check --fix` on staged `css, js, jsx, json, jsonc, md, ts, tsx` files. Do not bypass it.
+- Markdown under `docs/`, `.agents/`, `AGENTS.md`, `GLOSSARY.md`, and `README.md` is excluded from formatting.
+- Before finishing a task, run the narrowest relevant checks (`bun run check`, `bun run check-types`, `bun run test`, `bun run check:desktop`) and report what you ran.
+
+# Bun conventions
+
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun check` instead of `tsc --noEmit`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
+- Use `bun test` instead of `jest` or `vitest` for standalone scripts; workspace tests go through `bun run test`
+- Use `bun install` instead of `npm install`, `yarn install`, or `pnpm install`
+- Use `bun run <script>` instead of `npm run <script>` or equivalents
 - Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+- Bun automatically loads `.env`, so don't use dotenv.
+- Use `Bun.file` over `node:fs`'s readFile/writeFile, and Bun.$`ls` instead of execa.
+- Prefer built-in Bun APIs (`bun:sqlite`, `Bun.sql`, `Bun.redis`, `WebSocket`, `Bun.serve()`) over `better-sqlite3`, `pg`, `ioredis`, `ws`, or `express`. Coderune's persistent storage is Rust-side SeaORM/SQLite, so these mostly apply to scripts.
 
-## APIs
+For standalone scripts:
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
-
-## Testing
-
-Use `bun test` to run tests.
-
-```ts#index.test.ts
+```ts
 import { test, expect } from "bun:test";
 
 test("hello world", () => {
@@ -145,97 +194,28 @@ test("hello world", () => {
 });
 ```
 
-## Type checking
+## Web app tooling
 
-Use `bun check` to type check the project. It reads `tsconfig.json` and reports the same errors as `tsc`.
+The web app does not use `Bun.serve()` HTML imports. It is built and linted with Vite+ (`vp`), where `vite` is aliased to `@voidzero-dev/vite-plus-core` through `overrides` in `package.json`.
 
-- `bun check src/index.ts` checks one file and what it imports
-- `bun --check src/index.ts`, `bun test --check` and `bun build --check` type check first, and do nothing else if there is an error
+- Run the web app through `bun run dev` or `bun run dev:web`, not by invoking `vite` directly.
+- Import from `vite-plus` instead of `vite` (enforced by the `vite-plus/prefer-vite-plus-imports` lint rule).
+- Formatting and linting are configured in `vite.config.ts` (Ultracite oxfmt/oxlint presets plus custom rules in `scripts/ui-lint/`).
+- Routing is TanStack Router with generated `apps/web/src/routeTree.gen.ts`; do not hand-edit it.
+- Shared UI comes from `packages/ui` and tokens from `packages/tokens`; reuse the shared button variants and theme instead of adding one-off styles.
 
-## Frontend
+For Bun API details, read the docs in `node_modules/bun-types/docs/**.mdx`.
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+# Agent skills
 
-Server:
+## Issue tracker
 
-```ts#index.ts
-import index from "./index.html"
+Track issues and specs in `universitysjp/coderune` using GitHub Issues with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
+## Triage labels
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+Use the five standard triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
 
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
+## Domain docs
 
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
-
-## Agent skills
-
-### Issue tracker
-
-Track issues and specs in `universitysjp/coderune` using GitHub Issues. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Use the five standard triage labels. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Use a single project glossary and ADR directory. See `docs/agents/domain.md`.
+Use a single project glossary (`GLOSSARY.md`) and ADR directory (`docs/adr/`). See `docs/agents/domain.md`. Use the glossary's terms in code, tests, and issues, and record decisions with meaningful reversal cost as ADRs.
