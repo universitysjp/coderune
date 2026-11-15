@@ -2,11 +2,15 @@
 //!
 //! Values transcribe Coderune's design roles. There is no dark theme. Blue is a non-text accent; focus rings are ink.
 
+use std::sync::LazyLock;
+
 use rune::{color::srgb_decode, Color, Family, Shadow, TextStyle};
 use rune_kit::{kit::Type, Kit};
 
 fn hex(value: u32) -> Color {
-    let channel = |shift: u32| srgb_decode(((value >> shift) & 0xff) as f32 / 255.0);
+    static SRGB: LazyLock<[f32; 256]> =
+        LazyLock::new(|| std::array::from_fn(|value| srgb_decode(value as f32 / 255.0)));
+    let channel = |shift: u32| SRGB[((value >> shift) & 0xff) as usize];
     Color {
         r: channel(16),
         g: channel(8),
@@ -91,7 +95,12 @@ fn ts(size: f32, weight: f32, line: f32) -> TextStyle {
 }
 
 /// The single light kit every screen reads.
-pub fn kit() -> Kit {
+pub fn kit() -> &'static Kit {
+    static KIT: LazyLock<Kit> = LazyLock::new(build_kit);
+    &KIT
+}
+
+fn build_kit() -> Kit {
     let mut k = Kit::neutral(false);
     k.dark = false;
     k.invalid_text = false;
