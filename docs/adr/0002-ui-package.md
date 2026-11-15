@@ -1,3 +1,5 @@
+> Status: superseded by [ADR 0005](./0005-desktop-ui-framework.md). The native adapter entry and `native.mjs` lint plugin were removed; `crates/ui` is the native design system.
+
 # UI as a workspace package
 
 Date: 2026-10-28

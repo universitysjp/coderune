@@ -1,3 +1,5 @@
+> Status: superseded by [ADR 0005](./0005-desktop-ui-framework.md). The GPUIX renderer was removed; the desktop is now Rust/Rune.
+
 # Native UI components
 
 Date: 2026-10-26

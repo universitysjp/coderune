@@ -1,3 +1,5 @@
+> Status: superseded by [ADR 0005](./adr/0005-desktop-ui-framework.md). This records the removed GPUIX migration; see `docs/desktop-ui.md` for the Rune surface.
+
 # Desktop UI migration
 
 ## Problem

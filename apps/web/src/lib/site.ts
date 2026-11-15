@@ -54,7 +54,7 @@ export const pageSections = {
 export const team = [
   {
     focus:
-      "Builds the native GPUI desktop application, local capture flow, and adapters for existing coding agents.",
+      "Builds the native Rune desktop application, local capture flow, and adapters for existing coding agents.",
     index: "ICT/22/930",
     name: "Pruthivi Thejan",
     role: "Application, collection, and agent integration",

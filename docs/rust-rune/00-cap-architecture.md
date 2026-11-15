@@ -1,3 +1,5 @@
+> Status: historical. This maps Cap's GPUI app; Coderune now uses Rune (ADR 0005). The architecture lessons still apply.
+
 # Cap's GPUI desktop architecture
 
 Reference: `vendor/cap/apps/desktop-gpui` (Cap 0.6.x, AGPL-3.0, vendored and ignored by git).

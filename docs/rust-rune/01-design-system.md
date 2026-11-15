@@ -1,4 +1,4 @@
-# 01 — Design system for the Rust/GPUI rewrite
+# 01 — Design system for the Rust/Rune rewrite
 
 Status: implementation specification. Visual language is frozen; layout/UX structure is intentionally out of scope.
 
@@ -9,7 +9,7 @@ This document is the single source of truth for colour, type, spacing, dimension
 Read in this order when values disagree:
 
 1. `packages/ui/src/tokens.ts` — canonical resolved native roles (hex, px, weights). This is the authority for the Rust constants.
-2. `packages/ui/src/native/*.tsx` and `packages/ui/src/native/internal/styles.ts` — canonical component anatomy, state composition, and accessible names.
+2. `crates/ui/src/components.rs` and `packages/ui/src/native/internal/styles.ts` — canonical component anatomy, state composition, and accessible names.
 3. `packages/tokens/src/tokens.css` + `packages/tokens/README.md` — font registration and the **web/marketing** palette. Only the fonts transfer to the desktop.
 4. `packages/ui/src/web/ui/*.tsx`, `packages/ui/src/web/tokens.css`, `packages/ui/src/web/styles.css`, `.agents/skills/ui/SKILL.md` — used only to clarify state intent and hard rules. Web-only values (cream, kind hues, shadows, underlines, 20px button padding) are **not** native.
 5. `docs/desktop-ui.md`, `docs/desktop-ui-spec.md`, `.design-system/*.md`.
@@ -162,14 +162,14 @@ Repo-relative paths:
 - `packages/tokens/fonts/PaperMono-Variable.ttf` — Paper Mono v1.000, variable, weights 100–800, OFL at `packages/tokens/fonts/PaperMono-OFL.txt`. Includes keyboard, box-drawing, geometric glyphs, and `₪` (U+20AA).
 - Web WOFF2 copies live beside them; the desktop uses the TTF files.
 
-Registration contract (from `packages/ui/src/native/fonts.tsx`):
+Registration contract (from `crates/ui/src/theme.rs`):
 
 - Register **both** TTFs with the renderer before the first layout (`renderer.registerFont(bytes)`).
 - Do not mount application UI until both registrations resolve. The existing `UIFonts` component gates children and throws on failure.
 - Fail fast if registration is unavailable. Do not silently fall back to a system sans.
 - Exported asset keys used by the build: `@coderune/tokens/fonts/geist-variable.ttf`, `@coderune/tokens/fonts/paper-mono-variable.ttf`.
 
-In Rust/GPUI, load the TTF bytes and register under exactly `Geist` and `Paper Mono`, then reference those family names. Weights are variable; the design uses only **400**.
+In Rust/Rune, load the TTF bytes and register under exactly `Geist` and `Paper Mono`, then reference those family names. Weights are variable; the design uses only **400**.
 
 ### 2.2 Type roles (canonical native values)
 

@@ -47,9 +47,9 @@ const stages = [
 
 const modules = [
   {
-    location: "apps/app",
+    location: "apps/desktop",
     responsibility:
-      "Native Rust/GPUI desktop application with local, reviewable context.",
+      "Native Rust/Rune desktop application with local, reviewable context.",
   },
   {
     location: "packages/core",

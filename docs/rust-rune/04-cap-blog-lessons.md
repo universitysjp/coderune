@@ -1,3 +1,5 @@
+> Status: historical. Cap used GPUI; Coderune chose Rune after this review. The engineering lessons below still guided the port.
+
 # Lessons from Cap's GPUI migration
 
 Source: [A technical deep dive into Cap's migration to GPUI](https://cap.so/blog/rebuilding-cap-in-gpui), 21 October 2026.

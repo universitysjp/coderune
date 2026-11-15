@@ -39,7 +39,7 @@ Run the desktop app with `cargo run -p coderune-desktop`, or pass a directory:
 `coderune` on your PATH. The app opens a project folder in Finder and can launch
 `code`, `cursor`, `antigravity`, or `zed` when installed.
 
-The native rewrite notes live in `docs/rust-gpui/`. The old GPUIX/TypeScript
+The native rewrite notes live in `docs/rust-rune/`. The old GPUIX/TypeScript
 desktop surface has been removed.
 
 Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/skills`

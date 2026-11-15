@@ -1,6 +1,8 @@
+> Status: requirements remain authoritative; the TypeScript packages named as sources were removed after the Rust port.
+
 # 02 — Functional requirements and domain model
 
-Status: implementation requirements for the native Rust/GPUI rewrite.
+Status: implementation requirements for the native Rust/Rune rewrite.
 
 Scope: the current Coderune increment (M1, “Onboarding and local context capture”), plus explicitly labelled later domain commitments. This document describes behaviour, data, and rules. It intentionally does not prescribe layout, visual style, or component structure; those belong to [`01-design-system.md`](./01-design-system.md).
 

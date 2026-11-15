@@ -1,4 +1,4 @@
-# 0005 — Desktop UI framework: GPUI now, Rune as the alternative
+# 0005 — Desktop UI framework: Rune
 
 Status: accepted on 2026-11-15. The developer chose Rune.
 
@@ -50,7 +50,7 @@ Reasons:
 
 ## Consequences
 
-- `apps/desktop` is a Rune app; `crates/ui` (GPUI controls) is removed.
+- `apps/desktop` is a Rune app; `crates/ui` is the Rune design system; the GPUI controls are removed.
 - The app depends on a git revision of Rune and on Rune's vendored crates through
   `[patch.crates-io]`. `bun run setup:rune` fetches the checkout.
 - The Rust toolchain is pinned to 1.99.1, which Rune requires.
