@@ -7,10 +7,10 @@ Research project site for Coderune, built with React, TanStack Router, Tailwind 
 - React 19 with the React Compiler
 - TanStack Router (file-based routes, no TanStack Start)
 - Tailwind CSS v4 via `@tailwindcss/vite`
-- shadcn/ui components backed by Base UI
+- Shared component registry from `@coderune/ui/web`, backed by Base UI
 - Phosphor icons
 - Shared design tokens from `@coderune/tokens`
-- TypeScript 7, Vite+, Oxlint, Oxfmt
+- TypeScript 6, Vite+, Oxlint, Oxfmt
 
 ## Commands
 
@@ -41,7 +41,7 @@ Routes live in `src/routes`. The router plugin generates `src/routeTree.gen.ts`.
 
 - `@coderune/tokens` for `tokens.css`
 - `@coderune/tokens/tokens.css` for an explicit stylesheet import
-- `@coderune/tokens/fonts/paper-mono-variable.woff2` for the full Paper Mono font
+- `packages/tokens/fonts/PaperMono-Variable.ttf` for the full Paper Mono font
 
 Semantic names follow shadcn conventions (`--background`, `--foreground`, `--primary`, `--accent`, and so on) and are mapped into Tailwind through `@theme inline` in `src/index.css`.
 

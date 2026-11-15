@@ -30,6 +30,7 @@ The web app uses Bun. The desktop app is native Rust with [Rune](https://github.
 
 ```sh
 bun install
+bun run setup:rune
 cargo build -p coderune-desktop
 ```
 

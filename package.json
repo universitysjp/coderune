@@ -6,7 +6,6 @@
     "packages/*"
   ],
   "type": "module",
-  "module": "index.ts",
   "scripts": {
     "build": "turbo run build",
     "check": "vp check",

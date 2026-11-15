@@ -10,22 +10,6 @@ import { appRules as uiAppRules } from "./scripts/ui-lint/plugin.mts";
 
 const reactDoctor = selectJsPlugins(["react-doctor"]);
 
-const generalRuleNames = new Set([
-  "vite-plus/prefer-vite-plus-imports",
-  ...[core, react, reactDoctor, antiSlop, tanstack].flatMap((config) => [
-    ...Object.keys(config.rules ?? {}),
-    ...(config.overrides ?? []).flatMap((override) =>
-      Object.keys(override.rules ?? {})
-    ),
-  ]),
-]);
-
-const nonUiRules = Object.fromEntries(
-  [...generalRuleNames].map((rule) => [rule, "off"])
-);
-
-const uiReferenceFiles = ["apps/web/src/components/project-home.tsx"];
-
 const testFiles = [
   "**/*.{test,spec}.{js,jsx,ts,tsx}",
   "**/test/**/*.{js,jsx,ts,tsx}",
@@ -89,19 +73,8 @@ export default defineConfig({
         // UI app rules: desktop screens, the UI block kept in the web
         // app, and the web bootstrap. The marketing site's existing cream
         // design is outside the desktop migration.
-        files: [
-          "apps/web/src/components/project-home.tsx",
-          "apps/web/src/main.tsx",
-          "apps/web/src/routes/__root.tsx",
-        ],
+        files: ["apps/web/src/main.tsx", "apps/web/src/routes/__root.tsx"],
         rules: uiAppRules,
-      },
-      {
-        // UI reference sources keep the UI rules but not the
-        // repository's general lint set. Tests and the DOM components are
-        // excluded from linting entirely.
-        files: uiReferenceFiles,
-        rules: nonUiRules,
       },
     ],
   },
