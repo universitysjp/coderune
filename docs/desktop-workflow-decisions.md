@@ -14,6 +14,6 @@ Meeting record, 11 November 2026. This captures product direction; it does not i
 
 ## Current implementation scope
 
-Implement the directory-opening terminal command and the installed-editor launch action. Adapt the desktop shell to the OneGit reference: an icon-only navigation rail with tooltips, settings and profile at the bottom, a home icon and tabs at the top, and an editor dropdown at the upper right. Use Coderune's UI design guidelines for typography, color and controls. Existing application capabilities should remain accessible.
+Implement the directory-opening terminal command and the installed-editor launch action. Adapt the desktop shell to the current Hex/RuneKit layout: a `SplitView` sidebar with profile and Data at the bottom, a framed main pane, and the selected project in the toolbar. (The earlier OneGit icon-only rail and top tab strip are superseded; Coderune does not add a second navigation model.) Use Coderune's UI design guidelines for typography, color and controls. Existing application capabilities should remain accessible.
 
 The in-app agent, skill standards and customization, MCP interface, and architecture Q&A are recorded for future work and are outside this implementation scope.

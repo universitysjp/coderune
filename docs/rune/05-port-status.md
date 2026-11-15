@@ -5,13 +5,19 @@ system. The web app keeps its own React registry in `packages/ui`.
 
 ## Implemented
 
-- Onboarding with resumable draft, required-field validation, and a confirmed
-  developer baseline.
+- Three-step onboarding that asks two questions at a time: identity and
+  experience, then starting skills and learning goals, then a review. Progress
+  is a resumable draft; a confirmed baseline is still required before project
+  work.
 - Profile inspection and versioned editing that preserves fields the form does
-  not show.
+  not show, plus in-app completion of optional self-reported skills, education,
+  employment, project experience, certifications, links, and learning
+  preferences.
 - Project creation, selection, versioned editing, scope and capture limits,
   launch-directory matching, open-folder, and editor launch.
-- Markdown/text document extraction, review, save, and agent sharing previews.
+- Markdown, plain-text, PDF, and DOCX document extraction, review, save, and
+  agent sharing previews. DOCX extraction reads `word/document.xml`; PDF text
+  comes from `pdf-extract`. The original document is never copied.
 - Coding-agent detection for Codex, Claude Code, OpenCode, and Antigravity with
   honest readiness and restrictions.
 - Reviewed repository capture with included/skipped lists, Git state,
@@ -19,17 +25,21 @@ system. The web app keeps its own React registry in `packages/ui`.
 - JSON export and confirmed delete-all.
 - SQLite storage through SeaORM entities and schema-builder migrations; the
   legacy database path and data are preserved.
-- Rune headless scenes for onboarding and every workspace screen.
+- A RuneKit desktop shell: `SplitView` sidebar and framed main pane in the
+  workspace, `Page` for onboarding, a toolbar with the active project, and
+  headless scenes for onboarding steps and every workspace screen.
+- A composed app icon from the supplied mark: grey-to-black gradient, the mark
+  at half scale, generated `icon.icns` and PNGs, with the editable
+  `AppIcon.icon` source under `apps/desktop/assets`.
 
 ## Not yet wired
 
-- PDF/DOCX extraction (manual entry remains available).
 - Applying an agent draft to a profile or project.
 - Draft execution from the UI for Codex, OpenCode, and Antigravity.
 - Per-preview scope overrides beyond the project scope.
-- Self-reported skills, education, employment, certifications, links, and
-  learning-preference editors.
-- Settings, packaging, signing, auto-update, and tray behavior.
+- Settings, packaging, signing, auto-update, tray behavior, and the installed
+  `coderune <directory>` launcher.
+- Installed-editor detection and a persisted editor choice.
 - Skill library, connections, defined subagents, model assignments,
   verification, and learning evidence (later increments).
 
@@ -47,6 +57,7 @@ bun run test:desktop
 bun run lint
 bun run check
 bun run verify:ui
+bun run icon:build
 bun run --cwd apps/web build
 ```
 

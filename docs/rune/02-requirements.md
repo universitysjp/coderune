@@ -64,13 +64,19 @@ Out of scope for this increment:
 
 ## Screens and actions
 
-- **Onboarding** — required and optional profile fields, save draft, confirm.
+- **Onboarding** — three short steps. Step one asks for a display name/pseudonym
+  and experience stage. Step two asks for an initial skills statement (or an
+  explicit new-to-coding answer) and at least one learning goal. Step three
+  reviews the baseline and confirms it. Progress is saved as a draft between
+  steps; optional profile detail is not part of onboarding.
 - **Home** — baseline, project count, capture count, active project, open folder,
-  launch editor.
-- **Profile** — inspect baseline, edit, save a new version.
+  launch editor, and a link into profile completion.
+- **Profile** — inspect baseline, edit required fields, and complete optional
+  self-reported skills, education, employment, project experience,
+  certifications, links, and learning preferences.
 - **Projects** — list/select/create/edit/delete, scope and limits, open folder.
-- **Documents** — import path, extract, review, save, select, prepare agent
-  sharing preview.
+- **Documents** — import path, extract PDF/DOCX/Markdown/text, review, save,
+  select, prepare agent sharing preview.
 - **Agents** — detection, readiness, capabilities, restrictions, setup links.
 - **Capture** — preview, review files and skips, save, refresh, history, inspect,
   delete.
