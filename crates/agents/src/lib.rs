@@ -22,50 +22,50 @@ pub struct AgentDefinition {
     pub restrictions: &'static [&'static str],
 }
 
-pub const DEFINITIONS: &[AgentDefinition] = &[
-    AgentDefinition {
-        id: AgentId::Codex,
-        command: "codex",
-        max_input_bytes: 20 * 1024 * 1024,
-        capabilities: &["structured output", "streaming", "cancellation"],
-        restrictions: &["read-only sandbox", "fresh temporary working directory"],
-    },
-    AgentDefinition {
-        id: AgentId::ClaudeCode,
-        command: "claude",
-        max_input_bytes: 10 * 1024 * 1024,
-        capabilities: &["structured output", "cancellation"],
-        restrictions: &[
-            "non-interactive",
-            "tools denied",
-            "fresh temporary working directory",
-        ],
-    },
-    AgentDefinition {
-        id: AgentId::OpenCode,
-        command: "opencode",
-        max_input_bytes: 20 * 1024 * 1024,
-        capabilities: &["streaming", "cancellation", "ACP v1"],
-        restrictions: &[
-            "ACP permissions rejected",
-            "fresh temporary working directory",
-        ],
-    },
-    AgentDefinition {
-        id: AgentId::Antigravity,
-        command: "agy",
-        max_input_bytes: 20 * 1024 * 1024,
-        capabilities: &["structured output", "streaming", "cancellation"],
-        restrictions: &["sandbox mode", "fresh temporary working directory"],
-    },
-];
+const CODEX: AgentDefinition = AgentDefinition {
+    id: AgentId::Codex,
+    command: "codex",
+    max_input_bytes: 20 * 1024 * 1024,
+    capabilities: &["structured output", "streaming", "cancellation"],
+    restrictions: &["read-only sandbox", "fresh temporary working directory"],
+};
+const CLAUDE_CODE: AgentDefinition = AgentDefinition {
+    id: AgentId::ClaudeCode,
+    command: "claude",
+    max_input_bytes: 10 * 1024 * 1024,
+    capabilities: &["structured output", "cancellation"],
+    restrictions: &[
+        "non-interactive",
+        "tools denied",
+        "fresh temporary working directory",
+    ],
+};
+const OPEN_CODE: AgentDefinition = AgentDefinition {
+    id: AgentId::OpenCode,
+    command: "opencode",
+    max_input_bytes: 20 * 1024 * 1024,
+    capabilities: &["streaming", "cancellation", "ACP v1"],
+    restrictions: &[
+        "ACP permissions rejected",
+        "fresh temporary working directory",
+    ],
+};
+const ANTIGRAVITY: AgentDefinition = AgentDefinition {
+    id: AgentId::Antigravity,
+    command: "agy",
+    max_input_bytes: 20 * 1024 * 1024,
+    capabilities: &["structured output", "streaming", "cancellation"],
+    restrictions: &["sandbox mode", "fresh temporary working directory"],
+};
+
+pub const DEFINITIONS: &[AgentDefinition] = &[CODEX, CLAUDE_CODE, OPEN_CODE, ANTIGRAVITY];
 
 pub fn definition(id: AgentId) -> &'static AgentDefinition {
     match id {
-        AgentId::Codex => &DEFINITIONS[0],
-        AgentId::ClaudeCode => &DEFINITIONS[1],
-        AgentId::OpenCode => &DEFINITIONS[2],
-        AgentId::Antigravity => &DEFINITIONS[3],
+        AgentId::Codex => &CODEX,
+        AgentId::ClaudeCode => &CLAUDE_CODE,
+        AgentId::OpenCode => &OPEN_CODE,
+        AgentId::Antigravity => &ANTIGRAVITY,
     }
 }
 
@@ -123,6 +123,8 @@ pub fn detect_all_with(lookup: impl Fn(&str) -> Option<PathBuf>) -> Vec<AgentSta
 
 pub fn which(command: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
+    #[cfg(windows)]
+    let extensions = windows_extensions();
     for directory in std::env::split_paths(&path) {
         let candidate = directory.join(command);
         if is_executable(&candidate) {
@@ -130,13 +132,26 @@ pub fn which(command: &str) -> Option<PathBuf> {
         }
         #[cfg(windows)]
         {
-            let candidate = directory.join(format!("{command}.exe"));
-            if is_executable(&candidate) {
-                return Some(candidate);
+            for extension in &extensions {
+                let candidate = directory.join(format!("{command}{extension}"));
+                if is_executable(&candidate) {
+                    return Some(candidate);
+                }
             }
         }
     }
     None
+}
+
+#[cfg(windows)]
+fn windows_extensions() -> Vec<String> {
+    std::env::var_os("PATHEXT")
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_string())
+        .split(';')
+        .filter(|extension| !extension.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect()
 }
 
 fn is_executable(path: &Path) -> bool {
@@ -262,12 +277,15 @@ fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, 
             )
         })?;
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(preview.text.as_bytes()).map_err(|_| {
-            AppError::new(
+        if stdin.write_all(preview.text.as_bytes()).is_err() {
+            drop(stdin);
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(AppError::new(
                 ErrorCode::AgentFailed,
                 "The agent process did not accept the request text.",
-            )
-        })?;
+            ));
+        }
     }
     let deadline = Instant::now() + Duration::from_secs(120);
     loop {
@@ -276,6 +294,7 @@ fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, 
             Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
             Ok(None) => {
                 let _ = child.kill();
+                let _ = child.wait();
                 return Err(AppError::new(
                     ErrorCode::AgentTimeout,
                     "The agent did not answer within 120 seconds.",
