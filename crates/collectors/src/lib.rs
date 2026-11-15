@@ -14,9 +14,6 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
-pub const DEFAULT_PER_FILE_BYTES: u64 = 1024 * 1024;
-pub const DEFAULT_PER_CAPTURE_BYTES: u64 = 20 * 1024 * 1024;
-
 #[derive(Debug, thiserror::Error)]
 pub enum CollectError {
     #[error("{0} is not a readable directory")]
@@ -50,7 +47,9 @@ pub fn validate_root(root: &str) -> bool {
 
 pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectError> {
     if !validate_root(&request.root.display().to_string()) {
-        return Err(CollectError::UnreadableRoot(request.root.display().to_string()));
+        return Err(CollectError::UnreadableRoot(
+            request.root.display().to_string(),
+        ));
     }
     let root = request
         .root
@@ -108,9 +107,10 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
             push_skip(&mut skipped, relative_path, reason);
             continue;
         }
-        if let Some(reason) = excludes.as_ref().and_then(|set| {
-            set.is_match(&relative_path).then_some("excluded")
-        }) {
+        if let Some(reason) = excludes
+            .as_ref()
+            .and_then(|set| set.is_match(&relative_path).then_some("excluded"))
+        {
             push_skip(&mut skipped, relative_path, reason);
             continue;
         }
@@ -170,7 +170,8 @@ pub fn collect(request: &CollectRequest) -> Result<CollectedRepository, CollectE
     skipped.dedup_by(|left, right| left.path == right.path);
 
     let git = git_state(&root);
-    let repository_fingerprint = repository_fingerprint(&files, git.as_ref(), &request.scope, &request.limits);
+    let repository_fingerprint =
+        repository_fingerprint(&files, git.as_ref(), &request.scope, &request.limits);
     let fingerprint = capture_fingerprint(
         &repository_fingerprint,
         request.profile_version,
@@ -218,7 +219,10 @@ pub fn repository_fingerprint(
         limits: &'a CaptureLimits,
     }
     let payload = Payload {
-        files: files.iter().map(|file| (file.path.as_str(), file.sha256.as_str())).collect(),
+        files: files
+            .iter()
+            .map(|file| (file.path.as_str(), file.sha256.as_str()))
+            .collect(),
         git: git.map(|git| (&git.head, &git.branch, git.dirty)),
         scope,
         limits,
@@ -278,7 +282,10 @@ fn in_scope(path: &str, includes: &[String]) -> bool {
         return true;
     }
     includes.iter().any(|include| {
-        let include = include.trim().trim_start_matches("./").trim_end_matches('/');
+        let include = include
+            .trim()
+            .trim_start_matches("./")
+            .trim_end_matches('/');
         path == include || path.starts_with(&format!("{include}/"))
     })
 }
@@ -368,14 +375,20 @@ fn protected_directory(path: &Path, root: &Path) -> bool {
     if relative.is_empty() {
         return false;
     }
-    let name = path.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
     PROTECTED_DIRECTORIES.contains(&name)
 }
 
 fn protected_reason(path: &str) -> Option<&'static str> {
     let lower = path.to_ascii_lowercase();
     let name = lower.rsplit('/').next().unwrap_or(&lower);
-    if name == ".env" || name.starts_with(".env.") || matches!(name, ".npmrc" | ".pypirc" | ".netrc") {
+    if name == ".env"
+        || name.starts_with(".env.")
+        || matches!(name, ".npmrc" | ".pypirc" | ".netrc")
+    {
         return Some("environment-file");
     }
     if matches!(name, "id_rsa" | "id_ed25519" | "id_ecdsa")
@@ -386,13 +399,22 @@ fn protected_reason(path: &str) -> Option<&'static str> {
     {
         return Some("private-key");
     }
-    if BINARY_EXTENSIONS.iter().any(|extension| lower.ends_with(extension)) {
+    if BINARY_EXTENSIONS
+        .iter()
+        .any(|extension| lower.ends_with(extension))
+    {
         return Some("binary");
     }
-    if GENERATED_DIRECTORIES.iter().any(|directory| lower.split('/').any(|part| part == *directory)) {
+    if GENERATED_DIRECTORIES
+        .iter()
+        .any(|directory| lower.split('/').any(|part| part == *directory))
+    {
         return Some("generated-output");
     }
-    if DEPENDENCY_DIRECTORIES.iter().any(|directory| lower.split('/').any(|part| part == *directory)) {
+    if DEPENDENCY_DIRECTORIES
+        .iter()
+        .any(|directory| lower.split('/').any(|part| part == *directory))
+    {
         return Some("dependency-directory");
     }
     None
@@ -404,13 +426,18 @@ fn allowed_file(path: &str) -> bool {
     if lower == "agents.md" || lower.starts_with("readme") {
         return true;
     }
-    if MANIFESTS.contains(&lower.as_str()) || lower.starts_with("requirements") && lower.ends_with(".txt") {
+    if MANIFESTS.contains(&lower.as_str())
+        || lower.starts_with("requirements") && lower.ends_with(".txt")
+    {
         return true;
     }
     if CONFIGURATION_EXACT.contains(&lower.as_str()) {
         return true;
     }
-    if CONFIGURATION_PREFIXES.iter().any(|prefix| lower.starts_with(prefix)) {
+    if CONFIGURATION_PREFIXES
+        .iter()
+        .any(|prefix| lower.starts_with(prefix))
+    {
         return true;
     }
     SOURCE_EXTENSIONS
@@ -428,21 +455,31 @@ fn category(path: &str) -> &'static str {
     if lower.starts_with("readme") {
         return "readme";
     }
-    if MANIFESTS.contains(&lower.as_str()) || lower.starts_with("requirements") && lower.ends_with(".txt") {
+    if MANIFESTS.contains(&lower.as_str())
+        || lower.starts_with("requirements") && lower.ends_with(".txt")
+    {
         return "manifest";
     }
     if CONFIGURATION_EXACT.contains(&lower.as_str())
-        || CONFIGURATION_PREFIXES.iter().any(|prefix| lower.starts_with(prefix))
+        || CONFIGURATION_PREFIXES
+            .iter()
+            .any(|prefix| lower.starts_with(prefix))
     {
         return "configuration";
     }
     if is_test_path(path) {
         return "test";
     }
-    if SOURCE_EXTENSIONS.iter().any(|extension| lower.ends_with(extension)) {
+    if SOURCE_EXTENSIONS
+        .iter()
+        .any(|extension| lower.ends_with(extension))
+    {
         return "source";
     }
-    if DOCUMENT_EXTENSIONS.iter().any(|extension| lower.ends_with(extension)) {
+    if DOCUMENT_EXTENSIONS
+        .iter()
+        .any(|extension| lower.ends_with(extension))
+    {
         return "documentation";
     }
     "other"
@@ -451,7 +488,9 @@ fn category(path: &str) -> &'static str {
 fn is_test_path(path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
     let name = lower.rsplit('/').next().unwrap_or(&lower);
-    lower.split('/').any(|part| part == "__tests__" || part == "test" || part == "tests")
+    lower
+        .split('/')
+        .any(|part| part == "__tests__" || part == "test" || part == "tests")
         || name.contains(".test.")
         || name.contains(".spec.")
         || (name.starts_with("test_") && name.ends_with(".py"))
@@ -460,10 +499,19 @@ fn is_test_path(path: &str) -> bool {
 
 fn git_state(root: &Path) -> Option<GitState> {
     let inside = Command::new("git")
-        .args(["-C", &root.display().to_string(), "rev-parse", "--is-inside-work-tree"])
+        .args([
+            "-C",
+            &root.display().to_string(),
+            "rev-parse",
+            "--is-inside-work-tree",
+        ])
         .output()
         .ok()?;
-    if !inside.status.success() || !String::from_utf8_lossy(&inside.stdout).trim().starts_with("true") {
+    if !inside.status.success()
+        || !String::from_utf8_lossy(&inside.stdout)
+            .trim()
+            .starts_with("true")
+    {
         return None;
     }
     let head = git_value(root, &["rev-parse", "HEAD"]);
@@ -540,30 +588,65 @@ const CONFIGURATION_PREFIXES: &[&str] = &[
     ".prettierrc",
 ];
 
-const SOURCE_EXTENSIONS: &[&str] = &[".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".py"];
+const SOURCE_EXTENSIONS: &[&str] = &[
+    ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".py",
+];
 const DOCUMENT_EXTENSIONS: &[&str] = &[".md", ".markdown", ".txt"];
 
 const PROTECTED_DIRECTORIES: &[&str] = &[
-    ".git", ".hg", ".svn", ".venv", "venv", "env", "node_modules", "__pycache__",
-    ".pytest_cache", ".mypy_cache", ".ruff_cache", ".turbo", ".next", ".nuxt", ".cache",
-    "dist", "build", "out", "coverage", "vendor", "target",
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".turbo",
+    ".next",
+    ".nuxt",
+    ".cache",
+    "dist",
+    "build",
+    "out",
+    "coverage",
+    "vendor",
+    "target",
 ];
 
 const DEPENDENCY_DIRECTORIES: &[&str] = &[
-    ".git", ".hg", ".svn", ".venv", "venv", "env", "node_modules", "__pycache__",
-    ".pytest_cache", ".mypy_cache", ".ruff_cache", ".turbo", ".next", ".nuxt", ".cache",
-    "dist", "build", "out", "coverage", "vendor", "target",
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".turbo",
+    ".next",
+    ".nuxt",
+    ".cache",
+    "dist",
+    "build",
+    "out",
+    "coverage",
+    "vendor",
+    "target",
 ];
 
-const GENERATED_DIRECTORIES: &[&str] = &[
-    "dist", "build", "out", "coverage", ".next", ".turbo",
-];
+const GENERATED_DIRECTORIES: &[&str] = &["dist", "build", "out", "coverage", ".next", ".turbo"];
 
 const BINARY_EXTENSIONS: &[&str] = &[
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".tiff", ".mp3", ".mp4",
-    ".mov", ".avi", ".wav", ".pdf", ".docx", ".doc", ".xlsx", ".zip", ".gz", ".tar",
-    ".rar", ".7z", ".exe", ".dll", ".so", ".dylib", ".bin", ".woff", ".woff2", ".ttf",
-    ".otf", ".sqlite", ".db",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".tiff", ".mp3", ".mp4", ".mov",
+    ".avi", ".wav", ".pdf", ".docx", ".doc", ".xlsx", ".zip", ".gz", ".tar", ".rar", ".7z", ".exe",
+    ".dll", ".so", ".dylib", ".bin", ".woff", ".woff2", ".ttf", ".otf", ".sqlite", ".db",
 ];
 
 #[cfg(test)]
@@ -602,17 +685,37 @@ mod tests {
     fn collects_allowed_files_and_explains_skips() {
         let dir = fixture();
         let collected = collect(&request(dir.path())).unwrap();
-        let paths: Vec<_> = collected.preview.files.iter().map(|file| file.path.as_str()).collect();
-        assert_eq!(paths, vec!["README.md", "package.json", "src/main.test.ts", "src/main.ts"]);
+        let paths: Vec<_> = collected
+            .preview
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect();
+        assert_eq!(
+            paths,
+            vec![
+                "README.md",
+                "package.json",
+                "src/main.test.ts",
+                "src/main.ts"
+            ]
+        );
         assert_eq!(collected.preview.files[2].category, "test");
-        let skipped: Vec<_> = collected.preview.skipped.iter().map(|file| (file.path.as_str(), file.reason.as_str())).collect();
+        let skipped: Vec<_> = collected
+            .preview
+            .skipped
+            .iter()
+            .map(|file| (file.path.as_str(), file.reason.as_str()))
+            .collect();
         assert!(skipped.contains(&(".env", "environment-file")));
-        assert!(skipped.contains(&("node_modules/pkg/index.js", "dependency-directory")) || collected.preview.skipped.iter().all(|s| s.path != "node_modules/pkg/index.js"));
         assert!(skipped.contains(&("logo.png", "binary")));
+        assert!(skipped
+            .iter()
+            .all(|(path, _)| !path.starts_with("node_modules/")));
     }
 
     #[test]
-    fn fingerprint_changes_with_content_but_not_skip_order() {
+    fn fingerprint_changes_with_content() {
         let dir = fixture();
         let first = collect(&request(dir.path())).unwrap();
         std::fs::write(dir.path().join("src/main.ts"), "console.log('changed')").unwrap();
@@ -638,9 +741,11 @@ mod tests {
     fn respects_root_gitignore() {
         let dir = fixture();
         std::fs::write(dir.path().join(".gitignore"), "src/main.ts\n").unwrap();
-        let ignore = RootIgnore::load(dir.path(), true).expect("ignore file loads");
-        assert!(ignore.is_ignored("src/main.ts"));
         let collected = collect(&request(dir.path())).unwrap();
-        assert!(collected.preview.files.iter().all(|file| file.path != "src/main.ts"));
+        assert!(collected
+            .preview
+            .files
+            .iter()
+            .all(|file| file.path != "src/main.ts"));
     }
 }

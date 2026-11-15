@@ -1,15 +1,12 @@
 //! The projects screen.
 
-#![allow(unused_imports)]
-
-use crate::app::{CoderuneApp, View};
+use crate::app::CoderuneApp;
 use crate::widgets::*;
 use coderune_ui::components as ui;
-use coderune_ui::icons;
-use coderune_ui::theme::{self, BODY, BODY_SM, CODE_SM, HEADING, HEADING_XS, LABEL, LABEL_SM};
+use coderune_ui::theme::{self, CODE_SM, LABEL};
 use coderune_ui::WhenExt;
-use rune::{col, row, text, Cx, El, ScrollSpec};
-use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit, TextInput};
+use rune::{col, row, text, El};
+use rune_kit::{Badge, Kit};
 
 pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();

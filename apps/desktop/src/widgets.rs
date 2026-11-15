@@ -1,15 +1,11 @@
 //! Small app-specific builders shared by screens.
 
-#![allow(unused_imports)]
-
-use crate::app::{CoderuneApp, View};
+use crate::app::CoderuneApp;
 use coderune_domain::ExperienceStage;
-use coderune_ui::components as ui;
-use coderune_ui::icons;
-use coderune_ui::theme::{self, BODY, BODY_SM, HEADING_XS, LABEL, LABEL_SM};
+use coderune_ui::theme::{self, LABEL};
 use coderune_ui::WhenExt;
-use rune::{col, icon, row, text, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit};
-use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit, TextArea, TextInput};
+use rune::{row, text, El, TextEdit};
+use rune_kit::{Button, ButtonVariant, ControlSize, Kit, TextArea, TextInput};
 
 pub(crate) fn primary(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
     Button::new(label)

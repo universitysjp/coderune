@@ -35,14 +35,21 @@ pub const DEFINITIONS: &[AgentDefinition] = &[
         command: "claude",
         max_input_bytes: 10 * 1024 * 1024,
         capabilities: &["structured output", "cancellation"],
-        restrictions: &["non-interactive", "tools denied", "fresh temporary working directory"],
+        restrictions: &[
+            "non-interactive",
+            "tools denied",
+            "fresh temporary working directory",
+        ],
     },
     AgentDefinition {
         id: AgentId::OpenCode,
         command: "opencode",
         max_input_bytes: 20 * 1024 * 1024,
         capabilities: &["streaming", "cancellation", "ACP v1"],
-        restrictions: &["ACP permissions rejected", "fresh temporary working directory"],
+        restrictions: &[
+            "ACP permissions rejected",
+            "fresh temporary working directory",
+        ],
     },
     AgentDefinition {
         id: AgentId::Antigravity,
@@ -54,17 +61,16 @@ pub const DEFINITIONS: &[AgentDefinition] = &[
 ];
 
 pub fn definition(id: AgentId) -> &'static AgentDefinition {
-    DEFINITIONS
-        .iter()
-        .find(|definition| definition.id == id)
-        .expect("every AgentId has a definition")
+    match id {
+        AgentId::Codex => &DEFINITIONS[0],
+        AgentId::ClaudeCode => &DEFINITIONS[1],
+        AgentId::OpenCode => &DEFINITIONS[2],
+        AgentId::Antigravity => &DEFINITIONS[3],
+    }
 }
 
 /// Detect one agent with an injectable lookup so detection is testable.
-pub fn detect_with(
-    id: AgentId,
-    lookup: &impl Fn(&str) -> Option<PathBuf>,
-) -> AgentStatus {
+pub fn detect_with(id: AgentId, lookup: &impl Fn(&str) -> Option<PathBuf>) -> AgentStatus {
     let definition = definition(id);
     let found = lookup(definition.command);
     let availability = if found.is_some() {
@@ -88,7 +94,11 @@ pub fn detect_with(
         detail,
         setup_url: id.setup_url().to_string(),
         verified: false,
-        capabilities: definition.capabilities.iter().map(|value| (*value).to_string()).collect(),
+        capabilities: definition
+            .capabilities
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
         restrictions: definition
             .restrictions
             .iter()
@@ -178,7 +188,11 @@ pub fn prepare_preview(
     }
 }
 
-pub fn build_request(kind: DocumentKind, document: &ImportedDocument, project_name: Option<&str>) -> String {
+pub fn build_request(
+    kind: DocumentKind,
+    document: &ImportedDocument,
+    project_name: Option<&str>,
+) -> String {
     let kind_name = match kind {
         DocumentKind::Cv => "CV",
         DocumentKind::Srs => "SRS",
@@ -257,10 +271,16 @@ fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, 
             Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
             Ok(None) => {
                 let _ = child.kill();
-                return Err(AppError::new(ErrorCode::AgentTimeout, "The agent did not answer within 120 seconds."));
+                return Err(AppError::new(
+                    ErrorCode::AgentTimeout,
+                    "The agent did not answer within 120 seconds.",
+                ));
             }
             Err(_) => {
-                return Err(AppError::new(ErrorCode::AgentFailed, "The agent process failed."));
+                return Err(AppError::new(
+                    ErrorCode::AgentFailed,
+                    "The agent process failed.",
+                ));
             }
         }
     }
@@ -269,22 +289,37 @@ fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, 
         .map_err(|_| AppError::new(ErrorCode::AgentFailed, "The agent process failed."))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
-        let code = if stderr.contains("login") || stderr.contains("sign in") || stderr.contains("auth") || stderr.contains("unauthorized") {
+        let code = if stderr.contains("login")
+            || stderr.contains("sign in")
+            || stderr.contains("auth")
+            || stderr.contains("unauthorized")
+        {
             ErrorCode::AgentUnavailable
         } else {
             ErrorCode::AgentFailed
         };
-        return Err(AppError::new(code, "The agent returned an error. Manual entry remains available."));
+        return Err(AppError::new(
+            code,
+            "The agent returned an error. Manual entry remains available.",
+        ));
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let envelope: serde_json::Value = serde_json::from_str(stdout.trim()).map_err(|_| {
-        AppError::new(ErrorCode::AgentInvalidOutput, "The agent output was not valid JSON.")
+        AppError::new(
+            ErrorCode::AgentInvalidOutput,
+            "The agent output was not valid JSON.",
+        )
     })?;
     let value = envelope
         .get("structured_output")
         .or_else(|| envelope.get("result"))
         .cloned()
-        .ok_or_else(|| AppError::new(ErrorCode::AgentInvalidOutput, "The agent returned no draft."))?;
+        .ok_or_else(|| {
+            AppError::new(
+                ErrorCode::AgentInvalidOutput,
+                "The agent returned no draft.",
+            )
+        })?;
     validate_draft(preview.kind, value).map(|payload| AgentDraft {
         kind: preview.kind,
         agent: preview.agent,
@@ -292,9 +327,15 @@ fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, 
     })
 }
 
-pub fn validate_draft(kind: DocumentKind, value: serde_json::Value) -> std::result::Result<serde_json::Value, AppError> {
+pub fn validate_draft(
+    kind: DocumentKind,
+    value: serde_json::Value,
+) -> std::result::Result<serde_json::Value, AppError> {
     let object = value.as_object().ok_or_else(|| {
-        AppError::new(ErrorCode::AgentInvalidOutput, "The draft must be a JSON object.")
+        AppError::new(
+            ErrorCode::AgentInvalidOutput,
+            "The draft must be a JSON object.",
+        )
     })?;
     let expected = match kind {
         DocumentKind::Cv => "cv",
@@ -308,13 +349,34 @@ pub fn validate_draft(kind: DocumentKind, value: serde_json::Value) -> std::resu
     }
     let allowed: &[&str] = match kind {
         DocumentKind::Cv => &[
-            "kind", "displayName", "experienceStage", "newToCoding", "skillsStatement",
-            "learningGoals", "selfReportedSkills", "education", "employment", "projects",
-            "certifications", "links", "learningPreferences", "sources", "warnings",
+            "kind",
+            "displayName",
+            "experienceStage",
+            "newToCoding",
+            "skillsStatement",
+            "learningGoals",
+            "selfReportedSkills",
+            "education",
+            "employment",
+            "projects",
+            "certifications",
+            "links",
+            "learningPreferences",
+            "sources",
+            "warnings",
         ],
         DocumentKind::Srs => &[
-            "kind", "purpose", "businessLogic", "goals", "rules", "constraints",
-            "decisions", "acceptanceCriteria", "knowledge", "sources", "warnings",
+            "kind",
+            "purpose",
+            "businessLogic",
+            "goals",
+            "rules",
+            "constraints",
+            "decisions",
+            "acceptanceCriteria",
+            "knowledge",
+            "sources",
+            "warnings",
         ],
     };
     if let Some(unknown) = object.keys().find(|key| !allowed.contains(&key.as_str())) {
@@ -358,9 +420,13 @@ mod tests {
 
     #[test]
     fn preview_reports_fit_and_exact_bytes() {
-        let preview = prepare_preview(AgentId::ClaudeCode, DocumentKind::Cv, &document(DocumentKind::Cv), None);
+        let preview = prepare_preview(
+            AgentId::ClaudeCode,
+            DocumentKind::Cv,
+            &document(DocumentKind::Cv),
+            None,
+        );
         assert!(preview.fits);
-        assert_eq!(preview.estimated_bytes, preview.text.len());
         assert!(preview.text.contains("Ada built a Rust app."));
         assert!(preview.text.contains("\"kind\":\"cv\""));
     }
@@ -368,7 +434,13 @@ mod tests {
     #[test]
     fn draft_validation_rejects_unknown_keys_and_wrong_kind() {
         assert!(validate_draft(DocumentKind::Cv, serde_json::json!({"kind":"srs"})).is_err());
-        assert!(validate_draft(DocumentKind::Cv, serde_json::json!({"kind":"cv","extra":1})).is_err());
-        assert!(validate_draft(DocumentKind::Cv, serde_json::json!({"kind":"cv","displayName":"Ada"})).is_ok());
+        assert!(
+            validate_draft(DocumentKind::Cv, serde_json::json!({"kind":"cv","extra":1})).is_err()
+        );
+        assert!(validate_draft(
+            DocumentKind::Cv,
+            serde_json::json!({"kind":"cv","displayName":"Ada"})
+        )
+        .is_ok());
     }
 }

@@ -26,14 +26,11 @@ pub struct Workspace {
     pub agents: Vec<AgentStatus>,
     pub selected_project_id: Option<String>,
     pub launch_directory: Option<PathBuf>,
-    pub notice: Option<String>,
-    pub error: Option<AppError>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PreviewSession {
     pub collected: CollectedRepository,
-    pub id: String,
 }
 
 impl Workspace {
@@ -58,8 +55,6 @@ impl Workspace {
             agents: agents::detect_all(),
             selected_project_id: None,
             launch_directory: None,
-            notice: None,
-            error: None,
         };
         workspace.reload()?;
         Ok(workspace)
@@ -72,7 +67,6 @@ impl Workspace {
             .storage
             .list_documents(DocumentFilter::All)
             .map_err(map_storage)?;
-        self.agents = agents::detect_all();
         if self.selected_project_id.is_none() {
             self.selected_project_id = self.projects.first().map(|project| project.id.clone());
         }
@@ -117,18 +111,7 @@ impl Workspace {
 
     pub fn create_project(&mut self, draft: ProjectDraft) -> AppResult<Project> {
         require_profile(&self.onboarding)?;
-        let root = draft.root_path.clone();
-        let is_dir = collectors::validate_root(&root);
-        if !is_dir {
-            return Err(AppError::new(
-                ErrorCode::UnreadablePath,
-                "Choose an existing readable project directory.",
-            ));
-        }
-        let project = self
-            .storage
-            .save_project(draft, true)
-            .map_err(map_storage)?;
+        let project = self.storage.save_project(draft).map_err(map_storage)?;
         self.selected_project_id = Some(project.id.clone());
         self.reload()?;
         Ok(project)
@@ -136,17 +119,9 @@ impl Workspace {
 
     pub fn update_project(&mut self, id: &str, draft: ProjectDraft) -> AppResult<Project> {
         require_profile(&self.onboarding)?;
-        let root = draft.root_path.clone();
-        let is_dir = collectors::validate_root(&root);
-        if !is_dir {
-            return Err(AppError::new(
-                ErrorCode::UnreadablePath,
-                "Choose an existing readable project directory.",
-            ));
-        }
         let project = self
             .storage
-            .update_project(id, draft, true)
+            .update_project(id, draft)
             .map_err(map_storage)?;
         self.reload()?;
         Ok(project)
@@ -204,10 +179,7 @@ impl Workspace {
             ),
             other => AppError::new(ErrorCode::UnreadablePath, other.to_string()),
         })?;
-        Ok(PreviewSession {
-            collected,
-            id: coderune_domain::new_id(),
-        })
+        Ok(PreviewSession { collected })
     }
 
     /// Re-collect before saving so a changed source cannot be saved from a stale
@@ -253,7 +225,6 @@ impl Workspace {
             .storage
             .save_capture(preview, &session.collected.contents)
             .map_err(map_storage)?;
-        self.notice = Some(format!("Saved context capture v{}.", capture.version));
         Ok(capture)
     }
 
@@ -282,10 +253,6 @@ impl Workspace {
         require_profile(&self.onboarding)?;
         self.storage.delete_capture(id).map_err(map_storage)?;
         Ok(())
-    }
-
-    pub fn list_documents(&self, filter: DocumentFilter) -> AppResult<Vec<ImportedDocument>> {
-        self.storage.list_documents(filter).map_err(map_storage)
     }
 
     /// Read a selected CV/SRS file. PDF and DOCX extraction is not yet ported;
@@ -509,6 +476,10 @@ fn map_storage(error: StorageError) -> AppError {
     match error {
         StorageError::Validation(validation) => AppError::validation(validation.details),
         StorageError::NotFound(message) => AppError::new(ErrorCode::NotFound, message),
+        StorageError::UnreadablePath(path) => AppError::new(
+            ErrorCode::UnreadablePath,
+            format!("{path} is not a readable directory."),
+        ),
         other => AppError::new(ErrorCode::Validation, other.to_string()),
     }
 }
@@ -656,7 +627,6 @@ mod tests {
             .unwrap();
         assert!(preview.fits);
         assert!(preview.text.contains("Rust and TypeScript."));
-        assert!(!preview.text.is_empty());
     }
 
     #[test]
@@ -668,7 +638,9 @@ mod tests {
             .create_project(project_draft(root.path()))
             .unwrap();
         let json = workspace.export_json().unwrap();
-        assert!(json.contains("\"application\": \"Coderune\""));
+        let bundle: ExportBundle = serde_json::from_str(&json).unwrap();
+        assert_eq!(bundle.application, "Coderune");
+        assert_eq!(bundle.projects.len(), 1);
         workspace.delete_all_data().unwrap();
         assert!(!workspace.onboarding.can_start_project);
         assert!(workspace.projects.is_empty());

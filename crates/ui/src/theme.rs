@@ -76,14 +76,10 @@ pub const PAGE_HEADER_MAX: f32 = 720.0;
 pub const FIELD_MAX_HEIGHT: f32 = 176.0;
 pub const ICON: f32 = 20.0;
 
-#[allow(dead_code)]
-pub const DISPLAY: TextStyle = TextStyle::new(40.0, 400.0).lh(44.0);
 pub const HEADING_LG: TextStyle = TextStyle::new(32.0, 400.0).lh(36.0);
 pub const HEADING: TextStyle = TextStyle::new(24.0, 400.0).lh(28.0);
 pub const HEADING_SM: TextStyle = TextStyle::new(20.0, 400.0).lh(24.0);
 pub const HEADING_XS: TextStyle = TextStyle::new(16.0, 400.0).lh(20.0);
-#[allow(dead_code)]
-pub const BODY_LG: TextStyle = TextStyle::new(16.0, 400.0).lh(22.0);
 pub const BODY: TextStyle = TextStyle::new(14.0, 400.0).lh(20.0);
 pub const BODY_SM: TextStyle = TextStyle::new(13.0, 400.0).lh(18.0);
 pub const LABEL: TextStyle = TextStyle::new(14.0, 400.0).lh(16.0);

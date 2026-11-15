@@ -74,9 +74,10 @@ impl SkillRating {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum FieldSource {
+    #[default]
     Developer,
     Document {
         #[serde(rename = "documentId")]
@@ -85,12 +86,6 @@ pub enum FieldSource {
         document_name: String,
         reference: Option<String>,
     },
-}
-
-impl Default for FieldSource {
-    fn default() -> Self {
-        Self::Developer
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -278,7 +273,10 @@ impl ProfileDraft {
         self
     }
 
-    pub fn into_profile(self, previous: Option<&DeveloperProfile>) -> Result<DeveloperProfile, ValidationError> {
+    pub fn into_profile(
+        self,
+        previous: Option<&DeveloperProfile>,
+    ) -> Result<DeveloperProfile, ValidationError> {
         let missing = self.missing();
         if !missing.is_empty() {
             return Err(ValidationError { details: missing });
@@ -286,11 +284,14 @@ impl ProfileDraft {
         let draft = self.normalize();
         let now = now_iso();
         let version = previous.map(|profile| profile.version + 1).unwrap_or(1);
+        let experience_stage = draft.experience_stage.ok_or_else(|| ValidationError {
+            details: vec!["experience stage".to_string()],
+        })?;
         Ok(DeveloperProfile {
             id: "developer".to_string(),
             version,
             display_name: draft.display_name,
-            experience_stage: draft.experience_stage.expect("validated experience stage"),
+            experience_stage,
             new_to_coding: draft.new_to_coding,
             skills_statement: draft.skills_statement,
             learning_goals: draft.learning_goals,
@@ -334,12 +335,17 @@ pub struct OnboardingState {
 
 impl OnboardingState {
     pub fn from_parts(profile: Option<DeveloperProfile>, draft: Option<OnboardingDraft>) -> Self {
-        let missing = profile
-            .as_ref()
-            .map(|_| Vec::new())
-            .unwrap_or_else(|| draft.as_ref().map(|draft| draft.draft.missing()).unwrap_or_else(|| {
-                REQUIRED_PROFILE_FIELDS.iter().map(|field| (*field).to_string()).collect()
-            }));
+        let missing = profile.as_ref().map(|_| Vec::new()).unwrap_or_else(|| {
+            draft
+                .as_ref()
+                .map(|draft| draft.draft.missing())
+                .unwrap_or_else(|| {
+                    REQUIRED_PROFILE_FIELDS
+                        .iter()
+                        .map(|field| (*field).to_string())
+                        .collect()
+                })
+        });
         Self {
             required_complete: profile.is_some(),
             can_start_project: profile.is_some(),
@@ -506,7 +512,11 @@ impl ProjectDraft {
             rules: project.rules.iter().map(|s| s.text.clone()).collect(),
             constraints: project.constraints.iter().map(|s| s.text.clone()).collect(),
             decisions: project.decisions.iter().map(|s| s.text.clone()).collect(),
-            acceptance_criteria: project.acceptance_criteria.iter().map(|s| s.text.clone()).collect(),
+            acceptance_criteria: project
+                .acceptance_criteria
+                .iter()
+                .map(|s| s.text.clone())
+                .collect(),
             knowledge: project.knowledge.iter().map(|s| s.text.clone()).collect(),
             scope: project.scope.clone(),
             limits: project.limits.clone(),
@@ -529,20 +539,17 @@ impl ProjectDraft {
 
     /// Create a versioned project. Unchanged statement text preserves its id
     /// and provenance; changed text becomes developer-authored.
-    pub fn into_project(
-        self,
-        previous: Option<&Project>,
-        validate_root: impl FnOnce(&str) -> bool,
-    ) -> Result<Project, ValidationError> {
-        let mut details = self.missing();
-        if !self.root_path.trim().is_empty() && !validate_root(&self.root_path) {
-            details.push("root folder must be a readable directory".to_string());
-        }
+    pub fn into_project(self, previous: Option<&Project>) -> Result<Project, ValidationError> {
+        let details = self.missing();
         if !details.is_empty() {
             return Err(ValidationError { details });
         }
         let now = now_iso();
-        let text = |value: Option<String>| value.map(|value| value.trim().to_string()).filter(|value| !value.is_empty());
+        let text = |value: Option<String>| {
+            value
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        };
         let statements = |values: Vec<String>, existing: &[ProjectStatement]| {
             non_blank(values)
                 .into_iter()
@@ -559,7 +566,9 @@ impl ProjectDraft {
         let previous_rules = previous.map(|p| p.rules.as_slice()).unwrap_or(&[]);
         let previous_constraints = previous.map(|p| p.constraints.as_slice()).unwrap_or(&[]);
         let previous_decisions = previous.map(|p| p.decisions.as_slice()).unwrap_or(&[]);
-        let previous_acceptance = previous.map(|p| p.acceptance_criteria.as_slice()).unwrap_or(&[]);
+        let previous_acceptance = previous
+            .map(|p| p.acceptance_criteria.as_slice())
+            .unwrap_or(&[]);
         let previous_knowledge = previous.map(|p| p.knowledge.as_slice()).unwrap_or(&[]);
         let one = |value: Option<String>, existing: Option<&ProjectStatement>| {
             text(value).map(|value| {
@@ -577,7 +586,10 @@ impl ProjectDraft {
             root_path: self.root_path.trim().to_string(),
             goals: statements(self.goals, previous_statements),
             purpose: one(self.purpose, previous.and_then(|p| p.purpose.as_ref())),
-            business_logic: one(self.business_logic, previous.and_then(|p| p.business_logic.as_ref())),
+            business_logic: one(
+                self.business_logic,
+                previous.and_then(|p| p.business_logic.as_ref()),
+            ),
             rules: statements(self.rules, previous_rules),
             constraints: statements(self.constraints, previous_constraints),
             decisions: statements(self.decisions, previous_decisions),
@@ -600,7 +612,9 @@ impl ProjectDraft {
                     defaults.per_capture_bytes
                 },
             },
-            created_at: previous.map(|p| p.created_at.clone()).unwrap_or_else(|| now.clone()),
+            created_at: previous
+                .map(|p| p.created_at.clone())
+                .unwrap_or_else(|| now.clone()),
             updated_at: now,
         })
     }
@@ -893,7 +907,6 @@ mod tests {
     #[test]
     fn profile_versions_increment_and_keep_created_at() {
         let first = valid_draft().into_profile(None).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(2));
         let second = valid_draft().into_profile(Some(&first)).unwrap();
         assert_eq!(second.version, 2);
         assert_eq!(second.created_at, first.created_at);
@@ -908,7 +921,7 @@ mod tests {
             goals: vec!["Ship it".to_string()],
             ..Default::default()
         }
-        .into_project(None, |_| true)
+        .into_project(None)
         .unwrap();
         let source = FieldSource::Document {
             document_id: "doc".to_string(),
@@ -918,7 +931,7 @@ mod tests {
         let mut previous = first.clone();
         previous.goals[0].provenance = source.clone();
         let second = ProjectDraft::from_project(&previous)
-            .into_project(Some(&previous), |_| true)
+            .into_project(Some(&previous))
             .unwrap();
         assert_eq!(second.version, 2);
         assert_eq!(second.goals[0].id, previous.goals[0].id);

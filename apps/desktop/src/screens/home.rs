@@ -1,15 +1,11 @@
 //! The home screen.
 
-#![allow(unused_imports)]
-
 use crate::app::{CoderuneApp, View};
 use crate::widgets::*;
 use coderune_ui::components as ui;
-use coderune_ui::icons;
-use coderune_ui::theme::{self, BODY, BODY_SM, CODE_SM, HEADING, HEADING_XS, LABEL, LABEL_SM};
-use coderune_ui::WhenExt;
-use rune::{col, row, text, Cx, El, ScrollSpec};
-use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit, TextInput};
+use coderune_ui::theme::{self, HEADING, HEADING_XS};
+use rune::{col, row, text, El};
+use rune_kit::Kit;
 use std::path::PathBuf;
 
 pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {

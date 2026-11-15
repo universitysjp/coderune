@@ -10,11 +10,7 @@ coderune-agents.workspace = true
 coderune-collectors.workspace = true
 coderune-domain.workspace = true
 coderune-storage.workspace = true
-anyhow.workspace = true
-chrono.workspace = true
-directories.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

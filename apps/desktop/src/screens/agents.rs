@@ -1,16 +1,12 @@
 //! The agents screen.
 
-#![allow(unused_imports)]
-
-use crate::app::{CoderuneApp, View};
+use crate::app::CoderuneApp;
 use crate::widgets::*;
 use coderune_domain::AgentAvailability;
 use coderune_ui::components as ui;
-use coderune_ui::icons;
-use coderune_ui::theme::{self, BODY, BODY_SM, CODE_SM, HEADING, HEADING_XS, LABEL, LABEL_SM};
-use coderune_ui::WhenExt;
-use rune::{col, row, text, Cx, El, ScrollSpec};
-use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit, TextInput};
+use coderune_ui::theme::{self, CODE_SM};
+use rune::{col, row, text, El};
+use rune_kit::{Badge, Kit};
 
 pub(crate) fn agents(s: &CoderuneApp, k: &Kit) -> El {
     let agents = s

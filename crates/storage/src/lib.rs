@@ -38,6 +38,8 @@ pub enum StorageError {
     Io(#[from] std::io::Error),
     #[error("not found: {0}")]
     NotFound(String),
+    #[error("unreadable path: {0}")]
+    UnreadablePath(String),
 }
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -306,26 +308,19 @@ impl Storage {
             .collect()
     }
 
-    pub fn save_project(
-        &mut self,
-        draft: ProjectDraft,
-        root_is_directory: bool,
-    ) -> Result<Project> {
-        let project = draft.into_project(None, |_| root_is_directory)?;
+    pub fn save_project(&mut self, draft: ProjectDraft) -> Result<Project> {
+        validate_project_root(&draft.root_path)?;
+        let project = draft.into_project(None)?;
         self.write_project(&project)?;
         Ok(project)
     }
 
-    pub fn update_project(
-        &mut self,
-        id: &str,
-        draft: ProjectDraft,
-        root_is_directory: bool,
-    ) -> Result<Project> {
+    pub fn update_project(&mut self, id: &str, draft: ProjectDraft) -> Result<Project> {
+        validate_project_root(&draft.root_path)?;
         let previous = self
             .get_project(id)?
             .ok_or_else(|| StorageError::NotFound(id.to_string()))?;
-        let project = draft.into_project(Some(&previous), |_| root_is_directory)?;
+        let project = draft.into_project(Some(&previous))?;
         self.write_project(&project)?;
         Ok(project)
     }
@@ -548,11 +543,10 @@ impl Storage {
         contents: &BTreeMap<String, String>,
     ) -> Result<ContextCapture> {
         let latest = self.list_captures(&preview.project_id)?.into_iter().next();
-        if latest
-            .as_ref()
-            .is_some_and(|capture| capture.fingerprint == preview.fingerprint)
-        {
-            return Ok(latest.expect("checked as some"));
+        if let Some(latest) = &latest {
+            if latest.fingerprint == preview.fingerprint {
+                return Ok(latest.clone());
+            }
         }
         let version = latest.map(|capture| capture.version).unwrap_or(0) + 1;
         let capture = ContextCapture {
@@ -693,6 +687,14 @@ impl Storage {
     }
 }
 
+fn validate_project_root(root: &str) -> Result<()> {
+    let path = Path::new(root);
+    if !path.is_dir() || std::fs::read_dir(path).is_err() {
+        return Err(StorageError::UnreadablePath(root.to_string()));
+    }
+    Ok(())
+}
+
 async fn delete_capture_rows(
     tx: &sea_orm::DatabaseTransaction,
     capture_id: &str,
@@ -783,17 +785,14 @@ mod tests {
         let mut storage = Storage::in_memory().unwrap();
         let profile = storage.confirm_profile(profile_draft()).unwrap();
         let project = storage
-            .save_project(
-                ProjectDraft {
-                    name: "Demo".to_string(),
-                    root_path: std::env::temp_dir().display().to_string(),
-                    goals: vec!["Ship".to_string()],
-                    scope: CollectionScope::default(),
-                    limits: CaptureLimits::default(),
-                    ..Default::default()
-                },
-                true,
-            )
+            .save_project(ProjectDraft {
+                name: "Demo".to_string(),
+                root_path: std::env::temp_dir().display().to_string(),
+                goals: vec!["Ship".to_string()],
+                scope: CollectionScope::default(),
+                limits: CaptureLimits::default(),
+                ..Default::default()
+            })
             .unwrap();
         let preview = CapturePreview {
             project_id: project.id.clone(),
