@@ -5,6 +5,8 @@
 
 use sea_orm_migration::prelude::*;
 
+mod profile_context;
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -15,6 +17,7 @@ impl MigratorTrait for Migrator {
             Box::new(ProjectTables),
             Box::new(DocumentTables),
             Box::new(CaptureTables),
+            Box::new(profile_context::ProfileContextTables),
         ]
     }
 }
