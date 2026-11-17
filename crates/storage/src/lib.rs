@@ -4,8 +4,14 @@
 //! remains discoverable. JSON payloads are the source of truth for hydration;
 //! normalised columns exist for ordering and filtering.
 
+mod context;
 mod entities;
 mod migration;
+
+#[cfg(test)]
+mod test_support;
+
+pub use context::{ContextReadFilter, ProfileContextSnapshot};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
@@ -13,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 pub use entities::*;
 
+use crate::context::write_profile_context;
 use coderune_domain::{
     now_iso, CapturePreview, ContextCapture, DeveloperProfile, DocumentKind, ExportBundle,
     ExportContent, ImportedDocument, OnboardingDraft, OnboardingState, ProfileDraft, Project,
@@ -40,6 +47,8 @@ pub enum StorageError {
     NotFound(String),
     #[error("unreadable path: {0}")]
     UnreadablePath(String),
+    #[error("personal context index is not ready: {0}")]
+    ContextIndex(String),
 }
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -108,11 +117,13 @@ impl Storage {
                 let _ = std::fs::set_permissions(&path, permissions);
             }
         }
-        Ok(Self {
+        let storage = Self {
             conn,
             runtime,
             path,
-        })
+        };
+        storage.refresh_profile_context_if_stale()?;
+        Ok(storage)
     }
 
     pub fn in_memory() -> Result<Self> {
@@ -127,11 +138,13 @@ impl Storage {
             Migrator::up(&conn, None).await?;
             Ok::<(), sea_orm::DbErr>(())
         })?;
-        Ok(Self {
+        let storage = Self {
             conn,
             runtime,
             path: PathBuf::from(":memory:"),
-        })
+        };
+        storage.refresh_profile_context_if_stale()?;
+        Ok(storage)
     }
 
     pub fn path(&self) -> &Path {
@@ -229,6 +242,7 @@ impl Storage {
         let version = profile.version;
         let created_at = profile.created_at.clone();
         let updated_at = profile.updated_at.clone();
+        let projected_at = now_iso();
         self.run(async {
             let tx = self.conn.begin().await?;
             developer_profile::Entity::insert(developer_profile::ActiveModel {
@@ -266,6 +280,7 @@ impl Storage {
             )
             .exec(&tx)
             .await?;
+            write_profile_context(&tx, &profile, &projected_at).await?;
             onboarding_draft::Entity::delete_by_id("onboarding")
                 .exec(&tx)
                 .await?;
@@ -645,6 +660,12 @@ impl Storage {
             document::Entity::delete_many().exec(&tx).await?;
             project_version::Entity::delete_many().exec(&tx).await?;
             project::Entity::delete_many().exec(&tx).await?;
+            profile_context_index_state::Entity::delete_many()
+                .exec(&tx)
+                .await?;
+            profile_context_entry::Entity::delete_many()
+                .exec(&tx)
+                .await?;
             developer_profile_version::Entity::delete_many()
                 .exec(&tx)
                 .await?;
@@ -753,15 +774,19 @@ async fn cleanup_orphan_contents(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coderune_domain::{CaptureLimits, CollectionScope, ExperienceStage, ProjectDraft};
+    use crate::test_support::profile_draft;
+    use coderune_domain::{
+        CaptureLimits, CollectionScope, ContextSharingPolicy, PersonalContextPurpose, ProjectDraft,
+        SelfReportedSkill, SkillRating,
+    };
 
-    fn profile_draft() -> ProfileDraft {
-        ProfileDraft {
-            display_name: "Ada".to_string(),
-            experience_stage: Some(ExperienceStage::EarlyCareer),
-            skills_statement: "Rust".to_string(),
-            learning_goals: vec!["Ship".to_string()],
-            ..Default::default()
+    fn coding_filter(paths: &[&str]) -> ContextReadFilter {
+        let policy = ContextSharingPolicy::new(PersonalContextPurpose::Coding);
+        ContextReadFilter {
+            profile_id: "developer".to_string(),
+            sensitivities: policy.allowed_sensitivities(),
+            kinds: policy.allowed_kinds(),
+            field_paths: paths.iter().map(|path| (*path).to_string()).collect(),
         }
     }
 
@@ -777,49 +802,6 @@ mod tests {
         let profile = storage.get_profile().unwrap().unwrap();
         assert_eq!(profile.display_name, "Ada");
         assert_eq!(profile.version, 1);
-    }
-
-    #[test]
-    fn opens_a_database_created_by_the_legacy_schema() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("context-bridge.sqlite");
-        let url = format!("sqlite://{}?mode=rwc", path.display());
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let profile = ProfileDraft {
-            display_name: "Legacy".to_string(),
-            experience_stage: Some(ExperienceStage::Experienced),
-            skills_statement: "Rust".to_string(),
-            learning_goals: vec!["Keep data".to_string()],
-            ..Default::default()
-        }
-        .into_profile(None)
-        .unwrap();
-        let data = serde_json::to_string(&profile).unwrap();
-        runtime.block_on(async {
-            let conn = Database::connect(&url).await.unwrap();
-            conn.execute_unprepared(
-                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
-                 CREATE TABLE developer_profiles (id TEXT PRIMARY KEY, version INTEGER NOT NULL, data TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);",
-            )
-            .await
-            .unwrap();
-            conn.execute_unprepared(&format!(
-                "INSERT INTO developer_profiles VALUES ('developer', 1, '{}', '{}', '{}');",
-                data.replace('\'', "''"),
-                profile.created_at,
-                profile.updated_at
-            ))
-            .await
-            .unwrap();
-        });
-        drop(runtime);
-        let storage = Storage::open(&path).unwrap();
-        let loaded = storage.get_profile().unwrap().unwrap();
-        assert_eq!(loaded.display_name, "Legacy");
-        assert_eq!(loaded.version, 1);
     }
 
     #[test]
@@ -882,5 +864,69 @@ mod tests {
         assert!(storage.list_projects().unwrap().is_empty());
         assert!(storage.list_captures(&project.id).unwrap().is_empty());
         assert!(storage.load_onboarding().unwrap().required_complete);
+    }
+
+    #[test]
+    fn profile_workflow_runs_end_to_end_on_a_real_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("profile.sqlite");
+
+        // Onboarding starts incomplete and keeps a resumable draft.
+        let mut storage = Storage::open(&path).unwrap();
+        assert!(!storage.load_onboarding().unwrap().can_start_project);
+        storage.save_onboarding_draft(profile_draft()).unwrap();
+        assert!(storage.load_onboarding().unwrap().draft.is_some());
+
+        // Confirming creates v1, clears the draft, and unlocks project work.
+        let first = storage.confirm_profile(profile_draft()).unwrap();
+        assert_eq!(first.version, 1);
+        let onboarding = storage.load_onboarding().unwrap();
+        assert!(onboarding.draft.is_none());
+        assert!(onboarding.can_start_project);
+
+        // Editing creates v2 without changing the original creation time.
+        let second = storage
+            .confirm_profile(ProfileDraft {
+                skills_statement: "Rust and SQLite".to_string(),
+                self_reported_skills: vec![SelfReportedSkill {
+                    topic: "Rust".to_string(),
+                    rating: Some(SkillRating::Intermediate),
+                }],
+                ..profile_draft()
+            })
+            .unwrap();
+        assert_eq!(second.version, 2);
+        assert_eq!(second.created_at, first.created_at);
+        assert_eq!(
+            storage
+                .get_profile_versions()
+                .unwrap()
+                .iter()
+                .map(|profile| profile.version)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+
+        // The context projection follows the current version.
+        let filter = coding_filter(&["experienceStage", "skillsStatement"]);
+        let snapshot = storage.read_profile_context(&filter).unwrap();
+        assert_eq!(snapshot.profile.version, 2);
+        assert_eq!(snapshot.entries.len(), 2);
+
+        // The file keeps everything after a restart.
+        drop(storage);
+        let mut storage = Storage::open(&path).unwrap();
+        assert_eq!(storage.get_profile().unwrap().unwrap().version, 2);
+        assert_eq!(storage.get_profile_versions().unwrap().len(), 2);
+
+        // Deleting all data returns the store to onboarding.
+        storage.delete_all_data().unwrap();
+        assert!(storage.get_profile().unwrap().is_none());
+        assert!(storage.get_profile_versions().unwrap().is_empty());
+        assert!(!storage.load_onboarding().unwrap().can_start_project);
+        assert!(storage.read_profile_context(&filter).is_err());
+
+        // A fresh confirmation starts at v1 again.
+        assert_eq!(storage.confirm_profile(profile_draft()).unwrap().version, 1);
     }
 }

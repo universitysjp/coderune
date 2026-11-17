@@ -57,3 +57,11 @@ Shared vocabulary for Coderune's developer and project context, agent skills, ve
 **Stale**: A freshness marker indicating that a verification result applies to earlier reviewed code or requirements rather than the current state. _Avoid_: Contradicted, insufficient evidence
 
 **Learning evidence**: An evaluated developer attempt used to assess understanding of a concept and progress over time, linked to the relevant code snapshot. _Avoid_: Lesson view, self-reported skill
+
+**Personal context entry**: A source-addressable item derived from one developer profile version for selective retrieval. _Avoid_: Independent profile record, verified skill
+
+**Personal context bundle**: An immutable, purpose-filtered and size-limited selection of personal context entries, with its profile version, policy version, source references, and content hash. _Avoid_: Complete developer profile, verification brief
+
+**Personal context purpose**: The kind of operation for which personal context is prepared, determining the profile entries and personal data that may be selected. _Avoid_: Retrieval score, sharing permission by text match
+
+**Context sharing policy**: The versioned rules that determine which personal context entries a purpose may select and bundle for a consumer. _Avoid_: Sensitivity ordering, agent-owned privacy rule

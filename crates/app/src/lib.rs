@@ -16,6 +16,8 @@ use coderune_domain::{
 };
 use coderune_storage::{DocumentFilter, Storage, StorageError};
 
+mod context;
+
 pub type AppResult<T> = std::result::Result<T, AppError>;
 
 pub struct Workspace {

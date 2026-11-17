@@ -1,0 +1,153 @@
+//! Current developer-profile search projection and its index state.
+
+use sea_orm_migration::prelude::*;
+
+pub(crate) struct ProfileContextTables;
+impl MigrationName for ProfileContextTables {
+    fn name(&self) -> &str {
+        "m005_profile_context_tables"
+    }
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for ProfileContextTables {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Alias::new("profile_context_entries"))
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .integer()
+                            .auto_increment()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Alias::new("profile_id")).text().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("profile_version"))
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Alias::new("entry_kind")).text().not_null())
+                    .col(ColumnDef::new(Alias::new("field_path")).text().not_null())
+                    .col(ColumnDef::new(Alias::new("source_path")).text().not_null())
+                    .col(ColumnDef::new(Alias::new("sensitivity")).text().not_null())
+                    .col(ColumnDef::new(Alias::new("search_text")).text().not_null())
+                    .col(ColumnDef::new(Alias::new("payload")).text().not_null())
+                    .col(ColumnDef::new(Alias::new("field_source")).text())
+                    .col(ColumnDef::new(Alias::new("content_hash")).text().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("projection_version"))
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Alias::new("created_at")).text().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_profile_context_entries_profile")
+                            .from(
+                                Alias::new("profile_context_entries"),
+                                Alias::new("profile_id"),
+                            )
+                            .to(Alias::new("developer_profiles"), Alias::new("id"))
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("profile_context_entries_version_source")
+                    .table(Alias::new("profile_context_entries"))
+                    .col(Alias::new("profile_id"))
+                    .col(Alias::new("profile_version"))
+                    .col(Alias::new("source_path"))
+                    .unique()
+                    .if_not_exists()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("profile_context_entries_field_path")
+                    .table(Alias::new("profile_context_entries"))
+                    .col(Alias::new("profile_id"))
+                    .col(Alias::new("profile_version"))
+                    .col(Alias::new("field_path"))
+                    .if_not_exists()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("profile_context_entries_policy")
+                    .table(Alias::new("profile_context_entries"))
+                    .col(Alias::new("profile_id"))
+                    .col(Alias::new("profile_version"))
+                    .col(Alias::new("sensitivity"))
+                    .col(Alias::new("entry_kind"))
+                    .if_not_exists()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_table(
+                Table::create()
+                    .table(Alias::new("profile_context_index_state"))
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Alias::new("profile_id"))
+                            .text()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("profile_version"))
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("projection_version"))
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Alias::new("updated_at")).text().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_profile_context_state_profile")
+                            .from(
+                                Alias::new("profile_context_index_state"),
+                                Alias::new("profile_id"),
+                            )
+                            .to(Alias::new("developer_profiles"), Alias::new("id"))
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(
+                Table::drop()
+                    .table(Alias::new("profile_context_index_state"))
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(
+                Table::drop()
+                    .table(Alias::new("profile_context_entries"))
+                    .to_owned(),
+            )
+            .await
+    }
+}

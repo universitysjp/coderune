@@ -62,6 +62,53 @@ pub mod onboarding_draft {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
+pub mod profile_context_entry {
+    use super::*;
+
+    #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    #[sea_orm(table_name = "profile_context_entries")]
+    pub struct Model {
+        #[sea_orm(primary_key)]
+        pub id: i64,
+        pub profile_id: String,
+        pub profile_version: i32,
+        pub entry_kind: String,
+        pub field_path: String,
+        pub source_path: String,
+        pub sensitivity: String,
+        pub search_text: String,
+        pub payload: String,
+        pub field_source: Option<String>,
+        pub content_hash: String,
+        pub projection_version: i32,
+        pub created_at: String,
+    }
+
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+
+    impl ActiveModelBehavior for ActiveModel {}
+}
+
+pub mod profile_context_index_state {
+    use super::*;
+
+    #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    #[sea_orm(table_name = "profile_context_index_state")]
+    pub struct Model {
+        #[sea_orm(primary_key, auto_increment = false)]
+        pub profile_id: String,
+        pub profile_version: i32,
+        pub projection_version: i32,
+        pub updated_at: String,
+    }
+
+    #[derive(Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+
+    impl ActiveModelBehavior for ActiveModel {}
+}
+
 pub mod project {
     use super::*;
 

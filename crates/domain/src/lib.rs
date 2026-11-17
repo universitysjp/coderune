@@ -9,6 +9,9 @@ use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+mod context;
+pub use context::*;
+
 pub fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
 }
@@ -923,7 +926,6 @@ mod tests {
         assert_eq!(second.version, 2);
         assert_eq!(second.created_at, first.created_at);
     }
-
     #[test]
     fn project_preserves_unchanged_statement_provenance() {
         let root = std::env::temp_dir();
