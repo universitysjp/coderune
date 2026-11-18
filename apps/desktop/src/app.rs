@@ -4,12 +4,13 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use coderune_app::{PreviewSession, Workspace};
+use coderune_avatars::{BotAvatarStage, BotAvatarState, BotAvatarType};
 use coderune_domain::{
-    AgentId, AppError, Certification, ContextCapture, DocumentKind, EducationEntry,
-    EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft, ProjectDraft,
-    ProjectExperience, SelfReportedSkill, SkillRating,
+    AgentAvailability, AgentId, AppError, Certification, ContextCapture, DocumentKind,
+    EducationEntry, EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft,
+    ProjectDraft, ProjectExperience, SelfReportedSkill, SkillRating,
 };
-use rune::{col, row, text, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit};
+use rune::{col, row, text, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit, Tx};
 use rune_kit::shell::{PaneState, Sidebar, SplitView, Toolbar};
 use rune_kit::Kit;
 
@@ -28,6 +29,8 @@ pub enum View {
     Agents,
     Capture,
     Data,
+    /// The avatar gallery: a development scene, reachable with `--scene avatars`.
+    Avatars,
 }
 
 impl View {
@@ -40,6 +43,7 @@ impl View {
             Self::Agents => "Agents",
             Self::Capture => "Capture",
             Self::Data => "Data",
+            Self::Avatars => "Avatars",
         }
     }
 
@@ -52,6 +56,7 @@ impl View {
             Self::Agents => &icons::ROBOT,
             Self::Capture => &icons::SCAN,
             Self::Data => &icons::GEAR,
+            Self::Avatars => &icons::ROBOT,
         }
     }
 
@@ -437,6 +442,8 @@ pub struct CoderuneApp {
     pub(crate) export_path: TextEdit,
     pub error: Option<AppError>,
     pub notice: Option<String>,
+    /// The animated avatars on screen, keyed by agent or gallery id.
+    pub(crate) avatars: BotAvatarStage,
 }
 
 impl CoderuneApp {
@@ -507,6 +514,7 @@ impl CoderuneApp {
             export_path,
             error: None,
             notice: None,
+            avatars: BotAvatarStage::new(),
         };
         app.refresh_captures();
         app.onboarding_step = app.initial_onboarding_step();
@@ -1171,6 +1179,78 @@ pub fn scene_data(s: &mut CoderuneApp) {
     s.view = View::Data;
 }
 
+/// The avatar gallery, a development scene reached with `--scene avatars`.
+pub fn scene_avatars(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.view = View::Avatars;
+}
+
+/// The body an agent wears.
+pub fn avatar_kind(id: AgentId) -> BotAvatarType {
+    match id {
+        AgentId::Codex => BotAvatarType::Mech,
+        AgentId::ClaudeCode => BotAvatarType::Clover,
+        AgentId::OpenCode => BotAvatarType::Square,
+        AgentId::Antigravity => BotAvatarType::Star,
+    }
+}
+
+/// What an agent's avatar is doing: working while the agent is ready, asleep
+/// otherwise.
+pub fn avatar_state(availability: AgentAvailability) -> BotAvatarState {
+    if availability == AgentAvailability::Ready {
+        BotAvatarState::Working
+    } else {
+        BotAvatarState::Sleeping
+    }
+}
+
+/// Advances the avatars on screens that show them, and asks the runtime for
+/// another frame while they move. Every other screen draws nothing, so the
+/// window goes idle.
+pub fn poll(s: &mut CoderuneApp, t: f64, _: &mut Tx) -> bool {
+    match s.view {
+        View::Agents => {
+            let wanted: Vec<(String, BotAvatarType, BotAvatarState)> = s
+                .workspace
+                .as_ref()
+                .map(|workspace| {
+                    workspace
+                        .agents
+                        .iter()
+                        .map(|status| {
+                            (
+                                status.id.label().to_string(),
+                                avatar_kind(status.id),
+                                avatar_state(status.availability),
+                            )
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            for (id, kind, state) in wanted {
+                s.avatars.set(&id, kind, state);
+            }
+            s.avatars.tick(t, 1.0)
+        }
+        View::Avatars => {
+            for kind in BotAvatarType::ALL {
+                for state in BotAvatarState::ALL {
+                    s.avatars
+                        .set(&screens::gallery_id(kind, state), kind, state);
+                }
+            }
+            s.avatars.tick(t, 1.0)
+        }
+        _ => {
+            if !s.avatars.is_empty() {
+                s.avatars.clear();
+            }
+            false
+        }
+    }
+}
+
 /// Onboarding's second step, with the first step's answers filled in.
 pub fn scene_onboarding_start(s: &mut CoderuneApp) {
     s.profile_form.display_name = edit("Ada");
@@ -1454,6 +1534,7 @@ fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> El {
         View::Agents => screens::agents(s, k),
         View::Capture => screens::capture(s, k),
         View::Data => screens::data(s, k),
+        View::Avatars => screens::avatar_gallery(s),
     };
     let main = col()
         .w_full()
@@ -1623,6 +1704,7 @@ fn nav_key(view: View) -> &'static str {
         View::Agents => "nav-agents",
         View::Capture => "nav-capture",
         View::Data => "nav-data",
+        View::Avatars => "nav-avatars",
     }
 }
 

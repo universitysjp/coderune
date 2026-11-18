@@ -16,6 +16,7 @@ fn main() {
         ],
         families: ("Geist", "Paper Mono"),
         on_key: Some(app::on_key),
+        poll: Some(app::poll),
         scenes: &[
             ("home", app::scene_home),
             ("profile", app::scene_profile),
@@ -23,6 +24,7 @@ fn main() {
             ("projects", app::scene_projects),
             ("documents", app::scene_documents),
             ("agents", app::scene_agents),
+            ("avatars", app::scene_avatars),
             ("capture", app::scene_capture),
             ("capture-preview", app::scene_capture_preview),
             ("data", app::scene_data),

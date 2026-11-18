@@ -17,7 +17,15 @@ pub(crate) fn agents(s: &CoderuneApp, k: &Kit) -> El {
     let mut cards = Vec::new();
     for status in agents {
         let ready = status.availability == AgentAvailability::Ready;
-        cards.push(ui::card(
+        let kind = crate::app::avatar_kind(status.id);
+        let state = crate::app::avatar_state(status.availability);
+        let avatar = coderune_avatars::BotAvatar::new(kind);
+        let portrait = match s.avatars.sim(status.id.label()) {
+            Some(sim) => avatar.view(sim, 44.0),
+            None => avatar.still(state, 44.0),
+        };
+        cards.push(ui::card_leading(
+            Some(portrait),
             Some(status.id.label()),
             Some("Optional. Coderune never owns this tool's sign-in, provider, or model choice."),
             vec![

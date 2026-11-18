@@ -38,6 +38,16 @@ pub fn page_header(title: &str, description: &str, actions: Vec<El>) -> El {
 }
 
 pub fn card(title: Option<&str>, description: Option<&str>, children: Vec<El>) -> El {
+    card_leading(None, title, description, children)
+}
+
+/// A card whose header leads with a visual, such as an agent's avatar.
+pub fn card_leading(
+    leading: Option<El>,
+    title: Option<&str>,
+    description: Option<&str>,
+    children: Vec<El>,
+) -> El {
     let mut root = col()
         .w_full()
         .fill(theme::panel())
@@ -46,16 +56,23 @@ pub fn card(title: Option<&str>, description: Option<&str>, children: Vec<El>) -
         .shrink()
         .clip_rounded(10.0);
     if let Some(title) = title {
-        let mut header = col()
+        let mut heading = col()
             .w_full()
             .gap(4.0)
-            .padding(16.0)
-            .border_sides([0.0, 0.0, 1.0, 0.0], theme::row_line())
             .child(text(title).font(HEADING_XS).color(theme::ink()));
         if let Some(description) = description {
-            header = header.child(text(description).font(BODY_SM).color(theme::muted()).wrap());
+            heading = heading.child(text(description).font(BODY_SM).color(theme::muted()).wrap());
         }
-        root = root.child(header);
+        let mut header = row()
+            .w_full()
+            .gap(12.0)
+            .items_center()
+            .padding(16.0)
+            .border_sides([0.0, 0.0, 1.0, 0.0], theme::row_line());
+        if let Some(leading) = leading {
+            header = header.child(leading);
+        }
+        root = root.child(header.child(heading));
     }
     root.child(
         col()

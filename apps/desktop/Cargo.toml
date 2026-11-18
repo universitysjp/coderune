@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 coderune-agents.workspace = true
 coderune-app.workspace = true
+coderune-avatars.workspace = true
 coderune-domain.workspace = true
 coderune-ui.workspace = true
 rune.workspace = true
