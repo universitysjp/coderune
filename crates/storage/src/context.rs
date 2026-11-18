@@ -100,20 +100,14 @@ impl Storage {
                         profile_context_entry::Column::ProfileVersion.eq(profile.version as i32),
                     )
                     .filter(
-                        profile_context_entry::Column::Sensitivity.is_in(
-                            filter
-                                .sensitivities
-                                .iter()
-                                .map(|value| value.as_str().to_string()),
-                        ),
+                        profile_context_entry::Column::Sensitivity
+                            .is_in(filter.sensitivities.iter().map(|value| value.as_str())),
                     )
                     .filter(
                         profile_context_entry::Column::EntryKind
-                            .is_in(filter.kinds.iter().map(|value| value.as_str().to_string())),
+                            .is_in(filter.kinds.iter().map(|value| value.as_str())),
                     )
-                    .filter(
-                        profile_context_entry::Column::FieldPath.is_in(filter.field_paths.clone()),
-                    )
+                    .filter(profile_context_entry::Column::FieldPath.is_in(&filter.field_paths))
                     .order_by_asc(profile_context_entry::Column::FieldPath)
                     .order_by_asc(profile_context_entry::Column::SourcePath)
                     .all(&tx)
@@ -140,30 +134,33 @@ pub(crate) async fn write_profile_context(
         .filter(profile_context_entry::Column::ProfileId.eq(&profile.id))
         .exec(tx)
         .await?;
-    for entry in &entries {
+    let created_at = projected_at.to_string();
+    let mut models = Vec::with_capacity(entries.len());
+    for entry in entries {
         let field_source = entry
             .field_source
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
-        profile_context_entry::Entity::insert(profile_context_entry::ActiveModel {
+        models.push(profile_context_entry::ActiveModel {
             id: sea_orm::ActiveValue::NotSet,
             profile_id: Set(profile.id.clone()),
             profile_version: Set(profile.version as i32),
             entry_kind: Set(entry.kind.as_str().to_string()),
-            field_path: Set(entry.field_path.clone()),
-            source_path: Set(entry.source_path.clone()),
+            field_path: Set(entry.field_path),
+            source_path: Set(entry.source_path),
             sensitivity: Set(entry.sensitivity.as_str().to_string()),
-            search_text: Set(entry.search_text.clone()),
+            search_text: Set(entry.search_text),
             payload: Set(serde_json::to_string(&entry.payload)?),
             field_source: Set(field_source),
-            content_hash: Set(entry.content_hash.clone()),
+            content_hash: Set(entry.content_hash),
             projection_version: Set(PROFILE_CONTEXT_PROJECTION_VERSION as i32),
-            created_at: Set(projected_at.to_string()),
-        })
+            created_at: Set(created_at.clone()),
+        });
+    }
+    profile_context_entry::Entity::insert_many(models)
         .exec(tx)
         .await?;
-    }
     profile_context_index_state::Entity::insert(profile_context_index_state::ActiveModel {
         profile_id: Set(profile.id.clone()),
         profile_version: Set(profile.version as i32),
