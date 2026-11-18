@@ -125,6 +125,7 @@ Coderune researches local shared context and assumption verification for AI codi
 | `apps/desktop` | Native Rust desktop app built with [Rune](https://github.com/anomalyco/rune) (`coderune-desktop`, binary `coderune`). `src/app.rs` holds state and actions, `src/screens/` has one view module per screen, `src/widgets.rs` has shared controls. |
 | `apps/web` | Web app: React 19, TanStack Router, Tailwind v4, built with Vite+ (`vp`). |
 | `crates/ui` | Rune design system for the desktop: tokens, icons, cards, fields, alerts. |
+| `crates/avatars` | Animated bot avatars for agents, ported from `bot-avatars` onto Rune's vector canvas. `src/engine.rs` is the rig, `src/render.rs` draws a pose as `rune::Shape`. |
 | `crates/domain`, `crates/storage`, `crates/collectors`, `crates/agents`, `crates/app` | Framework-independent domain and application operations (SeaORM/SQLite storage, context collectors, coding-agent connections). |
 | `packages/ui` | Shared React component registry for the web app (`src/web`). |
 | `packages/tokens` | Shared design tokens and fonts for the web app. |

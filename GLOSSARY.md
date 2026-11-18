@@ -14,6 +14,8 @@ Shared vocabulary for Coderune's developer and project context, agent skills, ve
 
 **Agent connection**: A developer-configured connection to a coding agent and the models available through it. _Avoid_: Subscription, model provider
 
+**Bot avatar**: The animated character that stands for a coding agent in the desktop app, showing whether that agent is idle, working or asleep. _Avoid_: Agent icon, profile picture
+
 **Defined subagent**: A reusable specialist with a defined purpose and a configured default model assignment. _Avoid_: Individual task, agent skill
 
 **Subagent run**: One execution of a task assigned to a defined subagent, inheriting that subagent's configured default model. _Avoid_: Subagent definition, individual model choice
