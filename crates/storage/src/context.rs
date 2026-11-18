@@ -218,7 +218,7 @@ mod tests {
         ContextSharingPolicy, ExperienceStage, PersonalContextPurpose, ProfileDraft,
         SelfReportedSkill, SkillRating,
     };
-    use sea_orm::{ConnectionTrait, Database};
+    use sea_orm::{ActiveModelTrait, ConnectionTrait, Database, Schema};
 
     fn context_filter(purpose: PersonalContextPurpose, paths: &[&str]) -> ContextReadFilter {
         let policy = ContextSharingPolicy::new(purpose);
@@ -251,18 +251,17 @@ mod tests {
         let data = serde_json::to_string(&profile).unwrap();
         runtime.block_on(async {
             let conn = Database::connect(&url).await.unwrap();
-            conn.execute_unprepared(
-                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
-                 CREATE TABLE developer_profiles (id TEXT PRIMARY KEY, version INTEGER NOT NULL, data TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);",
-            )
-            .await
-            .unwrap();
-            conn.execute_unprepared(&format!(
-                "INSERT INTO developer_profiles VALUES ('developer', 1, '{}', '{}', '{}');",
-                data.replace('\'', "''"),
-                profile.created_at,
-                profile.updated_at
-            ))
+            let schema = Schema::new(conn.get_database_backend());
+            let create = schema.create_table_from_entity(developer_profile::Entity);
+            conn.execute(&create).await.unwrap();
+            developer_profile::ActiveModel {
+                id: Set(profile.id.clone()),
+                version: Set(profile.version as i32),
+                data: Set(data),
+                created_at: Set(profile.created_at.clone()),
+                updated_at: Set(profile.updated_at.clone()),
+            }
+            .insert(&conn)
             .await
             .unwrap();
         });
