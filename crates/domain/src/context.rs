@@ -361,8 +361,15 @@ impl PersonalContextBundle {
 
 fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+
     let digest = Sha256::digest(bytes);
-    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+    let mut encoded = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    encoded
 }
 
 /// Collapse whitespace and lower-case a technology topic for logical lookup.
@@ -777,6 +784,19 @@ mod tests {
         let verification = ContextSharingPolicy::new(PersonalContextPurpose::Verification);
         assert!(verification.baseline_fields().is_empty());
         assert!(!verification.permits_field("skillsStatement"));
+    }
+
+    #[test]
+    fn sha256_hex_is_lowercase_and_fixed_width() {
+        let hex = sha256_hex(b"");
+        assert_eq!(hex.len(), 64);
+        assert!(hex
+            .chars()
+            .all(|character| character.is_ascii_digit() || ('a'..='f').contains(&character)));
+        assert_eq!(
+            hex,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
     }
 
     #[test]
