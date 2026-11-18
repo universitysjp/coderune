@@ -4,6 +4,7 @@ members = [
   "apps/desktop",
   "crates/agents",
   "crates/app",
+  "crates/avatars",
   "crates/collectors",
   "crates/domain",
   "crates/storage",
@@ -20,6 +21,7 @@ default-members = [
   "apps/desktop",
   "crates/agents",
   "crates/app",
+  "crates/avatars",
   "crates/collectors",
   "crates/domain",
   "crates/storage",
@@ -57,6 +59,7 @@ walkdir = "2"
 
 coderune-agents = { path = "crates/agents" }
 coderune-app = { path = "crates/app" }
+coderune-avatars = { path = "crates/avatars" }
 coderune-collectors = { path = "crates/collectors" }
 coderune-domain = { path = "crates/domain" }
 coderune-storage = { path = "crates/storage" }

@@ -26,6 +26,7 @@ export default defineConfig({
       "AGENTS.md",
       "GLOSSARY.md",
       "README.md",
+      "crates/avatars/upstream/**",
       "docs/**",
       "scripts/ui-lint/**",
     ],
@@ -36,6 +37,7 @@ export default defineConfig({
     ignorePatterns: [
       ...(core.ignorePatterns ?? []),
       ".agents/**",
+      "crates/avatars/upstream/**",
       "packages/ui/src/web/**",
       "scripts/ui-lint/**",
       ...testFiles,

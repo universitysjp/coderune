@@ -954,6 +954,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "coderune-avatars"
+version = "0.1.0"
+dependencies = [
+ "rune",
+]
+
+[[package]]
 name = "coderune-collectors"
 version = "0.1.0"
 dependencies = [
@@ -975,6 +982,7 @@ version = "0.1.0"
 dependencies = [
  "coderune-agents",
  "coderune-app",
+ "coderune-avatars",
  "coderune-domain",
  "coderune-ui",
  "rune",
