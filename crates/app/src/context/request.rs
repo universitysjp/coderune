@@ -90,60 +90,55 @@ pub(super) fn select_entries(
     let mut seen_content = BTreeSet::new();
 
     for field in policy.baseline_fields() {
-        let matches = matching(entries, field);
-        if matches.is_empty() {
+        if !push_matching(
+            entries,
+            field,
+            &mut selected,
+            &mut seen_identity,
+            &mut seen_content,
+        ) {
             return Err(AppError::new(
                 ErrorCode::Validation,
                 "The required personal context baseline is incomplete.",
             ));
         }
-        push_unique(
-            &mut selected,
-            &mut seen_identity,
-            &mut seen_content,
-            matches,
-        );
     }
 
     for field in permitted {
         if policy.baseline_fields().contains(&field.as_str()) {
             continue;
         }
-        let matches = matching(entries, field);
-        if matches.is_empty() {
-            omissions.no_match += 1;
-            continue;
-        }
-        push_unique(
+        if !push_matching(
+            entries,
+            field,
             &mut selected,
             &mut seen_identity,
             &mut seen_content,
-            matches,
-        );
+        ) {
+            omissions.no_match += 1;
+        }
     }
 
     Ok(selected)
 }
 
-fn matching(entries: &[PersonalContextEntry], field: &str) -> Vec<PersonalContextEntry> {
-    entries
-        .iter()
-        .filter(|entry| entry.field_path == field)
-        .cloned()
-        .collect()
-}
-
-fn push_unique(
+/// Copy every entry for `field` that was not already selected. Returns whether
+/// the field matched any entry at all.
+fn push_matching(
+    entries: &[PersonalContextEntry],
+    field: &str,
     selected: &mut Vec<PersonalContextEntry>,
     seen_identity: &mut BTreeSet<String>,
     seen_content: &mut BTreeSet<String>,
-    entries: Vec<PersonalContextEntry>,
-) {
-    for entry in entries {
+) -> bool {
+    let mut matched = false;
+    for entry in entries.iter().filter(|entry| entry.field_path == field) {
+        matched = true;
         if seen_identity.insert(entry.source_path.clone())
             && seen_content.insert(entry.content_hash.clone())
         {
-            selected.push(entry);
+            selected.push(entry.clone());
         }
     }
+    matched
 }
