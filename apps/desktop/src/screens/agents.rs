@@ -2,6 +2,7 @@
 
 use crate::app::CoderuneApp;
 use crate::widgets::*;
+use coderune_avatars::{BotAvatar, BotAvatarShading};
 use coderune_domain::AgentAvailability;
 use coderune_ui::components as ui;
 use coderune_ui::theme::{self, CODE_SM};
@@ -19,11 +20,8 @@ pub(crate) fn agents(s: &CoderuneApp, k: &Kit) -> El {
         let ready = status.availability == AgentAvailability::Ready;
         let kind = crate::app::avatar_kind(status.id);
         let state = crate::app::avatar_state(status.availability);
-        let avatar = coderune_avatars::BotAvatar::new(kind);
-        let portrait = match s.avatars.sim(status.id.label()) {
-            Some(sim) => avatar.view(sim, 44.0),
-            None => avatar.still(state, 44.0),
-        };
+        let avatar = BotAvatar::new(kind).shading(BotAvatarShading::Fabric);
+        let portrait = s.avatars.view(status.id.label(), avatar, state, 44.0);
         cards.push(ui::card_leading(
             Some(portrait),
             Some(status.id.label()),

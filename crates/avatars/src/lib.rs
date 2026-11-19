@@ -5,9 +5,8 @@
 //!
 //! Ported from [`bot-avatars`](https://github.com/Jakubantalik/Libraries.dev/tree/main/packages/bot-avatars)
 //! (MIT, © Jakub Antalik) onto Rune's vector [`canvas`](rune::canvas): the rig,
-//! the shapes and the face are a straight port, while the plush `fabric` and
-//! per-pixel `plastic` materials are replaced by [`BotAvatarShading::Crisp`]'s
-//! banded vector light, which Rune can paint.
+//! the shapes and the face are ported onto Rune's canvas, with a pixel layer
+//! for the glossy plastic and plush fabric bodies.
 //!
 //! ```
 //! use coderune_avatars::{BotAvatar, BotAvatarSim, BotAvatarState, BotAvatarType};
@@ -20,6 +19,7 @@
 
 mod color;
 mod engine;
+mod material;
 mod presets;
 mod render;
 mod shapes;
@@ -31,7 +31,7 @@ use std::sync::LazyLock;
 pub use color::Rgb;
 pub use engine::{BotAvatarSim, JumpConfig, Pose, Weights};
 pub use render::Look;
-use rune::{canvas, el, El, Shape};
+use rune::{canvas, el, El, Pixels, Shape};
 use svg::Outline;
 
 /// The eighteen body shapes.
@@ -166,6 +166,20 @@ pub enum BotAvatarShading {
     Smooth,
     /// The depth alone, no lighting.
     Flat,
+    /// Glossy toy plastic with pose-dependent highlights.
+    Plastic,
+    /// A softly lit body covered in fine plush pile.
+    Fabric,
+}
+
+impl BotAvatarShading {
+    fn material(self) -> Option<material::Material> {
+        match self {
+            Self::Crisp | Self::Smooth | Self::Flat => None,
+            Self::Plastic => Some(material::Material::Plastic),
+            Self::Fabric => Some(material::Material::Fabric),
+        }
+    }
 }
 
 /// A type's shipped look: its label, body colour and where the face sits.
@@ -211,12 +225,8 @@ fn catalog() -> &'static Catalog {
     &CATALOG
 }
 
-fn body_outline(kind: BotAvatarType) -> Outline {
-    catalog()
-        .bodies
-        .get(kind.path())
-        .cloned()
-        .unwrap_or_default()
+fn body_outline(kind: BotAvatarType) -> &'static Outline {
+    &catalog().bodies[kind.path()]
 }
 
 fn body_parts(kind: BotAvatarType) -> &'static [Outline] {
@@ -236,10 +246,9 @@ pub struct BotAvatar {
     ink: Option<Rgb>,
     face: Option<BotAvatarFace>,
     depth: f32,
-    light: f32,
-    shadow: f32,
-    highlight: f32,
-    rim: f32,
+    light: Option<f32>,
+    contrast: Option<(f32, f32)>,
+    rim: Option<f32>,
     whirl: f32,
 }
 
@@ -252,10 +261,9 @@ impl BotAvatar {
             ink: None,
             face: None,
             depth: 0.65,
-            light: 300.0,
-            shadow: 0.35,
-            highlight: 1.3,
-            rim: 0.5,
+            light: None,
+            contrast: None,
+            rim: None,
             whirl: 0.0,
         }
     }
@@ -275,7 +283,7 @@ impl BotAvatar {
         self
     }
 
-    /// Face ink. Defaults to dark, or light on a dark body.
+    /// Face ink. Defaults to pure white on any background.
     pub fn ink(mut self, ink: Rgb) -> BotAvatar {
         self.ink = Some(ink);
         self
@@ -294,20 +302,19 @@ impl BotAvatar {
 
     /// Where the light comes from, in degrees clockwise from the top.
     pub fn light(mut self, degrees: f32) -> BotAvatar {
-        self.light = degrees;
+        self.light = Some(degrees);
         self
     }
 
     /// Strength of the shadow side and the lit side, 0–2.
     pub fn contrast(mut self, shadow: f32, highlight: f32) -> BotAvatar {
-        self.shadow = shadow.clamp(0.0, 2.0);
-        self.highlight = highlight.clamp(0.0, 2.0);
+        self.contrast = Some((shadow.clamp(0.0, 2.0), highlight.clamp(0.0, 2.0)));
         self
     }
 
     /// Strength of the rim, 0–2.
     pub fn rim(mut self, rim: f32) -> BotAvatar {
-        self.rim = rim.clamp(0.0, 2.0);
+        self.rim = Some(rim.clamp(0.0, 2.0));
         self
     }
 
@@ -323,7 +330,6 @@ impl BotAvatar {
         let mut look = Look::new(self.kind, self.shading);
         if let Some(color) = self.color {
             look.body = color;
-            look.ink = color::auto_ink(color);
         }
         if let Some(ink) = self.ink {
             look.ink = ink;
@@ -331,48 +337,70 @@ impl BotAvatar {
         if let Some(face) = self.face {
             look.face = face;
         }
-        look.shadow = self.shadow;
-        look.highlight = self.highlight;
+        if let Some((shadow, highlight)) = self.contrast {
+            look.shadow = shadow;
+            look.highlight = highlight;
+        }
         look.depth = self.depth;
-        look.light = self.light;
-        look.rim = self.rim;
+        look.light = self.light.unwrap_or(look.light);
+        look.rim = self.rim.unwrap_or(look.rim);
         look.whirl_strength = self.whirl;
         look
     }
 
-    /// The shape of one animated frame, in the canvas' own points.
+    /// The vector version of a frame, in the canvas' own points. Pixel
+    /// materials use smooth shading here. Use [Self::view] to draw them.
     pub fn shape(&self, pose: &Pose, size: f32) -> Shape {
         let outline = body_outline(self.kind);
         if outline.is_empty() {
             return Shape::new();
         }
-        render::frame(&outline, body_parts(self.kind), &self.look(), pose, size)
+        render::frame(outline, body_parts(self.kind), &self.look(), pose, size)
     }
 
     /// A live avatar as a view `size` points square. The caller advances the
     /// sim (see [`BotAvatarSim::update`]).
     pub fn view(&self, sim: &BotAvatarSim, size: f32) -> El {
-        self.build(sim.pose(), size)
+        self.build(sim.pose(), size, None)
     }
 
     /// The still pose of `state`, for reduced motion and first paint.
     pub fn still(&self, state: BotAvatarState, size: f32) -> El {
-        self.build(&Pose::rest(state), size)
+        self.build(&Pose::rest(state), size, None)
     }
 
-    fn build(&self, pose: &Pose, size: f32) -> El {
+    fn build(&self, pose: &Pose, size: f32, surface: Option<&Pixels>) -> El {
         // The canvas is larger than the layout box so a hop or a flip is not
         // clipped; the box keeps the avatar's own size in the layout.
         let full = size * render::OVERSCAN;
         let inset = -(full - size) / 2.0;
-        el().size(size, size)
-            .inert()
-            .label(self.kind.label())
-            .child(
-                canvas(self.shape(pose, size))
-                    .size(full, full)
-                    .absolute(inset, inset),
-            )
+        let portrait = el().size(size, size).inert().label(self.kind.label());
+        let layer = |el: El| el.size(full, full).absolute(inset, inset);
+        let Some(material) = self
+            .shading
+            .material()
+            .filter(|_| full.is_finite() && full > 0.0)
+        else {
+            return portrait.child(layer(canvas(self.shape(pose, size))));
+        };
+
+        let outline = body_outline(self.kind);
+        let look = self.look();
+        let frame = render::layers(
+            outline,
+            body_parts(self.kind),
+            &look,
+            pose,
+            size,
+            Some((self.kind, material)),
+        );
+        let mut portrait = portrait.child(layer(canvas(frame.back)));
+        if let Some(image) = frame.image {
+            let pixels = surface.cloned().unwrap_or_default();
+            pixels.set(image.size, image.size, image.rgba);
+            portrait = portrait.child(layer(el().pixels(&pixels)));
+        }
+        portrait.child(layer(canvas(frame.front)))
     }
 }
 
@@ -393,6 +421,7 @@ struct Entry {
     sim: BotAvatarSim,
     state: BotAvatarState,
     kind: BotAvatarType,
+    surface: Pixels,
 }
 
 impl BotAvatarStage {
@@ -414,7 +443,15 @@ impl BotAvatarStage {
             return;
         }
         let sim = BotAvatarSim::new(kind.seed(), state);
-        self.sims.insert(id.to_owned(), Entry { sim, state, kind });
+        self.sims.insert(
+            id.to_owned(),
+            Entry {
+                sim,
+                state,
+                kind,
+                surface: Pixels::new(),
+            },
+        );
     }
 
     /// Advances every sim to `now` (seconds, monotonic). Returns whether
@@ -449,6 +486,15 @@ impl BotAvatarStage {
         self.sims.get_mut(id).map(|entry| &mut entry.sim)
     }
 
+    /// Draws the portrait for one registered ID with its reusable pixel
+    /// surface. Give each portrait its own ID when drawing multiple views.
+    pub fn view(&self, id: &str, avatar: BotAvatar, fallback: BotAvatarState, size: f32) -> El {
+        match self.sims.get(id) {
+            Some(entry) => avatar.build(entry.sim.pose(), size, Some(&entry.surface)),
+            None => avatar.still(fallback, size),
+        }
+    }
+
     /// Drops the sims not in `keep`, so a list that shrinks stops animating
     /// what left the screen.
     pub fn retain(&mut self, keep: impl Fn(&str) -> bool) {
@@ -469,6 +515,14 @@ impl BotAvatarStage {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_face_ink_is_white_on_light_and_dark_bodies() {
+        for color in [0x41c4ff, 0x111111] {
+            let avatar = BotAvatar::new(BotAvatarType::Clover).color(Rgb::from_hex(color));
+            assert_eq!(avatar.look().ink, Rgb::from_hex(0xffffff));
+        }
+    }
 
     #[test]
     fn every_type_has_a_preset_and_an_outline() {

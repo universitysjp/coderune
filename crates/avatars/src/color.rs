@@ -241,26 +241,6 @@ impl Rgb {
     }
 }
 
-/// The ink a face takes on a body: dark, or light on a dark body.
-pub const DARK_INK: Rgb = Rgb::new(
-    0x1e as f32 / 255.0,
-    0x1a as f32 / 255.0,
-    0x33 as f32 / 255.0,
-);
-pub const LIGHT_INK: Rgb = Rgb::new(
-    0xf7 as f32 / 255.0,
-    0xf5 as f32 / 255.0,
-    0xf2 as f32 / 255.0,
-);
-
-pub fn auto_ink(body: Rgb) -> Rgb {
-    if body.luminance() < 0.13 {
-        LIGHT_INK
-    } else {
-        DARK_INK
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -294,12 +274,6 @@ mod tests {
         let [hue, _, _] = dark.to_hsl();
         let [base_hue, _, _] = base.to_hsl();
         assert!((hue - base_hue).abs() < 0.01);
-    }
-
-    #[test]
-    fn ink_flips_on_dark_bodies() {
-        assert_eq!(auto_ink(Rgb::from_hex(0x111111)), LIGHT_INK);
-        assert_eq!(auto_ink(Rgb::from_hex(0x41c4ff)), DARK_INK);
     }
 
     #[test]
