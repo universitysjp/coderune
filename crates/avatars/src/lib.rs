@@ -275,7 +275,7 @@ impl BotAvatar {
         self
     }
 
-    /// Face ink. Defaults to dark, or light on a dark body.
+    /// Face ink. Defaults to pure white on any background.
     pub fn ink(mut self, ink: Rgb) -> BotAvatar {
         self.ink = Some(ink);
         self
@@ -323,7 +323,6 @@ impl BotAvatar {
         let mut look = Look::new(self.kind, self.shading);
         if let Some(color) = self.color {
             look.body = color;
-            look.ink = color::auto_ink(color);
         }
         if let Some(ink) = self.ink {
             look.ink = ink;
@@ -469,6 +468,14 @@ impl BotAvatarStage {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_face_ink_is_white_on_light_and_dark_bodies() {
+        for color in [0x41c4ff, 0x111111] {
+            let avatar = BotAvatar::new(BotAvatarType::Clover).color(Rgb::from_hex(color));
+            assert_eq!(avatar.look().ink, Rgb::from_hex(0xffffff));
+        }
+    }
 
     #[test]
     fn every_type_has_a_preset_and_an_outline() {

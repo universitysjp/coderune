@@ -6,6 +6,8 @@ Eighteen bodies with living faces — round eyes that blink and glance, and an
 optional mouth — and three states an agent can be in: idle, working and
 sleeping. Each one turns its head, looks around, hops, flips and breathes, and a
 state change eases from the old pose to the new one instead of snapping.
+The face uses pure white ink on light and dark backgrounds. Use `.ink(...)`
+to set an explicit face colour.
 
 ```rust
 use coderune_avatars::{BotAvatar, BotAvatarState, BotAvatarType};

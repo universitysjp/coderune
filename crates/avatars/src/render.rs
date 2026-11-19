@@ -8,7 +8,7 @@
 //! takes the colour the gradient has there. At avatar sizes the bands read as
 //! a gradient and cost a handful of polygon fills.
 
-use crate::color::{auto_ink, Rgb};
+use crate::color::Rgb;
 use crate::engine::Pose;
 use crate::svg::{Affine, Outline};
 use crate::{BotAvatarFace, BotAvatarShading};
@@ -87,7 +87,7 @@ impl Look {
         .richer(vivid);
         Look {
             body,
-            ink: auto_ink(body),
+            ink: Rgb::new(1.0, 1.0, 1.0),
             face: preset.face,
             face_x: preset.face_x,
             face_y: preset.face_y,
