@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Coderune
+Exec=coderune
+Icon=coderune
+Terminal=false
+Categories=Development;

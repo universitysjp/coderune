@@ -4,7 +4,20 @@ mod widgets;
 
 use rune::AppSpec;
 
+pub(crate) const VERSION: &str = match option_env!("CODERUNE_BUILD_VERSION") {
+    Some(version) => version,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 fn main() {
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|arg| arg == "--version")
+    {
+        println!("Coderune {VERSION}");
+        return;
+    }
+
     // A `cargo run` binary has no bundle, so give the window and Dock the
     // composed mark explicitly. A packaged build can also use `icon.icns`.
     let _ = rune::set_app_icon(include_bytes!("../assets/icon-1024.png").to_vec());

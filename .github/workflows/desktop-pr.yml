@@ -1,0 +1,21 @@
+name: Desktop PR build
+
+on:
+  pull_request:
+    branches: [main]
+    types: [labeled, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'ready-to-build') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'ready-to-build')
+    concurrency:
+      group: desktop-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    uses: ./.github/workflows/desktop-build.yml
+    with:
+      commit: ${{ github.event.pull_request.head.sha }}
