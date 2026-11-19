@@ -1,6 +1,6 @@
 # coderune-avatars
 
-Animated bot avatars for agents, drawn with Rune's vector canvas.
+Animated bot avatars for agents, drawn with Rune's vector canvas and pixel layers.
 
 Eighteen bodies with living faces — round eyes that blink and glance, and an
 optional mouth — and three states an agent can be in: idle, working and
@@ -10,21 +10,20 @@ The face uses pure white ink on light and dark backgrounds. Use `.ink(...)`
 to set an explicit face colour.
 
 ```rust
-use coderune_avatars::{BotAvatar, BotAvatarState, BotAvatarType};
+use coderune_avatars::{BotAvatar, BotAvatarShading, BotAvatarState, BotAvatarType};
 
 // A once-a-frame tick, next to the rest of the app's poll.
 stage.set("Claude Code", BotAvatarType::Clover, BotAvatarState::Working);
 let moved = stage.tick(now_seconds, 1.0);
 
 // In the view.
-let portrait = match stage.sim("Claude Code") {
-    Some(sim) => BotAvatar::new(BotAvatarType::Clover).view(sim, 44.0),
-    None => BotAvatar::new(BotAvatarType::Clover).still(BotAvatarState::Working, 44.0),
-};
+let avatar = BotAvatar::new(BotAvatarType::Clover).shading(BotAvatarShading::Fabric);
+let portrait = stage.view("Claude Code", avatar, BotAvatarState::Working, 44.0);
 ```
 
-`BotAvatarStage` owns the sims and one clock; the view only reads poses, which
-keeps screens thin over app state as the rest of the desktop app is.
+`BotAvatarStage` owns the sims, a shared clock, and one reusable pixel surface
+per portrait ID. The Agents screen uses `Fabric`. The development gallery
+(`--scene avatars`) compares the five shading modes.
 
 ## Ported from bot-avatars
 
@@ -38,18 +37,19 @@ What the port draws differently, and why:
 
 | Upstream | Here |
 | --- | --- |
-| `fabric` (plush fur) and `plastic` materials, shaded per pixel | `crisp`, `smooth` and `flat`, all vector: Rune paints flats, so the light is banded across the body's front. The per-pixel materials need a software rasteriser, not a shape list. |
+| `fabric` (plush fur) and `plastic` materials | `Fabric` and `Plastic` use a native software rasterizer with shared body geometry, pose-dependent lighting, and procedural pile. `Crisp`, `Smooth` and `Flat` use the vector path. |
 | Hats, glasses, headphones, bow ties | Not ported yet; the rig and the depth stack leave room for them. |
 | A custom `path` prop | Not ported; the preset outlines are flattened once and cached. |
 
-Everything else matches: the same pose values, the same easing curves, the same
-face geometry, the same hop and flip timings, and the cartoon whirl round a
-spin (off by default, as upstream ships it).
+All materials use the same rig and vector face, including the hop, flip and
+optional whirl around a spin. `BotAvatar::shape` exposes a vector approximation
+for callers that draw a `Shape` directly.
 
 ## Layout
 
 - `src/engine.rs` — the rig: sim, pose, wanderers, events, jumps.
-- `src/render.rs` — pose to `rune::Shape`: the slice stack, the face, the whirl.
+- `src/render.rs` — body projection, vector shading, the face and the whirl.
+- `src/material.rs` — cached body forms and software shading into Rune's `Pixels`.
 - `src/svg.rs` — SVG path data to flattened polygons, plus the affines.
 - `src/color.rs` — sRGB colour, HSL shading and OKLab vividness.
 - `src/shapes.rs`, `src/presets.rs` — generated from `upstream/`.

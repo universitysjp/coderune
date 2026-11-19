@@ -10,8 +10,9 @@
 
 use crate::color::Rgb;
 use crate::engine::Pose;
+use crate::material::{self, BodyImage, Material};
 use crate::svg::{Affine, Outline};
-use crate::{BotAvatarFace, BotAvatarShading};
+use crate::{BotAvatarFace, BotAvatarShading, BotAvatarType};
 use rune::{LineCap, Shape};
 
 /// The canvas is drawn larger than the avatar's layout box, so a hop or a
@@ -85,6 +86,7 @@ impl Look {
                 )
         }
         .richer(vivid);
+        let fabric = shading == BotAvatarShading::Fabric;
         Look {
             body,
             ink: Rgb::new(1.0, 1.0, 1.0),
@@ -93,15 +95,11 @@ impl Look {
             face_y: preset.face_y,
             face_scale: preset.face_scale,
             shading,
-            shadow: if shading == BotAvatarShading::Crisp {
-                0.35
-            } else {
-                0.35
-            },
-            highlight: 1.3,
+            shadow: if fabric { 1.15 } else { 0.35 },
+            highlight: if fabric { 1.45 } else { 1.3 },
             depth: 0.65,
-            light: 300.0,
-            rim: 0.5,
+            light: if fabric { 295.0 } else { 300.0 },
+            rim: if fabric { 0.6 } else { 0.5 },
             whirl_strength: 0.0,
             whirl_size: 1.0,
             whirl_width: 1.0,
@@ -276,7 +274,51 @@ fn fill_outline(mut shape: Shape, outline: &Outline, color: Rgb) -> Shape {
 /// Draws one frame into a shape whose coordinates are canvas points, the
 /// canvas being `size * OVERSCAN` square. `pose` is the avatar's rig pose.
 pub fn frame(outline: &Outline, parts: &[Outline], look: &Look, pose: &Pose, size: f32) -> Shape {
-    let mut shape = Shape::new();
+    layers(outline, parts, look, pose, size, None).front
+}
+
+pub(crate) struct Projection {
+    yaw: (f32, f32),
+    pitch: (f32, f32),
+    roll: (f32, f32),
+    body: Affine,
+}
+
+impl Projection {
+    fn rotate(&self, [x, y, z]: [f32; 3]) -> [f32; 3] {
+        let (sy, cy) = self.yaw;
+        let (sp, cp) = self.pitch;
+        let depth = cy * z - sy * x;
+        [cy * x + sy * z, cp * y - sp * depth, sp * y + cp * depth]
+    }
+
+    pub(crate) fn point(&self, point: [f32; 3]) -> [f32; 3] {
+        let [x, y, z] = self.rotate(point);
+        let [x, y] = self.body.apply([x, y]);
+        [x, y, z]
+    }
+
+    pub(crate) fn normal(&self, normal: [f32; 3]) -> [f32; 3] {
+        let [x, y, z] = self.rotate(normal);
+        let (sr, cr) = self.roll;
+        [cr * x - sr * y, sr * x + cr * y, z]
+    }
+}
+
+pub(crate) struct Layers {
+    pub back: Shape,
+    pub front: Shape,
+    pub image: Option<BodyImage>,
+}
+
+pub(crate) fn layers(
+    outline: &Outline,
+    parts: &[Outline],
+    look: &Look,
+    pose: &Pose,
+    size: f32,
+    material: Option<(BotAvatarType, Material)>,
+) -> Layers {
     let full = size * OVERSCAN;
     let scale = size / 100.0;
 
@@ -285,10 +327,8 @@ pub fn frame(outline: &Outline, parts: &[Outline], look: &Look, pose: &Pose, siz
     let cap = 1.0 - (1.0 - CAP) * rim;
     let la = look.light.to_radians();
     let (lx, ly) = (la.sin(), -la.cos());
-    let palette = palette(look.body, look.shadow, look.highlight);
-
-    let (cy0, sy) = (pose.yaw.cos(), pose.yaw.sin());
-    let (cp0, sp) = (pose.pitch.cos(), pose.pitch.sin());
+    let (sy, cy0) = pose.yaw.sin_cos();
+    let (sp, cp0) = pose.pitch.sin_cos();
     let facing = cy0 * cp0;
     let floor = |v: f32| {
         if v.abs() < 0.22 {
@@ -306,7 +346,7 @@ pub fn frame(outline: &Outline, parts: &[Outline], look: &Look, pose: &Pose, siz
     // Body space: the box centre plus the pose's offset, its roll and squash.
     // The squash and stretch scale about the body's base (y = 50), so a
     // landing keeps the feet on the ground and a stretch rises from the base.
-    let (cr, sr) = (pose.roll.cos(), pose.roll.sin());
+    let (sr, cr) = pose.roll.sin_cos();
     let (kx, ky) = (pose.sx * scale, pose.sy * scale);
     let lift = 50.0 * (1.0 - pose.sy) * scale;
     let body = Affine {
@@ -319,71 +359,86 @@ pub fn frame(outline: &Outline, parts: &[Outline], look: &Look, pose: &Pose, siz
     };
     // The width of a body-unit stroke on screen.
     let width = (kx * ky).abs().sqrt();
-
-    let mode = look.shading;
-    let bands = if size < 40.0 { 7 } else { 12 };
-
-    // The light's gradient axis, in the body's own space: from the lit side to
-    // the shade side, as the upstream canvas gradient has it.
-    let gradient = (
-        body.apply([lx * 56.0, ly * 56.0]),
-        body.apply([-lx * 56.0, -ly * 56.0]),
-    );
+    let image = material.map(|(kind, material)| {
+        let projection = Projection {
+            yaw: (sy, cy0),
+            pitch: (sp, cp0),
+            roll: (sr, cr),
+            body,
+        };
+        material::draw(kind, material, &projection, look, full)
+    });
 
     // The far half of the whirl sits behind everything.
-    shape = whirl(shape, pose, look, lx, ly, false, body, width);
-
-    // Thin parts (antennae) behind the body, at a fraction of its depth, each
-    // piece rounding on its own.
-    for part in parts {
+    let rear_whirl = whirl(Shape::new(), pose, look, lx, ly, false, body, width);
+    let (back, mut shape) = if image.is_some() {
+        (rear_whirl, Shape::new())
+    } else {
+        (Shape::new(), rear_whirl)
+    };
+    if image.is_none() {
+        let mode = look.shading;
+        let bands = if size < 40.0 { 7 } else { 12 };
+        let palette = palette(look.body, look.shadow, look.highlight);
+        let gradient = (
+            body.apply([lx * 56.0, ly * 56.0]),
+            body.apply([-lx * 56.0, -ly * 56.0]),
+        );
+        // Thin parts (antennae) sit behind the body at a fraction of its depth.
+        for part in parts {
+            shape = solid_slices(
+                shape,
+                part,
+                mode,
+                &palette,
+                gradient,
+                cap,
+                cy,
+                sy,
+                cp,
+                sp,
+                half_depth * 0.4,
+                facing,
+                body,
+                bands,
+            );
+        }
         shape = solid_slices(
-            shape,
-            part,
-            mode,
-            &palette,
-            gradient,
-            cap,
-            cy,
-            sy,
-            cp,
-            sp,
-            half_depth * 0.4,
-            facing,
-            body,
-            bands,
+            shape, outline, mode, &palette, gradient, cap, cy, sy, cp, sp, half_depth, facing,
+            body, bands,
         );
     }
 
-    shape = solid_slices(
-        shape, outline, mode, &palette, gradient, cap, cy, sy, cp, sp, half_depth, facing, body,
-        bands,
-    );
-
-    // The face sits on a sphere behind the front cap, so a turn slides it
-    // round the head. It is printed flat on the body's front, so the cap's
-    // projected outline clips it: the clip is taken in the face's own space.
-    let zf = if facing >= 0.0 { 1.0 } else { -1.0 };
-    let sf = profile(zf, cap);
-    let cap_canvas = Affine {
-        a: cy * sf,
-        b: sy * sp * sf,
-        c: 0.0,
-        d: cp * sf,
-        e: zf * sy * half_depth - 50.0 * cy * sf,
-        f: -zf * cy * sp * half_depth - 50.0 * sy * sp * sf - 50.0 * cp * sf,
-    }
-    .then(body);
-    let face_affine = Affine::scale(look.face_scale, look.face_scale)
-        .then(Affine::translate(look.face_x - 50.0, look.face_y - 50.0))
-        .then(body);
+    // Clip the face against the rendered body so the eyes slide out of sight
+    // at its silhouette as the head turns.
     if facing > -0.2 {
-        let to_face = cap_canvas.then(face_affine.inverse());
-        let front = outline.transformed(|p| to_face.apply(p));
+        let face_affine = Affine::scale(look.face_scale, look.face_scale)
+            .then(Affine::translate(look.face_x - 50.0, look.face_y - 50.0))
+            .then(body);
+        let front = image.is_none().then(|| {
+            let zf = if facing >= 0.0 { 1.0 } else { -1.0 };
+            let sf = profile(zf, cap);
+            let to_face = Affine {
+                a: cy * sf,
+                b: sy * sp * sf,
+                c: 0.0,
+                d: cp * sf,
+                e: zf * sy * half_depth - 50.0 * cy * sf,
+                f: -zf * cy * sp * half_depth - 50.0 * sy * sp * sf - 50.0 * cp * sf,
+            }
+            .then(body)
+            .then(face_affine.inverse());
+            outline.transformed(|p| to_face.apply(p))
+        });
+        let contains = |point| match &image {
+            Some(image) => image.covers(face_affine.apply(point), full),
+            None => front.as_ref().is_some_and(|front| front.contains(point)),
+        };
         shape = face(
             shape,
             pose,
             look,
-            &front,
+            contains,
             face_affine,
             width * look.face_scale,
         );
@@ -392,7 +447,11 @@ pub fn frame(outline: &Outline, parts: &[Outline], look: &Look, pose: &Pose, siz
     // The near half of the whirl passes in front of the face.
     shape = whirl(shape, pose, look, lx, ly, true, body, width);
 
-    shape
+    Layers {
+        back,
+        front: shape,
+        image,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -449,7 +508,7 @@ fn solid_slices(
         let hidden = mode == BotAvatarShading::Crisp && !is_cap && near > 0.6 && !lit_rim;
         match mode {
             BotAvatarShading::Flat => shape = fill_outline(shape, &points, palette.base),
-            BotAvatarShading::Smooth => {
+            BotAvatarShading::Smooth | BotAvatarShading::Plastic | BotAvatarShading::Fabric => {
                 shape = fill_outline(shape, &points, palette.smooth_mix[j]);
             }
             BotAvatarShading::Crisp if hidden => {}
@@ -584,7 +643,7 @@ fn face(
     mut shape: Shape,
     pose: &Pose,
     look: &Look,
-    front: &Outline,
+    contains: impl Fn([f32; 2]) -> bool,
     affine: Affine,
     unit: f32,
 ) -> Shape {
@@ -648,7 +707,7 @@ fn face(
         let at = Affine::translate(spot.x, spot.y)
             .then(Affine::scale(spot.sx.max(0.02), spot.sy.max(0.02)));
         let place = at.then(affine);
-        if !front.contains([spot.x, spot.y]) {
+        if !contains([spot.x, spot.y]) {
             continue;
         }
         let alpha = (spot.z * 5.0).min(1.0);
@@ -682,7 +741,7 @@ fn face(
             let at = Affine::translate(spot.x, spot.y)
                 .then(Affine::scale(spot.sx.max(0.02), spot.sy.max(0.02)));
             let place = at.then(affine);
-            if front.contains([spot.x, spot.y]) {
+            if contains([spot.x, spot.y]) {
                 let alpha = (spot.z * 5.0).min(1.0);
                 let world: Vec<[f32; 2]> = points.into_iter().map(|p| place.apply(p)).collect();
                 shape = shape.fill(world, ink.alpha(alpha));
@@ -846,7 +905,6 @@ impl Seg {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::BotAvatarType;
 
     fn look(kind: BotAvatarType) -> Look {
         Look::new(kind, BotAvatarShading::Crisp)
@@ -859,7 +917,7 @@ mod tests {
             let outline = crate::body_outline(kind);
             for state in crate::BotAvatarState::ALL {
                 let sim = crate::BotAvatarSim::new(0.3, state);
-                let shape = frame(&outline, &[], &look, sim.pose(), 64.0);
+                let shape = frame(outline, &[], &look, sim.pose(), 64.0);
                 assert!(!shape.is_empty(), "{kind:?} drew nothing in {state:?}");
             }
         }
@@ -870,10 +928,35 @@ mod tests {
         let look = look(BotAvatarType::Circle);
         let outline = crate::body_outline(BotAvatarType::Circle);
         let mut pose = Pose::REST;
-        let front = frame(&outline, &[], &look, &pose, 100.0);
+        let front = frame(outline, &[], &look, &pose, 100.0);
         pose.yaw = 1.2;
-        let turned = frame(&outline, &[], &look, &pose, 100.0);
+        let turned = frame(outline, &[], &look, &pose, 100.0);
         assert_ne!(front, turned);
+    }
+
+    #[test]
+    fn material_body_stays_visible_as_the_head_turns_away() {
+        let kind = BotAvatarType::Circle;
+        let outline = crate::body_outline(kind);
+        let size = 64.0;
+        let full = size * OVERSCAN;
+        for shading in [BotAvatarShading::Plastic, BotAvatarShading::Fabric] {
+            let look = Look::new(kind, shading);
+            let material = shading.material().unwrap();
+            for yaw in [0.0, 1.2, std::f32::consts::FRAC_PI_2, std::f32::consts::PI] {
+                let pose = Pose { yaw, ..Pose::REST };
+                let frame = layers(outline, &[], &look, &pose, size, Some((kind, material)));
+                let image = frame.image.expect("rasterized body");
+                assert!(
+                    image.covers([full / 2.0, full / 2.0 + RISE * size], full),
+                    "{shading:?} leaves a hole at yaw {yaw}"
+                );
+                assert!(!image.covers([0.5, 0.5], full));
+                if yaw == 1.2 {
+                    assert!(!frame.front.is_empty(), "the near eye is still visible");
+                }
+            }
+        }
     }
 
     #[test]

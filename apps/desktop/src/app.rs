@@ -1234,12 +1234,7 @@ pub fn poll(s: &mut CoderuneApp, t: f64, _: &mut Tx) -> bool {
             s.avatars.tick(t, 1.0)
         }
         View::Avatars => {
-            for kind in BotAvatarType::ALL {
-                for state in BotAvatarState::ALL {
-                    s.avatars
-                        .set(&screens::gallery_id(kind, state), kind, state);
-                }
-            }
+            screens::register_gallery(&mut s.avatars);
             s.avatars.tick(t, 1.0)
         }
         _ => {
