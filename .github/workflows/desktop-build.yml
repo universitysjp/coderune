@@ -1,0 +1,120 @@
+name: Build desktop packages
+
+on:
+  workflow_call:
+    inputs:
+      commit:
+        required: true
+        type: string
+      version:
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: version
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            version="$RELEASE_VERSION"
+          else
+            version=$(git tag --points-at HEAD --sort=-version:refname |
+              awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { if (!found++) print substr($0, 2) }')
+            if [[ -z "$version" ]]; then
+              declared=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+              version="$declared-pr.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
+            fi
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-pr\.[0-9]+\.[0-9]+)?$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  desktop:
+    needs: version
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+          - platform: macos-arm64
+            runner: macos-15
+          - platform: windows-x64
+            runner: windows-2025
+    defaults:
+      run:
+        shell: bash
+    env:
+      CODERUNE_BUILD_VERSION: ${{ needs.version.outputs.version }}
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_RELEASE_LTO: "false"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - name: Install Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxkbcommon-dev libxkbcommon-x11-dev \
+            libx11-xcb-dev libwayland-dev libfontconfig1-dev libfreetype-dev mesa-vulkan-drivers
+      - name: Set up Rune and the pinned Rust toolchain
+        run: |
+          bash scripts/setup-rune.sh
+          rustup show active-toolchain
+          cargo --version
+      - name: Test the Rust workspace
+        run: cargo test --locked --release
+      - name: Build the desktop application
+        run: cargo build --locked --release -p coderune-desktop
+      - name: Verify the version and package (Linux and macOS)
+        if: runner.os != 'Windows'
+        env:
+          PACKAGE_PLATFORM: ${{ matrix.platform }}
+        run: |
+          bash scripts/release/package-desktop.sh "$PACKAGE_PLATFORM"
+      - name: Verify the version and build the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          & $iscc "/DAppVersion=$env:CODERUNE_BUILD_VERSION" apps/desktop/packaging/coderune.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installer = Resolve-Path dist/desktop/Coderune-windows-x64-setup.exe
+          $install = Join-Path $env:RUNNER_TEMP CoderuneSmoke
+          $process = Start-Process $installer -ArgumentList @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$install`""
+          ) -Wait -PassThru
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+          $version = & "$install/coderune.exe" --version
+          if ($LASTEXITCODE -ne 0 -or $version -ne "Coderune $env:CODERUNE_BUILD_VERSION") {
+            throw "Unexpected installed version: $version"
+          }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: coderune-${{ matrix.platform }}-${{ needs.version.outputs.version }}
+          path: dist/desktop/Coderune-*
+          if-no-files-found: error
+          overwrite: true
