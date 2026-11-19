@@ -50,8 +50,14 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                     .gap(8.0)
                     .items_center()
                     .py(4.0)
-                    .border_sides([0.0, 0.0, 1.0, 0.0], theme::row_line())
-                    .child(text(&file.path).font(CODE_SM).color(theme::ink()))
+                    .child(
+                        text(&file.path)
+                            .font(CODE_SM)
+                            .color(theme::ink())
+                            .grow(1.0)
+                            .min_w(0.0)
+                            .wrap(),
+                    )
                     .child(Badge::new(&file.category).build(k))
                     .child(
                         text(format!("{} B", file.bytes))
@@ -163,7 +169,6 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                 .gap(8.0)
                 .items_center()
                 .padding(12.0)
-                .border_sides([0.0, 0.0, 1.0, 0.0], theme::row_line())
                 .child(
                     text(format!("v{}", capture.version))
                         .font(LABEL)

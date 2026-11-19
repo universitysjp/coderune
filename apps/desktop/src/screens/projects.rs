@@ -14,15 +14,16 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
         .map(|workspace| workspace.projects.as_slice())
         .unwrap_or(&[]);
     let selected = s.project_form.editing.as_deref();
-    let mut rows = Vec::new();
+    let mut list = col().w_full().gap(4.0);
     for project in projects {
         let active = selected == Some(project.id.as_str());
         let id = project.id.clone();
-        rows.push(
+        list = list.child(
             col()
                 .key(format!("project-{}", project.id))
                 .hit()
                 .focusable(true)
+                .focus_ring(2.0, -2.0, theme::ink())
                 .role("button")
                 .label(&project.name)
                 .w_full()
@@ -30,7 +31,7 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
                 .gap(4.0)
                 .radius(6.0)
                 .when(active, |this| this.fill(theme::accent_soft()))
-                .when(!active, |this| this.hover(theme::hover()))
+                .when(!active, |this| this.hover(theme::pressed()))
                 .child(
                     row()
                         .gap(8.0)
@@ -39,6 +40,9 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
                             text(&project.name)
                                 .font(LABEL)
                                 .color(theme::ink())
+                                .grow(1.0)
+                                .min_w(0.0)
+                                .truncate()
                                 .a11y_hidden(),
                         )
                         .child(
@@ -51,21 +55,18 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
                     text(&project.root_path)
                         .font(CODE_SM)
                         .color(theme::faint())
+                        .truncate()
                         .a11y_hidden(),
                 )
                 .on_press(move |s: &mut CoderuneApp| s.load_project_form(&id)),
         );
     }
-    if rows.is_empty() {
-        rows.push(ui::card(
-            None,
-            None,
-            vec![ui::subtle("No projects yet. Create one on the right.")],
-        ));
+    if projects.is_empty() {
+        list = list.child(ui::subtle("No projects yet."));
     }
     let editing = s.project_form.editing.is_some();
     let confirm_delete = s.confirm_delete_project.is_some();
-    let mut form_children = vec![
+    let identity = vec![
         ui::field(
             "Project name",
             None,
@@ -99,6 +100,8 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
                 k,
             ),
         ),
+    ];
+    let scope = vec![
         ui::field(
             "Include paths",
             Some("Empty means the whole repository. Comma separated, relative to the root."),
@@ -123,30 +126,33 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
         ),
         ui::field(
             "Capture limits",
-            Some("KiB per file and MiB per capture. Defaults are 1024 KiB and 20 MiB."),
+            Some("Defaults are 1024 KiB per file and 20 MiB per capture."),
             row()
-                .gap(8.0)
-                .items_center()
-                .child(
+                .w_full()
+                .gap(12.0)
+                .flex_wrap()
+                .child(col().grow(1.0).min_w(124.0).child(ui::field(
+                    "Per file (KiB)",
+                    None,
                     text_input(
                         &s.project_form.per_file_kib,
                         "1024",
                         "Per-file limit in KiB",
                         |s| &mut s.project_form.per_file_kib,
                         k,
-                    )
-                    .w(160.0),
-                )
-                .child(
+                    ),
+                )))
+                .child(col().grow(1.0).min_w(124.0).child(ui::field(
+                    "Per capture (MiB)",
+                    None,
                     text_input(
                         &s.project_form.per_capture_mib,
                         "20",
                         "Per-capture limit in MiB",
                         |s| &mut s.project_form.per_capture_mib,
                         k,
-                    )
-                    .w(160.0),
-                ),
+                    ),
+                ))),
         ),
         ui::field(
             "Gitignore",
@@ -161,16 +167,31 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
             )),
         ),
     ];
+    let mut editor = col()
+        .key("project-editor")
+        .grow(1.0)
+        .min_w(336.0)
+        .gap(16.0)
+        .child(ui::card(
+            Some(if editing {
+                "Project details"
+            } else {
+                "New project details"
+            }),
+            None,
+            identity,
+        ))
+        .child(ui::card(Some("Capture scope"), None, scope));
     if confirm_delete {
-        form_children.push(ui::alert(None, "Deleting a project also deletes its captures and project-linked documents. Click Confirm delete to proceed."));
+        editor = editor.child(ui::alert(None, "Deleting a project also deletes its captures and project-linked documents. Click Confirm delete to proceed."));
     }
     if let Some(error) = &s.error {
-        form_children.push(ui::alert(Some(error.code.as_str()), &error.message));
+        editor = editor.child(ui::alert(Some(error.code.as_str()), &error.message));
     }
     if let Some(notice) = &s.notice {
-        form_children.push(ui::alert(None, notice));
+        editor = editor.child(ui::alert(None, notice));
     }
-    let mut actions = row().gap(8.0).child(primary(
+    let mut actions = row().flex_wrap().gap(8.0).child(primary(
         if editing {
             "Save new version"
         } else {
@@ -198,8 +219,6 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
     } else {
         actions = actions.child(ghost("Clear", |s| s.new_project_form(), k));
     }
-    form_children.push(actions);
-
     col()
         .w_full()
         .gap(24.0)
@@ -211,24 +230,14 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
         .child(
             row()
                 .w_full()
-                .gap(16.0)
+                .flex_wrap()
+                .gap(24.0)
                 .items_start()
-                .child(
-                    col()
-                        .w(300.0)
-                        .shrink()
-                        .gap(4.0)
-                        .child(ui::section_title("Configured", "Select a project to edit."))
-                        .children(rows),
-                )
-                .child(col().grow(1.0).min_w(360.0).child(ui::card(
-                    Some(if editing {
-                        "Edit project"
-                    } else {
-                        "New project"
-                    }),
-                    Some("A project needs a name, a readable root folder, and at least one goal."),
-                    form_children,
-                ))),
+                .child(col().key("project-list").w(216.0).child(ui::card(
+                    Some("Saved projects"),
+                    None,
+                    vec![list],
+                )))
+                .child(editor.child(actions)),
         )
 }

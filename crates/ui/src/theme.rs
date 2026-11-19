@@ -22,6 +22,9 @@ fn hex(value: u32) -> Color {
 pub fn bg() -> Color {
     hex(0xfcfcfc)
 }
+pub fn surface() -> Color {
+    hex(0xf7f7f7)
+}
 pub fn panel() -> Color {
     hex(0xffffff)
 }

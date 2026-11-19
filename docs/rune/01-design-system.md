@@ -17,7 +17,8 @@ Do not introduce a second palette or type scale in either surface.
 | Role | Value | Use |
 | --- | --- | --- |
 | Canvas | `#FCFCFC` | Window and page background |
-| Panel | `#FFFFFF` | Cards, fields, menus, sidebar |
+| Panel | `#FFFFFF` | Workspace, fields and menus |
+| Surface | `#F7F7F7` | Desktop chrome and grouped page sections |
 | Ink | `#161616` | Primary text, icons, focus ring, primary fill |
 | Muted | `#454545` | Secondary text |
 | Faint | `#656565` | Tertiary text and placeholders |
@@ -65,17 +66,21 @@ tracking, or synthetic bold in the desktop UI.
 - Spacing: 0, 2, 4, 8, 12, 16, 20, 24, 32, 40.
 - Radius: 4 (inner), 6 (control/card inner), 10 (frame).
 - Hairline: 1px; focus: 2px.
-- Sidebar 236; toolbar 48; window frame 8; page gutter 32; content max 1120;
-  field max height 176.
+- The sidebar starts at 236 points and collapses below 1080 points of window
+  width. The titlebar is 48 points, the frame inset is 8, and the page gutter
+  is 32. Content is capped at 1120 points and tall code wells at 176.
+- Outer spacing and surface color group sections. Projects shows a compact
+  saved-project list beside an editor grouped into project details and capture
+  scope.
 - Controls: 24/28/32/44 high; rows 32/40; icon 20.
 
 ## Desktop components
 
 `crates/ui` owns page headers, cards, fields, alerts, badges, navigation rows,
 and code wells. `apps/desktop/src/widgets.rs` owns app-specific builders
-(buttons, text inputs, choice chips). Buttons, text fields, menus, and the
-`SplitView`/`Page` shell come from `rune-kit` so focus, IME, accessibility,
-keyboard behavior, and window chrome stay intact.
+(buttons, text inputs, choice chips). Buttons, text fields, menus, the
+workspace's `Sidebar`, `WindowTitlebar` and `TabStrip`, and the onboarding
+`Page` come from `rune-kit`.
 
 ## Web components
 

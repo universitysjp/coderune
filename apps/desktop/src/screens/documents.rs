@@ -81,7 +81,6 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
                 .w_full()
                 .gap(12.0)
                 .pt(12.0)
-                .border_sides([1.0, 0.0, 0.0, 0.0], theme::row_line())
                 .child(
                     row()
                         .gap(8.0)

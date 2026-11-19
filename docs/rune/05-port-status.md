@@ -25,9 +25,13 @@ system. The web app keeps its own React registry in `packages/ui`.
 - JSON export and confirmed delete-all.
 - SQLite storage through SeaORM entities and schema-builder migrations; the
   legacy database path and data are preserved.
-- A RuneKit desktop shell: `SplitView` sidebar and framed main pane in the
-  workspace, `Page` for onboarding, a toolbar with the active project, and
-  headless scenes for onboarding steps and every workspace screen.
+- A desktop workspace with a Rune Kit titlebar strip. Sidebar navigation
+  switches pages inside its Workspace tab. The strip is the place for future
+  coding-session tabs. Drag the sidebar edge to resize, collapse, or reopen it,
+  or use Shift–Command–B (Ctrl+Shift+B on Windows and Linux). Below 1080 points
+  the sidebar starts collapsed. Wider windows restore the wide layout's
+  sidebar state. Settings sits above Profile in the footer.
+- Headless scenes for onboarding steps and every workspace page.
 - A composed app icon from the supplied mark: grey-to-black gradient, the mark
   at half scale, generated `icon.icns` and PNGs, with the editable
   `AppIcon.icon` source under `apps/desktop/assets`.
@@ -37,7 +41,7 @@ system. The web app keeps its own React registry in `packages/ui`.
 - Applying an agent draft to a profile or project.
 - Draft execution from the UI for Codex, OpenCode, and Antigravity.
 - Per-preview scope overrides beyond the project scope.
-- Settings, packaging, signing, auto-update, tray behavior, and the installed
+- Additional settings, packaging, signing, auto-update, tray behavior, and the installed
   `coderune <directory>` launcher.
 - Installed-editor detection and a persisted editor choice.
 - Skill library, connections, defined subagents, model assignments,

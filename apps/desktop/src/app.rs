@@ -10,15 +10,15 @@ use coderune_domain::{
     EducationEntry, EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft,
     ProjectDraft, ProjectExperience, SelfReportedSkill, SkillRating,
 };
-use rune::{col, row, text, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit, Tx};
-use rune_kit::shell::{PaneState, Sidebar, SplitView, Toolbar};
-use rune_kit::Kit;
+use rune::{col, text, Cx, El, Key, KeyEvent, TextEdit, Tx};
+use rune_kit::shell::is_sidebar_toggle;
 
-use coderune_ui::components as ui;
 use coderune_ui::icons;
-use coderune_ui::theme::{self, BODY, CODE_SM, HEADING, HEADING_XS, LABEL, LABEL_SM};
+use coderune_ui::theme::{self, BODY, HEADING};
 
-use crate::{screens, updates::Updates};
+use crate::screens;
+use crate::shell::{self, SidebarPane};
+use crate::updates::Updates;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
@@ -42,7 +42,7 @@ impl View {
             Self::Documents => "Documents",
             Self::Agents => "Agents",
             Self::Capture => "Capture",
-            Self::Data => "Data",
+            Self::Data => "Settings",
             Self::Avatars => "Avatars",
         }
     }
@@ -60,9 +60,34 @@ impl View {
         }
     }
 
-    pub const NAV: [Self; 6] = [
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Home => "home",
+            Self::Profile => "profile",
+            Self::Projects => "projects",
+            Self::Documents => "documents",
+            Self::Agents => "agents",
+            Self::Capture => "capture",
+            Self::Data => "settings",
+            Self::Avatars => "avatars",
+        }
+    }
+
+    pub(crate) fn nav_key(self) -> &'static str {
+        match self {
+            Self::Home => "nav-home",
+            Self::Profile => "nav-profile-footer",
+            Self::Projects => "nav-projects",
+            Self::Documents => "nav-documents",
+            Self::Agents => "nav-agents",
+            Self::Capture => "nav-capture",
+            Self::Data => "nav-data-footer",
+            Self::Avatars => "nav-avatars",
+        }
+    }
+
+    pub const NAV: [Self; 5] = [
         Self::Home,
-        Self::Profile,
         Self::Projects,
         Self::Documents,
         Self::Agents,
@@ -424,8 +449,8 @@ pub struct CaptureDetail {
 pub struct CoderuneApp {
     pub(crate) workspace: Option<Workspace>,
     pub(crate) fatal: Option<String>,
-    pub view: View,
-    pub(crate) sidebar: PaneState,
+    pub(crate) view: View,
+    pub(crate) sidebar: SidebarPane,
     pub onboarding_step: OnboardingStep,
     pub profile_tab: ProfileTab,
     pub profile_section: Option<ProfileSection>,
@@ -498,7 +523,7 @@ impl CoderuneApp {
             workspace,
             fatal,
             view: View::Home,
-            sidebar: PaneState::new(theme::SIDEBAR).range(200.0, 320.0),
+            sidebar: SidebarPane::default(),
             onboarding_step: OnboardingStep::About,
             profile_tab: ProfileTab::Baseline,
             profile_section: None,
@@ -1485,7 +1510,7 @@ pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
         .as_ref()
         .is_some_and(|workspace| workspace.onboarding.can_start_project)
     {
-        workspace(s, k, cx)
+        shell::workspace(s, k, cx)
     } else {
         screens::onboarding(s, k, inset)
     };
@@ -1502,11 +1527,7 @@ fn fatal(message: &str, inset: f32) -> El {
             .center()
             .gap(12.0)
             .padding(32.0)
-            .child(
-                text("Coderune could not start")
-                    .font(HEADING)
-                    .color(theme::ink()),
-            )
+            .child(text("Could not start").font(HEADING).color(theme::ink()))
             .child(
                 text(message)
                     .font(BODY)
@@ -1515,201 +1536,18 @@ fn fatal(message: &str, inset: f32) -> El {
                     .max_w(520.0),
             ),
     )
-    .title("Coderune")
     .titlebar_inset(inset)
     .toolbar_in_panel()
     .frame_inset(theme::FRAME)
     .build(theme::kit())
 }
 
-fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> El {
-    let content = match s.view {
-        View::Home => screens::home(s, k),
-        View::Profile => screens::profile(s, k),
-        View::Projects => screens::projects(s, k),
-        View::Documents => screens::documents(s, k),
-        View::Agents => screens::agents(s, k),
-        View::Capture => screens::capture(s, k),
-        View::Data => screens::data(s, k),
-        View::Avatars => screens::avatar_gallery(s),
-    };
-    let main = col()
-        .w_full()
-        .h_full()
-        .fill(theme::panel())
-        .scroll(ScrollSpec {
-            stick_bottom: false,
-        })
-        .scroll_edge_fade(12.0)
-        .child(
-            col()
-                .w_full()
-                .px(theme::GUTTER)
-                .py(24.0)
-                .items_center()
-                .child(
-                    col()
-                        .w_full()
-                        .max_w(theme::CONTAINER)
-                        .gap(24.0)
-                        .child(content),
-                ),
-        );
-    let mut toolbar =
-        Toolbar::new().leading(text(s.view.label()).font(LABEL).color(theme::muted()));
-    if let Some(project) = s
-        .workspace
-        .as_ref()
-        .and_then(|workspace| workspace.selected_project())
-    {
-        toolbar = toolbar.trailing(ui::badge(&project.name, k)).trailing(
-            text(&project.root_path)
-                .font(CODE_SM)
-                .color(theme::faint())
-                .truncate()
-                .max_w(320.0),
-        );
+pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, tx: &mut rune::Tx) -> bool {
+    if is_sidebar_toggle(event) {
+        s.sidebar.toggle();
+        tx.instant();
+        return true;
     }
-    SplitView::new(main)
-        .sidebar(
-            &s.sidebar,
-            |s: &mut CoderuneApp| &mut s.sidebar,
-            sidebar(s, k),
-        )
-        .toolbar(toolbar)
-        .titlebar_inset(cx.titlebar_inset())
-        .toolbar_in_panel()
-        .frame_inset(theme::FRAME)
-        .reduced_motion(cx.is_reduced_motion())
-        .build(k)
-}
-
-fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
-    let brand = row()
-        .key("brand")
-        .h(32.0)
-        .px(8.0)
-        .gap(10.0)
-        .items_center()
-        .child(
-            row()
-                .size(22.0, 22.0)
-                .center()
-                .radius(5.0)
-                .fill(theme::ink())
-                .child(text("C").font(LABEL).color(theme::inverse())),
-        )
-        .child(text("Coderune").font(HEADING_XS).color(theme::ink()));
-    let mut nav = Sidebar::new()
-        .label("Workspace")
-        .inset(8.0)
-        .header(brand)
-        .child(rune::el().key("nav-gap").h(8.0).shrink());
-    for view in View::NAV {
-        nav = nav.child(ui::nav_item(
-            nav_key(view),
-            view.label(),
-            view.icon(),
-            s.view == view,
-            move |s: &mut CoderuneApp| s.navigate(view),
-        ));
-    }
-    let profile_label = s
-        .workspace
-        .as_ref()
-        .and_then(|workspace| workspace.profile())
-        .map_or("No baseline".to_string(), |profile| {
-            profile.display_name.clone()
-        });
-    let baseline = s
-        .workspace
-        .as_ref()
-        .and_then(|workspace| workspace.profile())
-        .map(|profile| format!("Baseline v{}", profile.version))
-        .unwrap_or_else(|| "Developer baseline".to_string());
-    let footer = col()
-        .key("sidebar-footer-content")
-        .w_full()
-        .gap(2.0)
-        .pt(8.0)
-        .border_sides([1.0, 0.0, 0.0, 0.0], theme::row_line())
-        .child(
-            row()
-                .key("nav-profile-footer")
-                .hit()
-                .focusable(true)
-                .role("button")
-                .label(format!("Profile, {profile_label}"))
-                .h(40.0)
-                .w_full()
-                .items_center()
-                .gap(10.0)
-                .px(8.0)
-                .radius(6.0)
-                .hover(theme::hover())
-                .on_press(|s: &mut CoderuneApp| s.navigate(View::Profile))
-                .child(
-                    row()
-                        .size(22.0, 22.0)
-                        .center()
-                        .radius(11.0)
-                        .fill(theme::code())
-                        .child(
-                            text(profile_label.chars().next().unwrap_or('?').to_string())
-                                .font(LABEL)
-                                .color(theme::ink())
-                                .a11y_hidden(),
-                        )
-                        .a11y_hidden(),
-                )
-                .child(
-                    col()
-                        .grow(1.0)
-                        .min_w(0.0)
-                        .child(
-                            text(&profile_label)
-                                .font(LABEL)
-                                .color(theme::ink())
-                                .truncate()
-                                .a11y_hidden(),
-                        )
-                        .child(
-                            text(&baseline)
-                                .font(LABEL_SM)
-                                .color(theme::faint())
-                                .truncate()
-                                .a11y_hidden(),
-                        ),
-                ),
-        )
-        .child(ui::nav_item(
-            "nav-data-footer",
-            "Data",
-            &icons::GEAR,
-            s.view == View::Data,
-            |s: &mut CoderuneApp| s.navigate(View::Data),
-        ));
-    nav.footer(footer).build(k)
-}
-
-fn nav_key(view: View) -> &'static str {
-    match view {
-        View::Home => "nav-home",
-        View::Profile => "nav-profile",
-        View::Projects => "nav-projects",
-        View::Documents => "nav-documents",
-        View::Agents => "nav-agents",
-        View::Capture => "nav-capture",
-        View::Data => "nav-data",
-        View::Avatars => "nav-avatars",
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Screens
-// ---------------------------------------------------------------------------
-
-pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, _: &mut rune::Tx) -> bool {
     match event.key {
         Key::Command('q') => {
             std::process::exit(0);
@@ -1723,6 +1561,7 @@ pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, _: &mut rune::Tx) -> bool {
         Key::Command('7') => s.navigate(View::Data),
         _ => return false,
     }
+    tx.instant();
     true
 }
 
@@ -1889,5 +1728,70 @@ mod tests {
         let mut workspace = Runtime::new(workspace_state, view, (1280.0, 860.0), env);
         workspace.frame(0.0);
         assert!(workspace.find("nav-capture").is_some());
+        assert!(workspace.find("sidebar-toggle").is_none());
+
+        let [x, y, w, h] = workspace.presented("nav-projects").unwrap().0;
+        workspace.pointer_down(x + w / 2.0, y + h / 2.0);
+        workspace.pointer_up(x + w / 2.0, y + h / 2.0);
+        workspace.frame(0.0);
+        assert!(workspace.find("t-workspace").is_some());
+        assert!(workspace.find("projects").is_some());
+        assert!(workspace.find("t-projects").is_none());
+        assert!(workspace.find("brand").is_none());
+
+        let position = |runtime: &Runtime<CoderuneApp>, key| runtime.presented(key).unwrap().0;
+        assert!(
+            position(&workspace, "nav-data-footer")[1]
+                < position(&workspace, "nav-profile-footer")[1]
+        );
+
+        let [x, y, w, _] = position(&workspace, "sidebar-resize");
+        workspace.pointer_down(x + w / 2.0, y + 20.0);
+        workspace.pointer_move(10.0, y + 20.0);
+        workspace.pointer_up(10.0, y + 20.0);
+        workspace.frame(0.0);
+        assert!(workspace.find("nav-projects").is_none());
+        assert!(workspace.find("projects").is_some());
+
+        let [x, y, w, _] = position(&workspace, "sidebar-resize");
+        workspace.pointer_down(x + w / 2.0, y + 20.0);
+        workspace.pointer_move(230.0, y + 20.0);
+        workspace.pointer_up(230.0, y + 20.0);
+        workspace.frame(0.0);
+        assert!(workspace.find("nav-projects").is_some());
+
+        workspace.set_viewport((1000.0, 720.0), 1.0);
+        workspace.frame(0.0);
+        workspace.frame(1.0 / 60.0);
+        assert!(workspace.find("nav-projects").is_none());
+        assert!(workspace.find("projects").is_some());
+        assert!(workspace.find("t-workspace").is_some());
+
+        let [x, y, w, _] = position(&workspace, "sidebar-resize");
+        workspace.pointer_down(x + w / 2.0, y + 20.0);
+        workspace.pointer_move(320.0, y + 20.0);
+        workspace.pointer_up(320.0, y + 20.0);
+        workspace.set_viewport((960.0, 640.0), 1.0);
+        workspace.frame(0.0);
+        assert_eq!(position(&workspace, "workspace-sidebar")[2], 296.0);
+
+        workspace.set_viewport((1080.0, 860.0), 2.0);
+        workspace.frame(0.0);
+        workspace.frame(1.0 / 60.0);
+        assert!(workspace.find("nav-projects").is_some());
+        let wide_sidebar = position(&workspace, "workspace-sidebar")[2];
+
+        workspace.set_viewport((1079.5, 860.0), 2.0);
+        workspace.frame(0.0);
+        workspace.frame(1.0 / 60.0);
+        assert!(workspace.find("nav-projects").is_none());
+        workspace.update(|state, _| state.sidebar.toggle());
+        workspace.frame(0.0);
+        assert!(workspace.find("nav-projects").is_some());
+
+        workspace.set_viewport((1280.0, 860.0), 2.0);
+        workspace.frame(0.0);
+        workspace.frame(1.0 / 60.0);
+        assert_eq!(position(&workspace, "workspace-sidebar")[2], wide_sidebar);
     }
 }

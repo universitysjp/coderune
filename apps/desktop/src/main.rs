@@ -1,5 +1,6 @@
 mod app;
 mod screens;
+mod shell;
 mod updates;
 mod widgets;
 

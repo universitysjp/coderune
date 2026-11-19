@@ -42,7 +42,7 @@ intact.
 
 ## Update an installed copy
 
-Open the gear screen and choose **Check for updates** under **Application
+Open Settings and choose **Check for updates** under **Application
 updates**. The app shows its installed version and offers the matching
 package if GitHub has a newer published release.
 

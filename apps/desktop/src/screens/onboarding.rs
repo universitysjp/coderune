@@ -79,7 +79,6 @@ pub(crate) fn onboarding(s: &CoderuneApp, k: &Kit, inset: f32) -> El {
             .items_center()
             .child(content),
     )
-    .title("Coderune")
     .titlebar_inset(inset)
     .toolbar_in_panel()
     .frame_inset(theme::FRAME)

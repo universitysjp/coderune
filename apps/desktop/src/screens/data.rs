@@ -18,7 +18,7 @@ pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
     let mut body = col()
         .w_full()
         .gap(24.0)
-        .child(ui::page_header("Data", "Inspect the local database, export a JSON bundle, or remove all application data.", vec![]))
+        .child(ui::page_header("Settings", "Check for updates and manage local data.", vec![]))
         .child(updates_card(s, k))
         .child(ui::card(
             Some("Local database"),
