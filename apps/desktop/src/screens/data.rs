@@ -17,7 +17,7 @@ pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
     let mut body = col()
         .w_full()
         .gap(24.0)
-        .child(ui::page_header("Data", "Inspect the local database, export a JSON bundle, or remove all application data.", vec![]))
+        .child(ui::page_header("Settings", "Inspect the local database, export a JSON bundle, or remove all application data.", vec![]))
         .child(ui::card(
             Some("Local database"),
             Some("One per-user SQLite database, outside project repositories."),
