@@ -26,14 +26,23 @@ use crate::theme::{
 };
 
 pub fn page_header(title: &str, description: &str, actions: Vec<El>) -> El {
-    col()
-        .w_full()
-        .gap(8.0)
+    let heading = col()
+        .grow(1.0)
+        .min_w(280.0)
+        .shrink()
+        .gap(6.0)
         .max_w(theme::PAGE_HEADER_MAX)
         .child(text(title).font(HEADING_LG).color(theme::ink()))
-        .child(text(description).font(BODY).color(theme::muted()).wrap())
+        .child(text(description).font(BODY).color(theme::muted()).wrap());
+    row()
+        .w_full()
+        .flex_wrap()
+        .gap(12.0)
+        .items_start()
+        .justify_between()
+        .child(heading)
         .when(!actions.is_empty(), |this| {
-            this.child(row().gap(8.0).children(actions))
+            this.child(row().flex_wrap().gap(8.0).children(actions))
         })
 }
 
@@ -50,38 +59,28 @@ pub fn card_leading(
 ) -> El {
     let mut root = col()
         .w_full()
-        .fill(theme::panel())
-        .border(1.0, theme::line())
+        .fill(theme::surface())
         .radius(10.0)
+        .padding(20.0)
+        .gap(16.0)
         .shrink()
         .clip_rounded(10.0);
     if let Some(title) = title {
         let mut heading = col()
-            .w_full()
+            .grow(1.0)
+            .min_w(0.0)
             .gap(4.0)
-            .child(text(title).font(HEADING_XS).color(theme::ink()));
+            .child(text(title).font(HEADING_XS).color(theme::ink()).wrap());
         if let Some(description) = description {
             heading = heading.child(text(description).font(BODY_SM).color(theme::muted()).wrap());
         }
-        let mut header = row()
-            .w_full()
-            .gap(12.0)
-            .items_center()
-            .padding(16.0)
-            .border_sides([0.0, 0.0, 1.0, 0.0], theme::row_line());
+        let mut header = row().w_full().gap(12.0).items_center();
         if let Some(leading) = leading {
             header = header.child(leading);
         }
         root = root.child(header.child(heading));
     }
-    root.child(
-        col()
-            .w_full()
-            .padding(16.0)
-            .gap(16.0)
-            .items_start()
-            .children(children),
-    )
+    root.child(col().w_full().gap(16.0).items_start().children(children))
 }
 
 pub fn badge(label: &str, k: &Kit) -> El {
@@ -133,6 +132,7 @@ pub fn nav_item<S: 'static>(
         .key(key)
         .hit()
         .focusable(true)
+        .focus_ring(2.0, -2.0, theme::ink())
         .role("button")
         .label(label)
         .h(32.0)
