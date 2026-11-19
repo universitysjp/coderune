@@ -1,0 +1,122 @@
+name: Tag and release desktop
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-main
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      head: ${{ steps.plan.outputs.head }}
+      tags: ${{ steps.plan.outputs.tags }}
+      version: ${{ steps.plan.outputs.version }}
+      commit: ${{ steps.plan.outputs.commit }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: refs/heads/main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test tag planning
+        run: python3 scripts/release/test_plan.py
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          plan=$(python3 scripts/release/plan.py)
+          tags=$(jq -c .tags <<< "$plan")
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          version=$(jq -r '.release.version // empty' <<< "$plan")
+          if [[ -n "$version" ]]; then
+            published=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+              --jq '.[] | select(.draft == false) | .tag_name')
+            if ! grep -Fxq "v$version" <<< "$published"; then
+              echo "version=$version" >> "$GITHUB_OUTPUT"
+              echo "commit=$(jq -r .release.commit <<< "$plan")" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+  tag:
+    needs: plan
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        if: needs.plan.outputs.tags != '{}'
+        with:
+          ref: ${{ needs.plan.outputs.head }}
+          fetch-depth: 0
+      - name: Push planned tags
+        if: needs.plan.outputs.tags != '{}'
+        env:
+          TAGS: ${{ needs.plan.outputs.tags }}
+        run: |
+          mapfile -t rows < <(jq -r 'to_entries[] | [.key, .value] | @tsv' <<< "$TAGS")
+          refs=()
+          for row in "${rows[@]}"; do
+            IFS=$'\t' read -r tag commit <<< "$row"
+            if git show-ref --verify --quiet "refs/tags/$tag"; then
+              [[ "$(git rev-parse "refs/tags/$tag^{commit}")" == "$commit" ]]
+              continue
+            fi
+            git tag "$tag" "$commit"
+            refs+=("refs/tags/$tag")
+          done
+          if (( ${#refs[@]} > 0 )); then
+            git push --atomic origin "${refs[@]}"
+          fi
+
+  build:
+    needs: [plan, tag]
+    if: needs.plan.outputs.version != ''
+    uses: ./.github/workflows/desktop-build.yml
+    with:
+      commit: ${{ needs.plan.outputs.commit }}
+      version: ${{ needs.plan.outputs.version }}
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: coderune-*-${{ needs.plan.outputs.version }}
+          path: packages
+          merge-multiple: true
+      - name: Publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          cd packages
+          assets=(Coderune-linux-x64.deb Coderune-macos-arm64.zip Coderune-windows-x64-setup.exe)
+          sha256sum "${assets[@]}" > SHA256SUMS
+          tag="v$VERSION"
+          draft=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft || true)
+          if [[ "$draft" == false ]]; then
+            exit 0
+          fi
+          if [[ "$draft" != true ]]; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --draft --title "Coderune $VERSION" --generate-notes
+          fi
+          gh release upload "$tag" "${assets[@]}" SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber
+          published=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name')
+          newest=$(printf '%s\n' "$tag" "$published" |
+            awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/' | sort -V | tail -n 1)
+          latest=false
+          if [[ "$newest" == "$tag" ]]; then latest=true; fi
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest="$latest"

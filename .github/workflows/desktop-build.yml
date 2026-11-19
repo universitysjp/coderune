@@ -18,7 +18,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ inputs.commit }}
           fetch-depth: 0
@@ -66,7 +66,7 @@ jobs:
       CARGO_PROFILE_RELEASE_LTO: "false"
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ inputs.commit }}
           persist-credentials: false
@@ -112,8 +112,9 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $version -ne "Coderune $env:CODERUNE_BUILD_VERSION") {
             throw "Unexpected installed version: $version"
           }
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coderune-${{ matrix.platform }}-${{ needs.version.outputs.version }}
           path: dist/desktop/Coderune-*
           if-no-files-found: error
+          overwrite: true
