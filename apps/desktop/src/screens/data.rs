@@ -1,10 +1,11 @@
 //! The data screen.
 
 use crate::app::CoderuneApp;
+use crate::updates::Status;
 use crate::widgets::*;
 use coderune_ui::components as ui;
 use rune::{col, El};
-use rune_kit::Kit;
+use rune_kit::{Kit, TextInput};
 use std::path::PathBuf;
 
 pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
@@ -18,6 +19,7 @@ pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
         .w_full()
         .gap(24.0)
         .child(ui::page_header("Data", "Inspect the local database, export a JSON bundle, or remove all application data.", vec![]))
+        .child(updates_card(s, k))
         .child(ui::card(
             Some("Local database"),
             Some("One per-user SQLite database, outside project repositories."),
@@ -62,4 +64,49 @@ pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
         body = body.child(ui::alert(None, notice));
     }
     body
+}
+
+fn updates_card(s: &CoderuneApp, k: &Kit) -> El {
+    let token = TextInput::new(&s.updates.token)
+        .secure()
+        .placeholder("GitHub token")
+        .label("GitHub token")
+        .width(None)
+        .height(32.0)
+        .on_edit(|s: &mut CoderuneApp| &mut s.updates.token)
+        .build(k);
+    let mut controls = vec![ui::field(
+        "GitHub token",
+        Some("For private releases, use a token with read access to this repository's contents. It stays in this session."),
+        token,
+    )];
+    match &s.updates.status {
+        Status::Idle => {}
+        Status::Checking => controls.push(ui::subtle("Checking for updates…")),
+        Status::Current => controls.push(ui::subtle("Coderune is up to date.")),
+        Status::Available(update) => controls.push(primary(
+            &format!("Download Coderune {}", update.version),
+            |s| s.updates.download(),
+            k,
+        )),
+        Status::Downloading => controls.push(ui::subtle("Downloading and verifying the update…")),
+        Status::Downloaded(folder) => {
+            let folder = folder.clone();
+            controls.push(ui::subtle("The package is ready to install. Close Coderune before replacing the current version."));
+            controls.push(primary(
+                "Open download folder",
+                move |s| s.open_folder(folder.clone()),
+                k,
+            ));
+        }
+        Status::Failed(message) => controls.push(ui::alert(None, message)),
+    }
+    if !matches!(s.updates.status, Status::Checking | Status::Downloading) {
+        controls.push(secondary("Check for updates", |s| s.updates.check(), k));
+    }
+    ui::card(
+        Some("Application updates"),
+        Some(&format!("Installed version {}", crate::VERSION)),
+        controls,
+    )
 }

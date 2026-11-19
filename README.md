@@ -11,6 +11,11 @@ The first planned milestone is collecting developer and project context and stor
 it locally. Architecture and the work breakdown structure will be developed through
 `/grill-with-docs` before implementation.
 
+## Desktop downloads
+
+[Desktop builds and releases](docs/releases.md) explains how to download a
+GitHub Actions build, install Coderune, and check for updates.
+
 ## Desktop architecture
 
 - `apps/desktop/src/app.rs` — application state, actions, and the workspace shell.

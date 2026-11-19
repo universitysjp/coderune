@@ -1,5 +1,6 @@
 mod app;
 mod screens;
+mod updates;
 mod widgets;
 
 use rune::AppSpec;

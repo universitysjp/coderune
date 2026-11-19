@@ -39,3 +39,19 @@ The latest unpublished milestone can be retried by rerunning the failed jobs
 or on the next push to `main`. When more than one version line lands in a
 single push, CI publishes the newest milestone. Published releases are left
 intact.
+
+## Update an installed copy
+
+Open the gear screen and choose **Check for updates** under **Application
+updates**. The app shows its installed version and offers the matching
+package if GitHub has a newer published release.
+
+For the private repository, enter a fine-grained GitHub personal access
+token scoped to `universitysjp/coderune` with read access to repository
+contents. The app keeps it in memory for the current session. If the
+repository becomes public, leave the token blank.
+
+Choose **Download Coderune**. The app verifies the downloaded bytes against
+the release asset's SHA-256 digest. Open the download folder, close the
+running app, and follow the install step for your platform in the table
+above. Your workspace database lives outside the application install.

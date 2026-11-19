@@ -18,7 +18,7 @@ use coderune_ui::components as ui;
 use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, CODE_SM, HEADING, HEADING_XS, LABEL, LABEL_SM};
 
-use crate::screens;
+use crate::{screens, updates::Updates};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
@@ -440,6 +440,7 @@ pub struct CoderuneApp {
     pub(crate) confirm_delete_capture: Option<String>,
     pub(crate) confirm_delete_all: bool,
     pub(crate) export_path: TextEdit,
+    pub(crate) updates: Updates,
     pub error: Option<AppError>,
     pub notice: Option<String>,
     /// The animated avatars on screen, keyed by agent or gallery id.
@@ -512,6 +513,7 @@ impl CoderuneApp {
             confirm_delete_capture: None,
             confirm_delete_all: false,
             export_path,
+            updates: Updates::new(),
             error: None,
             notice: None,
             avatars: BotAvatarStage::new(),
@@ -1205,11 +1207,10 @@ pub fn avatar_state(availability: AgentAvailability) -> BotAvatarState {
     }
 }
 
-/// Advances the avatars on screens that show them, and asks the runtime for
-/// another frame while they move. Every other screen draws nothing, so the
-/// window goes idle.
-pub fn poll(s: &mut CoderuneApp, t: f64, _: &mut Tx) -> bool {
-    match s.view {
+/// Advances visible animations and applies completed background updates.
+pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
+    let update_changed = s.updates.poll(tx);
+    let avatar_changed = match s.view {
         View::Agents => {
             let wanted: Vec<(String, BotAvatarType, BotAvatarState)> = s
                 .workspace
@@ -1248,7 +1249,8 @@ pub fn poll(s: &mut CoderuneApp, t: f64, _: &mut Tx) -> bool {
             }
             false
         }
-    }
+    };
+    update_changed || avatar_changed
 }
 
 /// Onboarding's second step, with the first step's answers filled in.
