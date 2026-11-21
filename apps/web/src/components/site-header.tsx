@@ -17,8 +17,8 @@ export const SiteHeader = () => {
     select: (state) => state.location.pathname,
   });
 
-  // SAFETY: the router only emits pathnames declared in the pageSections map.
-  const sections = pageSections[pathname as keyof typeof pageSections] ?? [];
+  const activeItem = navItems.find(({ to }) => isActive(pathname, to));
+  const sections = activeItem ? pageSections[activeItem.to] : [];
 
   return (
     <header className="site-sidebar">
@@ -47,7 +47,7 @@ export const SiteHeader = () => {
         className="sidebar-nav hidden min-[60rem]:grid"
       >
         {navItems.map((item) => {
-          const active = isActive(pathname, item.to);
+          const active = activeItem?.to === item.to;
 
           return (
             <div key={item.to}>
@@ -82,10 +82,10 @@ export const SiteHeader = () => {
       >
         {navItems.map((item) => (
           <Link
-            aria-current={isActive(pathname, item.to) ? "page" : undefined}
+            aria-current={activeItem?.to === item.to ? "page" : undefined}
             className={cn(
               "shrink-0 transition-colors",
-              isActive(pathname, item.to)
+              activeItem?.to === item.to
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             )}

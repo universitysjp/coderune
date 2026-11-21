@@ -25,6 +25,13 @@ bun run preview
 
 Run commands from `apps/web`.
 
+## GitHub Pages
+
+The web workflow builds and publishes changes from `main` to
+[Coderune on GitHub Pages](https://universitysjp.github.io/coderune/).
+It passes the configured Pages base path to Vite. The build emits a static
+entry point for every navigation route so shared links work on a direct visit.
+
 ## Routes
 
 - `/` overview and verification demo
