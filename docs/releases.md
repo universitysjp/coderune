@@ -46,10 +46,7 @@ Open Settings and choose **Check for updates** under **Application
 updates**. The app shows its installed version and offers the matching
 package if GitHub has a newer published release.
 
-For the private repository, enter a fine-grained GitHub personal access
-token scoped to `universitysjp/coderune` with read access to repository
-contents. The app keeps it in memory for the current session. If the
-repository becomes public, leave the token blank.
+Update checks and downloads use public GitHub Releases.
 
 Choose **Download Coderune**. The app verifies the downloaded bytes against
 the release asset's SHA-256 digest. Open the download folder, close the

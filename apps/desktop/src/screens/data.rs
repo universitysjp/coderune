@@ -5,7 +5,7 @@ use crate::updates::Status;
 use crate::widgets::*;
 use coderune_ui::components as ui;
 use rune::{col, El};
-use rune_kit::{Kit, TextInput};
+use rune_kit::Kit;
 use std::path::PathBuf;
 
 pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
@@ -67,23 +67,14 @@ pub(crate) fn data(s: &CoderuneApp, k: &Kit) -> El {
 }
 
 fn updates_card(s: &CoderuneApp, k: &Kit) -> El {
-    let token = TextInput::new(&s.updates.token)
-        .secure()
-        .placeholder("GitHub token")
-        .label("GitHub token")
-        .width(None)
-        .height(32.0)
-        .on_edit(|s: &mut CoderuneApp| &mut s.updates.token)
-        .build(k);
-    let mut controls = vec![ui::field(
-        "GitHub token",
-        Some("For private releases, use a token with read access to this repository's contents. It stays in this session."),
-        token,
-    )];
+    let mut controls = Vec::new();
     match &s.updates.status {
         Status::Idle => {}
         Status::Checking => controls.push(ui::subtle("Checking for updates…")),
         Status::Current => controls.push(ui::subtle("Coderune is up to date.")),
+        Status::NoRelease => {
+            controls.push(ui::subtle("No desktop release has been published yet."))
+        }
         Status::Available(update) => controls.push(primary(
             &format!("Download Coderune {}", update.version),
             |s| s.updates.download(),

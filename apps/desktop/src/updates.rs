@@ -7,20 +7,19 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::Duration;
 
 use directories::UserDirs;
-use rune::{TextEdit, Tx};
+use rune::Tx;
 use semver::Version;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use zeroize::Zeroizing;
 
 const RELEASES_API: &str = "https://api.github.com/repos/universitysjp/coderune/releases";
+const RELEASES_DOWNLOAD: &str = "https://github.com/universitysjp/coderune/releases/download";
 const MAX_METADATA_BYTES: u64 = 256 * 1024;
 const MAX_PACKAGE_BYTES: u64 = 500 * 1024 * 1024;
 
 type UpdateResult<T> = Result<T, &'static str>;
 
 pub(crate) struct Updates {
-    pub(crate) token: TextEdit,
     pub(crate) status: Status,
     pending: Option<Receiver<UpdateResult<Status>>>,
 }
@@ -29,6 +28,7 @@ pub(crate) enum Status {
     Idle,
     Checking,
     Current,
+    NoRelease,
     Available(Update),
     Downloading,
     Downloaded(PathBuf),
@@ -38,24 +38,29 @@ pub(crate) enum Status {
 impl Updates {
     pub(crate) fn new() -> Self {
         Self {
-            token: TextEdit::default().secure(),
             status: Status::Idle,
             pending: None,
         }
     }
 
     pub(crate) fn check(&mut self) {
-        self.start(Status::Checking, |token| {
+        self.start(Status::Checking, || {
             let package =
                 platform_package().ok_or("No Coderune package is built for this system.")?;
             let installed =
                 Version::parse(crate::VERSION).map_err(|_| "Invalid installed version.")?;
-            let mut response = request(
+            let mut response = match request(
                 &format!("{RELEASES_API}/latest"),
                 "application/vnd.github+json",
-                token,
                 Duration::from_secs(20),
-            )?;
+            ) {
+                Ok(response) => response,
+                Err(ureq::Error::StatusCode(404)) => return Ok(Status::NoRelease),
+                Err(ureq::Error::StatusCode(403 | 429)) => {
+                    return Err("GitHub limited update checks. Try again later.");
+                }
+                Err(_) => return Err("Could not reach GitHub Releases. Try again."),
+            };
             let contents = response
                 .body_mut()
                 .with_config()
@@ -69,8 +74,8 @@ impl Updates {
     pub(crate) fn download(&mut self) {
         if let Status::Available(update) = &self.status {
             let update = update.clone();
-            self.start(Status::Downloading, move |token| {
-                download(&update, token).map(Status::Downloaded)
+            self.start(Status::Downloading, move || {
+                download(&update).map(Status::Downloaded)
             });
         }
     }
@@ -78,17 +83,16 @@ impl Updates {
     fn start(
         &mut self,
         activity: Status,
-        operation: impl FnOnce(&str) -> UpdateResult<Status> + Send + 'static,
+        operation: impl FnOnce() -> UpdateResult<Status> + Send + 'static,
     ) {
         if self.pending.is_some() {
             return;
         }
-        let token = Zeroizing::new(self.token.text.trim().to_owned());
         let (sender, receiver) = mpsc::channel();
         let worker = std::thread::Builder::new()
             .name("coderune-updates".into())
             .spawn(move || {
-                let _ = sender.send(operation(&token));
+                let _ = sender.send(operation());
             });
         if worker.is_ok() {
             self.status = activity;
@@ -120,7 +124,6 @@ impl Updates {
 pub(crate) struct Update {
     pub(crate) version: Version,
     package: &'static str,
-    asset_id: u64,
     size: u64,
     digest: [u8; 32],
 }
@@ -133,7 +136,6 @@ struct Release {
 
 #[derive(Deserialize)]
 struct ReleaseAsset {
-    id: u64,
     name: String,
     size: u64,
     digest: Option<String>,
@@ -168,9 +170,7 @@ fn select_release(
     let asset = release
         .assets
         .into_iter()
-        .find(|asset| {
-            asset.name == package && asset.id > 0 && (1..=MAX_PACKAGE_BYTES).contains(&asset.size)
-        })
+        .find(|asset| asset.name == package && (1..=MAX_PACKAGE_BYTES).contains(&asset.size))
         .ok_or("The latest release has no usable package for this system.")?;
     let digest = asset
         .digest
@@ -182,7 +182,6 @@ fn select_release(
     Ok(Some(Update {
         version,
         package,
-        asset_id: asset.id,
         size: asset.size,
         digest: checksum,
     }))
@@ -191,31 +190,19 @@ fn select_release(
 fn request(
     url: &str,
     accept: &str,
-    token: &str,
     timeout: Duration,
-) -> UpdateResult<ureq::http::Response<ureq::Body>> {
-    let agent = ureq::Agent::config_builder()
+) -> Result<ureq::http::Response<ureq::Body>, ureq::Error> {
+    ureq::Agent::config_builder()
         .https_only(true)
-        .redirect_auth_headers(ureq::config::RedirectAuthHeaders::Never)
         .timeout_global(Some(timeout))
         .build()
-        .new_agent();
-    let mut request = agent.get(url).header("Accept", accept);
-    if !token.is_empty() {
-        request = request.header("Authorization", format!("Bearer {token}"));
-    }
-    request.call().map_err(|error| match error {
-        ureq::Error::StatusCode(401 | 403) => {
-            "GitHub rejected access. Check the token's repository access."
-        }
-        ureq::Error::StatusCode(404) => {
-            "No release is accessible. Private releases need a GitHub token."
-        }
-        _ => "Could not reach the GitHub release. Try again.",
-    })
+        .new_agent()
+        .get(url)
+        .header("Accept", accept)
+        .call()
 }
 
-fn download(update: &Update, token: &str) -> UpdateResult<PathBuf> {
+fn download(update: &Update) -> UpdateResult<PathBuf> {
     let users = UserDirs::new().ok_or("Could not find your Downloads folder.")?;
     let downloads = users
         .download_dir()
@@ -229,11 +216,11 @@ fn download(update: &Update, token: &str) -> UpdateResult<PathBuf> {
     let mut file =
         File::create_new(&partial).map_err(|_| "Could not create the update package.")?;
     let mut response = request(
-        &format!("{RELEASES_API}/assets/{}", update.asset_id),
+        &format!("{RELEASES_DOWNLOAD}/v{}/{}", update.version, update.package),
         "application/octet-stream",
-        token,
         Duration::from_secs(180),
-    )?;
+    )
+    .map_err(|_| "Could not download the published package. Try again.")?;
     write_verified(response.body_mut().as_reader(), &mut file, update)?;
     file.sync_all()
         .map_err(|_| "Could not save the update package.")?;
@@ -282,8 +269,8 @@ mod tests {
         json!({
             "tag_name": "v0.10.0",
             "assets": [
-                {"id": 40, "name": "Coderune-macos-arm64.zip", "size": 3, "digest": null},
-                {"id": 41, "name": PACKAGE, "size": 3, "digest": ABC_DIGEST}
+                {"name": "Coderune-macos-arm64.zip", "size": 3, "digest": null},
+                {"name": PACKAGE, "size": 3, "digest": ABC_DIGEST}
             ]
         })
         .to_string()
@@ -295,8 +282,8 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            (update.version, update.package, update.asset_id),
-            (Version::new(0, 10, 0), PACKAGE, 41)
+            (update.version, update.package),
+            (Version::new(0, 10, 0), PACKAGE)
         );
     }
 
