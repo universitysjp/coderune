@@ -34,7 +34,8 @@ system. The web app keeps its own React registry in `packages/ui`.
 - Headless scenes for onboarding steps and every workspace page.
 - A composed app icon from the supplied mark: grey-to-black gradient, the mark
   at half scale, generated `icon.icns` and PNGs, with the editable
-  `AppIcon.icon` source under `apps/desktop/assets`.
+  `AppIcon.icon` source under `apps/desktop/assets`. macOS uses the bundle icon
+  for packaged builds and the rounded `icon-dock.png` for standalone builds.
 
 ## Not yet wired
 

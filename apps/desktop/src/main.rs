@@ -20,9 +20,21 @@ fn main() {
         return;
     }
 
-    // A `cargo run` binary has no bundle, so give the window and Dock the
-    // composed mark explicitly. A packaged build can also use `icon.icns`.
-    let _ = rune::set_app_icon(include_bytes!("../assets/icon-1024.png").to_vec());
+    #[cfg(target_os = "macos")]
+    {
+        // AppKit applies the native mask to the bundled icon. Standalone
+        // binaries need an icon with the mask already applied.
+        let has_bundle_icon = std::env::current_exe().is_ok_and(|executable| {
+            executable
+                .with_file_name("../Resources/AppIcon.icns")
+                .is_file()
+        });
+        if !has_bundle_icon {
+            let _ = rune::set_app_icon(include_bytes!("../assets/icon-dock.png").as_slice());
+        }
+    }
+    #[cfg(target_os = "windows")]
+    let _ = rune::set_app_icon(include_bytes!("../assets/icon-1024.png").as_slice());
     rune::run(AppSpec {
         min_size: Some((960.0, 640.0)),
         fonts: &[

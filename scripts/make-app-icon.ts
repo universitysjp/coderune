@@ -11,8 +11,9 @@
  *
  *     bun run icon:build
  *
- * Outputs a 1024 px master, a 512 px Linux/Windows copy, and `icon.icns` for
- * macOS packaging. `AppIcon.icon` is the editable Icon Composer source.
+ * Outputs a 1024 px master, a 512 px Linux/Windows copy, `icon.icns` for macOS
+ * packaging, and a masked PNG for standalone macOS builds. `AppIcon.icon` is
+ * the editable Icon Composer source.
  */
 
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -32,6 +33,8 @@ const SOURCE = path.join(ASSETS, "icon-source.png");
 const SIDE = 1024;
 const MARK_SCALE = 0.5;
 const GRADIENT_STOP = 0.7;
+const SQUARE_FIELD = { inset: 0, radius: 0 };
+const DOCK_FIELD = { inset: 100, radius: 184 };
 
 const SIZES = [
   { name: "icon-1024.png", size: 1024 },
@@ -53,20 +56,26 @@ const pngSize = (bytes: Uint8Array): Size => {
   return { width: view.getUint32(16), height: view.getUint32(20) };
 };
 
-const svg = (href: string, mark: Size): string => {
-  const width = Math.round(mark.width * MARK_SCALE);
-  const height = Math.round(mark.height * MARK_SCALE);
+const svg = (
+  href: string,
+  mark: Size,
+  { inset, radius } = SQUARE_FIELD
+): string => {
+  const fieldSize = SIDE - 2 * inset;
+  const markScale = MARK_SCALE * (fieldSize / SIDE);
+  const width = Math.round(mark.width * markScale);
+  const height = Math.round(mark.height * markScale);
   const x = (SIDE - width) / 2;
   const y = (SIDE - height) / 2;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIDE}" height="${SIDE}" viewBox="0 0 ${SIDE} ${SIDE}">
   <defs>
-    <linearGradient id="field" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${SIDE * GRADIENT_STOP}">
+    <linearGradient id="field" gradientUnits="userSpaceOnUse" x1="0" y1="${inset}" x2="0" y2="${inset + fieldSize * GRADIENT_STOP}">
       <stop offset="0" stop-color="#333333"/>
       <stop offset="1" stop-color="#000000"/>
     </linearGradient>
   </defs>
-  <rect width="${SIDE}" height="${SIDE}" fill="url(#field)"/>
+  <rect x="${inset}" y="${inset}" width="${fieldSize}" height="${fieldSize}" rx="${radius}" fill="url(#field)"/>
   <image href="${href}" x="${x}" y="${y}" width="${width}" height="${height}"/>
 </svg>`;
 };
@@ -122,12 +131,18 @@ const writeIcns = async (master: string): Promise<void> => {
 
 const source = new Uint8Array(await Bun.file(SOURCE).arrayBuffer());
 const href = `data:image/png;base64,${source.toBase64()}`;
-const document = svg(href, pngSize(source));
+const mark = pngSize(source);
+const document = svg(href, mark);
 
 await Promise.all(
   SIZES.map(({ name, size }) =>
     Bun.write(path.join(ASSETS, name), render(document, size))
   )
+);
+
+await Bun.write(
+  path.join(ASSETS, "icon-dock.png"),
+  render(svg(href, mark, DOCK_FIELD), SIDE)
 );
 
 await writeIcns(document);
