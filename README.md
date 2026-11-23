@@ -93,6 +93,12 @@ Turbo drives the native tasks too: `bun run dev:desktop`, `bun run check:desktop
 `coderune` on your PATH. The app opens a project folder in Finder and can launch
 `code`, `cursor`, `antigravity`, or `zed` when installed.
 
+Open **Settings → Agents** to see which coding-agent CLIs Coderune found.
+Use **Check again** after installing a CLI. On macOS and Linux this also
+reads your current login-shell PATH. On Windows, restart Coderune after an
+installer adds a new directory to PATH. **Subagents** in the workspace
+sidebar is for Coderune specialists and their bot avatars.
+
 The native desktop notes live in `docs/rune/`. The desktop is Rust/Rune; the shared web UI is in `packages/ui`.
 
 Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/skills`

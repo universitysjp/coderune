@@ -10,13 +10,13 @@ Shared vocabulary for Coderune's developer and project context, agent skills, ve
 
 **Developer baseline**: A developer's confirmed starting description of their experience, skills, and learning goals, used as a reference for later progress. _Avoid_: Verified mastery, current skill assessment
 
-**Coding agent**: An external assistant selected by the developer to carry out coding-related work using its own configured models and tools. _Avoid_: Model provider, developer profile
+**Coding agent**: An external coding assistant such as Claude Code, Codex, or OpenCode that uses its own configured models and tools. The Settings section for installed coding agents is labeled Agents. _Avoid_: Subagent, model provider
 
 **Agent connection**: A developer-configured connection to a coding agent and the models available through it. _Avoid_: Subscription, model provider
 
-**Bot avatar**: The animated character that stands for a coding agent in the desktop app, showing whether that agent is idle, working or asleep. _Avoid_: Agent icon, profile picture
+**Bot avatar**: The animated character that represents a subagent in the desktop app, showing whether it is idle, working, or asleep. _Avoid_: Coding agent logo, profile picture
 
-**Defined subagent**: A reusable specialist with a defined purpose and a configured default model assignment. _Avoid_: Individual task, agent skill
+**Subagent** (defined subagent): A reusable Coderune specialist with a defined purpose and a configured default model assignment. The workspace destination for these specialists is labeled Subagents. _Avoid_: Coding agent, individual task, agent skill
 
 **Subagent run**: One execution of a task assigned to a defined subagent, inheriting that subagent's configured default model. _Avoid_: Subagent definition, individual model choice
 

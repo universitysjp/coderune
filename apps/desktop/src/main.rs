@@ -1,3 +1,4 @@
+mod agent_detection;
 mod app;
 mod screens;
 mod shell;
@@ -50,11 +51,15 @@ fn main() {
             ("profile-details", app::scene_profile_details),
             ("projects", app::scene_projects),
             ("documents", app::scene_documents),
-            ("agents", app::scene_agents),
+            ("agents", app::scene_subagents),
+            ("subagents", app::scene_subagents),
             ("avatars", app::scene_avatars),
             ("capture", app::scene_capture),
             ("capture-preview", app::scene_capture_preview),
-            ("data", app::scene_data),
+            ("data", app::scene_settings),
+            ("settings", app::scene_settings),
+            ("storage", app::scene_storage),
+            ("settings-agents", app::scene_settings_agents),
             ("onboarding-start", app::scene_onboarding_start),
             ("onboarding-review", app::scene_onboarding_review),
         ],

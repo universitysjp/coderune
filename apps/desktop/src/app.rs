@@ -4,11 +4,11 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use coderune_app::{PreviewSession, Workspace};
-use coderune_avatars::{BotAvatarStage, BotAvatarState, BotAvatarType};
+use coderune_avatars::BotAvatarStage;
 use coderune_domain::{
-    AgentAvailability, AgentId, AppError, Certification, ContextCapture, DocumentKind,
-    EducationEntry, EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft,
-    ProjectDraft, ProjectExperience, SelfReportedSkill, SkillRating,
+    AgentId, AppError, Certification, ContextCapture, DocumentKind, EducationEntry,
+    EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft, ProjectDraft,
+    ProjectExperience, SelfReportedSkill, SkillRating,
 };
 use rune::{col, text, Cx, El, Key, KeyEvent, TextEdit, Tx};
 use rune_kit::shell::is_sidebar_toggle;
@@ -16,6 +16,7 @@ use rune_kit::shell::is_sidebar_toggle;
 use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, HEADING};
 
+use crate::agent_detection::{AgentDetection, Check};
 use crate::screens;
 use crate::shell::{self, SidebarPane};
 use crate::updates::Updates;
@@ -26,9 +27,8 @@ pub enum View {
     Profile,
     Projects,
     Documents,
-    Agents,
+    Subagents,
     Capture,
-    Data,
     /// The avatar gallery: a development scene, reachable with `--scene avatars`.
     Avatars,
 }
@@ -40,9 +40,8 @@ impl View {
             Self::Profile => "Profile",
             Self::Projects => "Projects",
             Self::Documents => "Documents",
-            Self::Agents => "Agents",
+            Self::Subagents => "Subagents",
             Self::Capture => "Capture",
-            Self::Data => "Settings",
             Self::Avatars => "Avatars",
         }
     }
@@ -53,9 +52,8 @@ impl View {
             Self::Profile => &icons::USER,
             Self::Projects => &icons::FOLDER,
             Self::Documents => &icons::FILES,
-            Self::Agents => &icons::ROBOT,
+            Self::Subagents => &icons::ROBOT,
             Self::Capture => &icons::SCAN,
-            Self::Data => &icons::GEAR,
             Self::Avatars => &icons::ROBOT,
         }
     }
@@ -66,9 +64,8 @@ impl View {
             Self::Profile => "profile",
             Self::Projects => "projects",
             Self::Documents => "documents",
-            Self::Agents => "agents",
+            Self::Subagents => "subagents",
             Self::Capture => "capture",
-            Self::Data => "settings",
             Self::Avatars => "avatars",
         }
     }
@@ -79,9 +76,8 @@ impl View {
             Self::Profile => "nav-profile-footer",
             Self::Projects => "nav-projects",
             Self::Documents => "nav-documents",
-            Self::Agents => "nav-agents",
+            Self::Subagents => "nav-subagents",
             Self::Capture => "nav-capture",
-            Self::Data => "nav-data-footer",
             Self::Avatars => "nav-avatars",
         }
     }
@@ -90,9 +86,16 @@ impl View {
         Self::Home,
         Self::Projects,
         Self::Documents,
-        Self::Agents,
+        Self::Subagents,
         Self::Capture,
     ];
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SettingsSection {
+    General,
+    Storage,
+    Agents,
 }
 
 /// The three short onboarding questions. Optional profile detail lives in the
@@ -465,10 +468,13 @@ pub struct CoderuneApp {
     pub(crate) confirm_delete_capture: Option<String>,
     pub(crate) confirm_delete_all: bool,
     pub(crate) export_path: TextEdit,
+    pub(crate) settings: Option<SettingsSection>,
+    pub(crate) settings_feedback: Option<Result<String, AppError>>,
+    pub(crate) agent_detection: AgentDetection,
     pub(crate) updates: Updates,
     pub error: Option<AppError>,
     pub notice: Option<String>,
-    /// The animated avatars on screen, keyed by agent or gallery id.
+    /// The animated avatars on screen, keyed by subagent or gallery id.
     pub(crate) avatars: BotAvatarStage,
 }
 
@@ -538,6 +544,9 @@ impl CoderuneApp {
             confirm_delete_capture: None,
             confirm_delete_all: false,
             export_path,
+            settings: None,
+            settings_feedback: None,
+            agent_detection: AgentDetection::default(),
             updates: Updates::new(),
             error: None,
             notice: None,
@@ -634,6 +643,22 @@ impl CoderuneApp {
         self.notice = None;
         self.confirm_delete_project = None;
         self.confirm_delete_capture = None;
+    }
+
+    pub(crate) fn select_settings(&mut self, section: SettingsSection) {
+        self.settings = Some(section);
+        self.settings_feedback = None;
+        self.confirm_delete_all = false;
+        if section == SettingsSection::Agents
+            && matches!(self.agent_detection.check, Check::NotChecked)
+        {
+            self.agent_detection.refresh();
+        }
+    }
+
+    pub(crate) fn close_settings(&mut self) {
+        self.settings = None;
+        self.settings_feedback = None;
         self.confirm_delete_all = false;
     }
 
@@ -1078,33 +1103,21 @@ impl CoderuneApp {
         }
     }
 
-    pub(crate) fn refresh_agents(&mut self) {
-        if let Some(workspace) = self.workspace.as_mut() {
-            workspace.agents = coderune_agents::detect_all();
-        }
-        self.notice = Some("Agent detection refreshed.".to_string());
-    }
-
     pub(crate) fn export_data(&mut self) {
         let path = PathBuf::from(self.export_path.text.trim());
         let Some(workspace) = self.workspace.as_ref() else {
             return;
         };
-        match workspace.export_json() {
-            Ok(json) => match std::fs::write(&path, json) {
-                Ok(()) => {
-                    self.notice = Some(format!("Exported local context to {}.", path.display()));
-                    self.error = None;
-                }
-                Err(error) => {
-                    self.error = Some(AppError::new(
+        self.settings_feedback = Some(workspace.export_json().and_then(|json| {
+            std::fs::write(&path, json)
+                .map(|()| format!("Exported local context to {}.", path.display()))
+                .map_err(|error| {
+                    AppError::new(
                         coderune_domain::ErrorCode::Validation,
                         format!("Could not write {}: {error}", path.display()),
-                    ));
-                }
-            },
-            Err(error) => self.error = Some(error),
-        }
+                    )
+                })
+        }));
     }
 
     pub(crate) fn delete_all_data(&mut self) {
@@ -1116,18 +1129,17 @@ impl CoderuneApp {
                 self.notice =
                     Some("All application data deleted. Onboarding is required again.".to_string());
                 self.error = None;
-                self.confirm_delete_all = false;
+                self.close_settings();
                 self.view = View::Home;
                 self.reset_capture_state();
                 self.confirm_delete_project = None;
                 self.confirm_delete_capture = None;
-                self.confirm_delete_all = false;
                 self.project_form = ProjectForm::empty(None);
                 self.document_form = DocumentForm::empty();
                 self.refresh_profile_form();
                 self.refresh_captures();
             }
-            Err(error) => self.error = Some(error),
+            Err(error) => self.settings_feedback = Some(Err(error)),
         }
     }
 
@@ -1135,6 +1147,10 @@ impl CoderuneApp {
         if let Err(error) = Workspace::open_directory(&path) {
             self.error = Some(error);
         }
+    }
+
+    pub(crate) fn open_settings_folder(&mut self, path: &std::path::Path) {
+        self.settings_feedback = Workspace::open_directory(path).err().map(Err);
     }
 
     pub(crate) fn open_editor(&mut self, editor: &str, path: PathBuf) {
@@ -1188,9 +1204,9 @@ pub fn scene_documents(s: &mut CoderuneApp) {
     seed_demo(s);
     s.view = View::Documents;
 }
-pub fn scene_agents(s: &mut CoderuneApp) {
+pub fn scene_subagents(s: &mut CoderuneApp) {
     seed_demo(s);
-    s.view = View::Agents;
+    s.view = View::Subagents;
 }
 pub fn scene_capture(s: &mut CoderuneApp) {
     seed_demo(s);
@@ -1201,9 +1217,21 @@ pub fn scene_capture_preview(s: &mut CoderuneApp) {
     s.view = View::Capture;
     s.preview_capture();
 }
-pub fn scene_data(s: &mut CoderuneApp) {
+pub fn scene_settings(s: &mut CoderuneApp) {
     seed_demo(s);
-    s.view = View::Data;
+    s.select_settings(SettingsSection::General);
+}
+
+pub fn scene_storage(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.select_settings(SettingsSection::Storage);
+}
+
+pub fn scene_settings_agents(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.agent_detection.results = coderune_agents::detect_cli_agents();
+    s.agent_detection.check = Check::Finished;
+    s.select_settings(SettingsSection::Agents);
 }
 
 /// The avatar gallery, a development scene reached with `--scene avatars`.
@@ -1212,53 +1240,16 @@ pub fn scene_avatars(s: &mut CoderuneApp) {
     s.view = View::Avatars;
 }
 
-/// The body an agent wears.
-pub fn avatar_kind(id: AgentId) -> BotAvatarType {
-    match id {
-        AgentId::Codex => BotAvatarType::Mech,
-        AgentId::ClaudeCode => BotAvatarType::Clover,
-        AgentId::OpenCode => BotAvatarType::Square,
-        AgentId::Antigravity => BotAvatarType::Star,
-    }
-}
-
-/// What an agent's avatar is doing: working while the agent is ready, asleep
-/// otherwise.
-pub fn avatar_state(availability: AgentAvailability) -> BotAvatarState {
-    if availability == AgentAvailability::Ready {
-        BotAvatarState::Working
-    } else {
-        BotAvatarState::Sleeping
-    }
-}
-
 /// Advances visible animations and applies completed background updates.
 pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
     let update_changed = s.updates.poll(tx);
-    let avatar_changed = match s.view {
-        View::Agents => {
-            let wanted: Vec<(String, BotAvatarType, BotAvatarState)> = s
-                .workspace
-                .as_ref()
-                .map(|workspace| {
-                    workspace
-                        .agents
-                        .iter()
-                        .map(|status| {
-                            (
-                                status.id.label().to_string(),
-                                avatar_kind(status.id),
-                                avatar_state(status.availability),
-                            )
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            for (id, kind, state) in wanted {
-                s.avatars.set(&id, kind, state);
-            }
-            s.avatars.tick(t, 1.0)
+    let detection_changed = s.agent_detection.poll(tx);
+    if detection_changed && matches!(s.agent_detection.check, Check::Finished) {
+        if let Some(workspace) = s.workspace.as_mut() {
+            workspace.agents = coderune_agents::draft_statuses(&s.agent_detection.results);
         }
+    }
+    let avatar_changed = match s.view {
         View::Avatars => {
             screens::register_gallery(&mut s.avatars);
             s.avatars.tick(t, 1.0)
@@ -1270,7 +1261,7 @@ pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
             false
         }
     };
-    update_changed || avatar_changed
+    update_changed || detection_changed || avatar_changed
 }
 
 /// Onboarding's second step, with the first step's answers filled in.
@@ -1514,7 +1505,12 @@ pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
     } else {
         screens::onboarding(s, k, inset)
     };
-    col().w_full().h_full().fill(theme::bg()).child(body)
+    let base = col().w_full().h_full().fill(theme::bg()).child(body);
+    let mut overlays = Vec::new();
+    if let Some(section) = s.settings {
+        screens::settings::dialog(s, section, k, &mut overlays);
+    }
+    rune_kit::root(base, overlays)
 }
 
 fn fatal(message: &str, inset: f32) -> El {
@@ -1543,22 +1539,30 @@ fn fatal(message: &str, inset: f32) -> El {
 }
 
 pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, tx: &mut rune::Tx) -> bool {
+    match event.key {
+        Key::Command('q') => std::process::exit(0),
+        Key::Command(',' | '7') if s.workspace.is_some() => {
+            if s.settings.is_none() {
+                s.select_settings(SettingsSection::General);
+                tx.instant();
+            }
+            return true;
+        }
+        _ if s.settings.is_some() => return false,
+        _ => {}
+    }
     if is_sidebar_toggle(event) {
         s.sidebar.toggle();
         tx.instant();
         return true;
     }
     match event.key {
-        Key::Command('q') => {
-            std::process::exit(0);
-        }
         Key::Command('1') => s.navigate(View::Home),
         Key::Command('2') => s.navigate(View::Profile),
         Key::Command('3') => s.navigate(View::Projects),
         Key::Command('4') => s.navigate(View::Documents),
-        Key::Command('5') => s.navigate(View::Agents),
+        Key::Command('5') => s.navigate(View::Subagents),
         Key::Command('6') => s.navigate(View::Capture),
-        Key::Command('7') => s.navigate(View::Data),
         _ => return false,
     }
     tx.instant();
@@ -1793,5 +1797,109 @@ mod tests {
         workspace.frame(0.0);
         workspace.frame(1.0 / 60.0);
         assert_eq!(position(&workspace, "workspace-sidebar")[2], wide_sidebar);
+    }
+
+    #[test]
+    fn settings_opens_over_the_current_page_and_groups_storage_actions() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        scene_projects(&mut state);
+        let export_path = dir.path().join("export.json");
+        state.export_path = edit(&export_path.display().to_string());
+        let mut app = Runtime::new(
+            state,
+            view,
+            (1280.0, 860.0),
+            Env {
+                system_dark: false,
+                scale: 1.0,
+            },
+        );
+        app.frame(0.0);
+
+        let click = |app: &mut Runtime<CoderuneApp>, key| {
+            let [x, y, w, h] = app.presented(key).unwrap().0;
+            app.pointer_down(x + w / 2.0, y + h / 2.0);
+            app.pointer_up(x + w / 2.0, y + h / 2.0);
+            for _ in 0..24 {
+                app.frame(1.0 / 60.0);
+            }
+        };
+        click(&mut app, "nav-data-footer");
+        assert!(app.find("settings-dialog").is_some());
+        assert!(app.find("check-updates").is_some());
+        assert!(app.find("projects").is_some());
+
+        click(&mut app, "settings-storage");
+        for key in ["open-data-folder", "export-data", "delete-data"] {
+            assert!(app.find(key).is_some(), "missing storage action {key}");
+        }
+        assert!(app.find("check-updates").is_none());
+
+        click(&mut app, "export-data");
+        let exported: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(export_path).unwrap()).unwrap();
+        assert_eq!(exported["projects"][0]["name"], "Coderune");
+
+        click(&mut app, "delete-data");
+        assert!(app.find("cancel-delete-data").is_some());
+        click(&mut app, "delete-data");
+        assert!(app.find("confirm-delete-data").is_some());
+        click(&mut app, "cancel-delete-data");
+        assert!(app.find("cancel-delete-data").is_none());
+
+        click(&mut app, "close");
+        assert!(app.find("settings-dialog").is_none());
+        assert!(app.find("projects").is_some());
+
+        click(&mut app, "nav-data-footer");
+        click(&mut app, "settings-storage");
+        click(&mut app, "delete-data");
+        click(&mut app, "confirm-delete-data");
+        assert!(app.find("settings-dialog").is_none());
+        assert!(app.find("stage-chip-EarlyCareer").is_some());
+    }
+
+    #[test]
+    fn settings_opens_install_instructions_only_for_missing_clis() {
+        use coderune_agents::{CliAgentId, CliAgentStatus};
+
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        scene_home(&mut state);
+        state.agent_detection.results = vec![
+            CliAgentStatus {
+                id: CliAgentId::Codex,
+                name: "Codex",
+                command: "codex",
+                install_url: "https://learn.chatgpt.com/docs/codex/cli",
+                executable: Some(PathBuf::from("/opt/homebrew/bin/codex")),
+            },
+            CliAgentStatus {
+                id: CliAgentId::OpenCode,
+                name: "OpenCode",
+                command: "opencode",
+                install_url: "https://opencode.ai/docs/",
+                executable: None,
+            },
+        ];
+        state.agent_detection.check = Check::Finished;
+        state.select_settings(SettingsSection::Agents);
+        let mut app = Runtime::new(state, view, (960.0, 640.0), Env::new(false, 1.0));
+        for _ in 0..24 {
+            app.frame(1.0 / 60.0);
+        }
+
+        assert!(app.find("recheck-agents").is_some());
+        assert!(app.find("install-codex").is_none());
+        let [x, y, w, h] = app.presented("install-opencode").unwrap().0;
+        app.pointer_down(x + w / 2.0, y + h / 2.0);
+        app.pointer_up(x + w / 2.0, y + h / 2.0);
+        app.frame(1.0 / 60.0);
+        assert_eq!(app.take_url_requests(), ["https://opencode.ai/docs/"]);
     }
 }

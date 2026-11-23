@@ -3,6 +3,7 @@
 use std::sync::LazyLock;
 
 use coderune_ui::components::{self as ui, WhenExt};
+use coderune_ui::icons;
 use coderune_ui::theme::{self, LABEL, LABEL_SM};
 use rune::{col, el, row, text, Color, Cursor, Cx, Drag, El, Phase, ScrollSpec};
 use rune_kit::shell::{
@@ -10,7 +11,7 @@ use rune_kit::shell::{
 };
 use rune_kit::Kit;
 
-use crate::app::{CoderuneApp, View};
+use crate::app::{CoderuneApp, SettingsSection, View};
 use crate::screens;
 
 const SIDEBAR_BREAKPOINT: f32 = 1080.0;
@@ -103,9 +104,8 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
         View::Profile => screens::profile(s, k),
         View::Projects => screens::projects(s, k),
         View::Documents => screens::documents(s, k),
-        View::Agents => screens::agents(s, k),
+        View::Subagents => text("Subagents").font(theme::HEADING).color(theme::ink()),
         View::Capture => screens::capture(s, k),
-        View::Data => screens::data(s, k),
         View::Avatars => screens::avatar_gallery(s),
     };
     let content = col()
@@ -257,9 +257,15 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
     for view in View::NAV {
         nav = nav.child(nav_item(s, view));
     }
-    nav.footer(nav_item(s, View::Data))
-        .footer(profile_item(s))
-        .build(k)
+    nav.footer(ui::nav_item(
+        "nav-data-footer",
+        "Settings",
+        &icons::GEAR,
+        s.settings.is_some(),
+        |s: &mut CoderuneApp| s.select_settings(SettingsSection::General),
+    ))
+    .footer(profile_item(s))
+    .build(k)
 }
 
 fn nav_item(s: &CoderuneApp, view: View) -> El {

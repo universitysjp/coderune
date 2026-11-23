@@ -42,8 +42,8 @@ intact.
 
 ## Update an installed copy
 
-Open Settings and choose **Check for updates** under **Application
-updates**. The app shows its installed version and offers the matching
+Open **Settings → General** and choose **Check for updates**. The app
+shows its installed version and offers the matching
 package if GitHub has a newer published release.
 
 Update checks and downloads use public GitHub Releases.

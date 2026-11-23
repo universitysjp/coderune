@@ -18,8 +18,9 @@ system. The web app keeps its own React registry in `packages/ui`.
 - Markdown, plain-text, PDF, and DOCX document extraction, review, save, and
   agent sharing previews. DOCX extraction reads `word/document.xml`; PDF text
   comes from `pdf-extract`. The original document is never copied.
-- Coding-agent detection for Codex, Claude Code, OpenCode, and Antigravity with
-  honest readiness and restrictions.
+- Coding-agent CLI discovery in Settings follows Gui's 13-agent catalog.
+  Installed and missing tools are listed separately, with install links for
+  missing tools. Check again re-reads the login-shell PATH.
 - Reviewed repository capture with included/skipped lists, Git state,
   stale-preview rejection, versioned history, content inspection, and deletion.
 - JSON export and confirmed delete-all.
@@ -30,7 +31,9 @@ system. The web app keeps its own React registry in `packages/ui`.
   coding-session tabs. Drag the sidebar edge to resize, collapse, or reopen it,
   or use Shift–Command–B (Ctrl+Shift+B on Windows and Linux). Below 1080 points
   the sidebar starts collapsed. Wider windows restore the wide layout's
-  sidebar state. Settings sits above Profile in the footer.
+  sidebar state. Settings in the footer opens a dialog with General, Storage,
+  and Agents. Subagents in the workspace sidebar is reserved for Coderune's
+  defined specialists.
 - Headless scenes for onboarding steps and every workspace page.
 - A composed app icon from the supplied mark: grey-to-black gradient, the mark
   at half scale, generated `icon.icns` and PNGs, with the editable

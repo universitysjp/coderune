@@ -42,8 +42,10 @@ Out of scope for this increment:
 - **Capture limits** — per-file and per-capture byte limits.
 - **Context capture** — versioned file list, hashes, skipped reasons, Git state,
   bytes, profile version, and project version.
-- **Coding agent** — Codex, Claude Code, OpenCode, or Antigravity, with
-  readiness, capabilities, restrictions, and setup documentation.
+- **Coding agent** — an external assistant such as Claude Code, Codex, or
+  OpenCode, with its own models, tools, and sign-in.
+- **Subagent** — a reusable Coderune specialist represented by an animated
+  bot avatar.
 
 ## Invariants
 
@@ -77,10 +79,12 @@ Out of scope for this increment:
 - **Projects** — list/select/create/edit/delete, scope and limits, open folder.
 - **Documents** — import path, extract PDF/DOCX/Markdown/text, review, save,
   select, prepare agent sharing preview.
-- **Agents** — detection, readiness, capabilities, restrictions, setup links.
+- **Subagents** — workspace destination for Coderune specialists.
 - **Capture** — preview, review files and skips, save, refresh, history, inspect,
   delete.
-- **Data** — database location, JSON export, confirmed delete-all.
+- **Settings** — modal with a left sidebar for General (public update checks),
+  Storage (open database folder, JSON export, confirmed delete-all), and Agents
+  (installed and missing coding-agent CLIs, install links, and recheck).
 
 ## Storage
 
@@ -101,9 +105,11 @@ contacts a network service.
 
 ## Agents
 
-Detection is per executable on `PATH`. The agent keeps its own sign-in, provider,
-model, permissions, and credentials. Coderune never reads or exports credential
-files. A sharing preview shows the exact text, byte count, agent limit, and fit
+Settings checks for executables for the 13 built-in coding agents from Gui's
+catalog. It searches common installation directories and the developer's PATH,
+including the current login-shell PATH on macOS and Linux. Agents keep their
+own sign-in, provider, model, permissions, and credentials. Coderune never reads
+or exports credential files. A sharing preview shows the exact text, byte count, agent limit, and fit
 before any request. There is no automatic fallback to another agent or model.
 Failures, cancellation, timeouts, invalid output, and unavailable tools leave
 saved data unchanged and manual entry available.
