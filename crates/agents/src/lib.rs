@@ -1,12 +1,17 @@
 //! External coding-agent detection and draft requests.
 //!
 //! Coderune never owns sign-in, providers, models, or credentials. Agents are
-//! detected on `PATH` and invoked only for an explicitly confirmed draft job.
+//! detected through the user's executable paths and invoked only for an
+//! explicitly confirmed draft job.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
+
+mod cli;
+use cli::SearchPath;
+pub use cli::{detect_cli_agents, CliAgentId, CliAgentStatus};
 
 use coderune_domain::{
     AgentAvailability, AgentDraft, AgentId, AgentStatus, AppError, DocumentKind, ErrorCode,
@@ -71,20 +76,23 @@ pub fn definition(id: AgentId) -> &'static AgentDefinition {
 
 /// Detect one agent with an injectable lookup so detection is testable.
 pub fn detect_with(id: AgentId, lookup: &impl Fn(&str) -> Option<PathBuf>) -> AgentStatus {
+    status_for_executable(id, lookup(definition(id).command).as_deref())
+}
+
+fn status_for_executable(id: AgentId, found: Option<&Path>) -> AgentStatus {
     let definition = definition(id);
-    let found = lookup(definition.command);
     let availability = if found.is_some() {
         AgentAvailability::Ready
     } else {
         AgentAvailability::NotInstalled
     };
-    let detail = match &found {
+    let detail = match found {
         Some(path) => format!(
             "Found at {}. Sign-in, provider, and model choice remain with this tool.",
             path.display()
         ),
         None => format!(
-            "Not found on PATH. Install `{}` or open its setup documentation.",
+            "CLI not found. Install `{}` or open its setup documentation.",
             definition.command
         ),
     };
@@ -108,10 +116,8 @@ pub fn detect_with(id: AgentId, lookup: &impl Fn(&str) -> Option<PathBuf>) -> Ag
 }
 
 pub fn detect_all() -> Vec<AgentStatus> {
-    AgentId::ALL
-        .iter()
-        .map(|id| detect_with(*id, &which))
-        .collect()
+    let path = SearchPath::inherited();
+    detect_all_with(|command| path.find(command))
 }
 
 pub fn detect_all_with(lookup: impl Fn(&str) -> Option<PathBuf>) -> Vec<AgentStatus> {
@@ -121,55 +127,23 @@ pub fn detect_all_with(lookup: impl Fn(&str) -> Option<PathBuf>) -> Vec<AgentSta
         .collect()
 }
 
-pub fn which(command: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    #[cfg(windows)]
-    let extensions = windows_extensions();
-    for directory in std::env::split_paths(&path) {
-        let candidate = directory.join(command);
-        if is_executable(&candidate) {
-            return Some(candidate);
-        }
-        #[cfg(windows)]
-        {
-            for extension in &extensions {
-                let candidate = directory.join(format!("{command}{extension}"));
-                if is_executable(&candidate) {
-                    return Some(candidate);
-                }
-            }
-        }
-    }
-    None
-}
-
-#[cfg(windows)]
-fn windows_extensions() -> Vec<String> {
-    std::env::var_os("PATHEXT")
-        .map(|value| value.to_string_lossy().into_owned())
-        .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_string())
-        .split(';')
-        .filter(|extension| !extension.is_empty())
-        .map(str::to_ascii_lowercase)
+/// Map installed CLIs onto the existing document-drafting agent catalog.
+pub fn draft_statuses(cli_agents: &[CliAgentStatus]) -> Vec<AgentStatus> {
+    AgentId::ALL
+        .into_iter()
+        .map(|id| {
+            let found = cli_agents
+                .iter()
+                .find(|status| status.id == CliAgentId::from(id))
+                .and_then(|status| status.executable.as_deref());
+            status_for_executable(id, found)
+        })
         .collect()
 }
 
-fn is_executable(path: &Path) -> bool {
-    let Ok(metadata) = std::fs::metadata(path) else {
-        return false;
-    };
-    if !metadata.is_file() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        metadata.permissions().mode() & 0o111 != 0
-    }
-    #[cfg(not(unix))]
-    {
-        true
-    }
+/// Find an executable, including on the interactive login shell's PATH.
+pub fn which(command: &str) -> Option<PathBuf> {
+    SearchPath::discover().find(command)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -256,7 +230,19 @@ pub fn request_draft(preview: &DraftSharingPreview) -> std::result::Result<Agent
 }
 
 fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, AppError> {
-    let mut child = Command::new("claude")
+    let path = SearchPath::discover();
+    let unavailable = || {
+        AppError::new(
+            ErrorCode::AgentUnavailable,
+            "Claude Code could not be started. Install it or sign in with its own CLI.",
+        )
+    };
+    let executable = path.find(CLAUDE_CODE.command).ok_or_else(unavailable)?;
+    let mut command = Command::new(executable);
+    if let Ok(path) = path.joined() {
+        command.env("PATH", path);
+    }
+    let mut child = command
         .args([
             "--print",
             "--output-format",
@@ -270,12 +256,7 @@ fn run_claude(preview: &DraftSharingPreview) -> std::result::Result<AgentDraft, 
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|_| {
-            AppError::new(
-                ErrorCode::AgentUnavailable,
-                "Claude Code could not be started. Install it or sign in with its own CLI.",
-            )
-        })?;
+        .map_err(|_| unavailable())?;
     if let Some(mut stdin) = child.stdin.take() {
         if stdin.write_all(preview.text.as_bytes()).is_err() {
             drop(stdin);
@@ -416,6 +397,72 @@ pub fn validate_draft(
 mod tests {
     use super::*;
     use coderune_domain::now_iso;
+
+    #[cfg(unix)]
+    #[test]
+    fn finder_launch_finds_cli_on_login_shell_path() {
+        use std::os::unix::fs::PermissionsExt;
+
+        const FIXTURE: &str = "CODERUNE_TEST_CLI_EXECUTABLE";
+        if let Some(executable) = std::env::var_os(FIXTURE) {
+            let executable = PathBuf::from(executable);
+            assert_eq!(which("claude"), Some(executable.clone()));
+            let find_claude = || {
+                detect_cli_agents()
+                    .into_iter()
+                    .find(|agent| agent.id == CliAgentId::ClaudeCode)
+                    .unwrap()
+                    .executable
+            };
+            assert_eq!(find_claude(), Some(executable.clone()));
+
+            let fixture = executable.parent().unwrap();
+            let new_install = fixture.join("new-bin");
+            std::fs::create_dir(&new_install).unwrap();
+            let new_executable = new_install.join("claude");
+            std::fs::rename(&executable, &new_executable).unwrap();
+            std::fs::write(
+                fixture.join("login-shell"),
+                b"#!/bin/sh\nexport PATH=${0%/*}/new-bin\neval \"$2\"\n",
+            )
+            .unwrap();
+            assert_eq!(find_claude(), Some(new_executable));
+            return;
+        }
+
+        let fixture =
+            std::env::temp_dir().join(format!("coderune-agent-path-{}", std::process::id()));
+        std::fs::create_dir(&fixture).unwrap();
+        let shell = fixture.join("login-shell");
+        let executable = fixture.join("claude");
+        std::fs::write(
+            &shell,
+            b"#!/bin/sh\nprintf 'startup banner\\n'\nexport PATH=${0%/*}\neval \"$2\"\n",
+        )
+        .unwrap();
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        for path in [&shell, &executable] {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "tests::finder_launch_finds_cli_on_login_shell_path",
+            ])
+            .env("PATH", "/usr/bin:/bin")
+            .env("SHELL", &shell)
+            .env("HOME", &fixture)
+            .env(FIXTURE, &executable)
+            .output()
+            .unwrap();
+        std::fs::remove_dir_all(fixture).unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
 
     fn document(kind: DocumentKind) -> ImportedDocument {
         ImportedDocument {
