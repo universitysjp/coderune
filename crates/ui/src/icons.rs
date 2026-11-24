@@ -49,3 +49,39 @@ pub static KEYBOARD: Icon = Icon {
     view: 24.0,
     body: r#"<rect x="2.5" y="5" width="19" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 9.5h1m4 0h1m4 0h1m-11 4h1m4 0h1m4 0h1m-8 2.5h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>"#,
 };
+
+pub static MESSAGE: Icon = Icon {
+    name: "coderune-message",
+    view: 24.0,
+    body: r#"<path d="M4 5.5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>"#,
+};
+
+pub static PLUS: Icon = Icon {
+    name: "coderune-plus",
+    view: 24.0,
+    body: r#"<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>"#,
+};
+
+pub static PANEL_LEFT: Icon = Icon {
+    name: "coderune-panel-left",
+    view: 24.0,
+    body: r#"<rect x="3" y="4.5" width="18" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 4.5v15" fill="none" stroke="currentColor" stroke-width="1.5"/>"#,
+};
+
+pub static PANEL_RIGHT: Icon = Icon {
+    name: "coderune-panel-right",
+    view: 24.0,
+    body: r#"<rect x="3" y="4.5" width="18" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M15 4.5v15" fill="none" stroke="currentColor" stroke-width="1.5"/>"#,
+};
+
+pub static PANEL_FLOAT: Icon = Icon {
+    name: "coderune-panel-float",
+    view: 24.0,
+    body: r#"<rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="10" y="9" width="11" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/>"#,
+};
+
+pub static PANEL_HIDDEN: Icon = Icon {
+    name: "coderune-panel-hidden",
+    view: 24.0,
+    body: r#"<rect x="3" y="4.5" width="18" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M15.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>"#,
+};
