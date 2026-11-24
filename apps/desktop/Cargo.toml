@@ -16,6 +16,7 @@ coderune-avatars.workspace = true
 coderune-domain.workspace = true
 coderune-ui.workspace = true
 directories.workspace = true
+fontdb = "0.24.0"
 hex = "0.4"
 rune.workspace = true
 rune-kit.workspace = true

@@ -5,7 +5,10 @@ use crate::updates::Status;
 use crate::widgets::text_input;
 use coderune_ui::{components as ui, components::PushButtonExt, icons, theme};
 use rune::{col, el, row, text, El, ScrollSpec};
-use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit, Switch};
+use rune_kit::{
+    Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit, Placement, Select,
+    SelectAppearance, Switch,
+};
 
 pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlays: &mut Vec<El>) {
     let nav = col().w(166.0).h_full().px(10.0).py(8.0).gap(4.0).children(
@@ -32,8 +35,9 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
             .focus_selected(selected)
         }),
     );
+    let mut menus = Vec::new();
     let content = match section {
-        SettingsSection::General => general(s, k),
+        SettingsSection::General => general(s, k, &mut menus),
         SettingsSection::Storage => storage(s, k),
         SettingsSection::Agents => super::coding_agents::coding_agents(s, k),
         SettingsSection::Shortcuts => shortcuts(k),
@@ -115,9 +119,11 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
             .token_motion(k.motion.overlay),
         layer("settings-layer").padding(16.0).center().child(dialog),
     ]);
+    // A font list opens above the dialog that owns it.
+    overlays.extend(menus);
 }
 
-fn general(s: &CoderuneApp, k: &Kit) -> El {
+fn general(s: &CoderuneApp, k: &Kit, menus: &mut Vec<El>) -> El {
     let busy = matches!(
         s.updates.status,
         Status::Checking | Status::Downloading | Status::Ready(_)
@@ -176,7 +182,7 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
     if let Some(status) = status {
         updates = updates.child(col().w_full().pb(12.0).items_start().child(status));
     }
-    let appearance = ui::setting_row(
+    let dark = ui::setting_row(
         "Dark mode",
         None,
         Switch::new(s.dark_mode())
@@ -186,7 +192,76 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
             .build(theme::switch_kit(k.dark))
             .key("dark-mode"),
     );
-    ui::settings_card(k, "general-options", [updates, appearance])
+    let ui_font = font_row(
+        s,
+        k,
+        "ui-font",
+        "Interface font",
+        "Text, labels, and headings.",
+        s.ui_font(),
+        CoderuneApp::set_ui_font,
+        menus,
+    );
+    let mono_font = font_row(
+        s,
+        k,
+        "mono-font",
+        "Code font",
+        "Code, paths, IDs, and hashes.",
+        s.mono_font(),
+        CoderuneApp::set_mono_font,
+        menus,
+    );
+    col()
+        .w_full()
+        .gap(ui::SECTION_GAP)
+        .child(ui::section(
+            k,
+            "general-application",
+            "Application",
+            [updates],
+        ))
+        .child(ui::section(
+            k,
+            "general-appearance",
+            "Appearance",
+            [dark, ui_font, mono_font],
+        ))
+}
+
+fn font_row(
+    s: &CoderuneApp,
+    k: &Kit,
+    key: &'static str,
+    title: &str,
+    detail: &str,
+    current: &str,
+    choose: fn(&mut CoderuneApp, String),
+    menus: &mut Vec<El>,
+) -> El {
+    let choices = crate::fonts::choices(Some(current));
+    let open = s.font_menu == Some(key);
+    let select = Select::new(key, &choices)
+        .appearance(SelectAppearance::Inline)
+        .current(Some(current))
+        .width(220.0)
+        .label(title)
+        .open(open)
+        .placement(Placement::BottomEnd)
+        .on_toggle(move |s: &mut CoderuneApp| {
+            s.font_menu = if s.font_menu == Some(key) {
+                None
+            } else {
+                Some(key)
+            };
+        })
+        .on_close(|s: &mut CoderuneApp| s.font_menu = None)
+        .on_choose(move |s: &mut CoderuneApp, value: &str, _: &mut rune::Tx| {
+            s.font_menu = None;
+            choose(s, value.to_string());
+        })
+        .build(k, menus);
+    ui::setting_row(title, Some(detail.to_string()), select)
 }
 
 fn storage(s: &CoderuneApp, k: &Kit) -> El {

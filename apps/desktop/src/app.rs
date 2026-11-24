@@ -492,10 +492,14 @@ pub struct CoderuneApp {
     pub(crate) confirm_delete_all: bool,
     pub(crate) export_path: TextEdit,
     pub(crate) settings: Option<SettingsSection>,
+    /// The font list open in Settings, by row.
+    pub(crate) font_menu: Option<&'static str>,
     pub(crate) settings_feedback: Option<Result<String, AppError>>,
     preferences: Preferences,
     pub(crate) agent_detection: AgentDetection,
     pub(crate) updates: Updates,
+    /// The family lists last handed to the text system.
+    applied_fonts: Option<(String, String)>,
     pub error: Option<AppError>,
     pub notice: Option<String>,
     /// The animated avatars on screen, keyed by subagent or gallery id.
@@ -578,10 +582,12 @@ impl CoderuneApp {
             confirm_delete_all: false,
             export_path,
             settings: None,
+            font_menu: None,
             settings_feedback: None,
             preferences,
             agent_detection: AgentDetection::default(),
             updates: Updates::new(),
+            applied_fonts: None,
             error: None,
             notice: None,
             avatars: BotAvatarStage::new(),
@@ -682,6 +688,7 @@ impl CoderuneApp {
     pub(crate) fn select_settings(&mut self, section: SettingsSection) {
         self.settings = Some(section);
         self.settings_feedback = None;
+        self.font_menu = None;
         self.confirm_delete_all = false;
         if section == SettingsSection::Agents
             && matches!(self.agent_detection.check, Check::NotChecked)
@@ -693,6 +700,7 @@ impl CoderuneApp {
     pub(crate) fn close_settings(&mut self) {
         self.settings = None;
         self.settings_feedback = None;
+        self.font_menu = None;
         self.confirm_delete_all = false;
     }
 
@@ -703,6 +711,37 @@ impl CoderuneApp {
     pub(crate) fn toggle_dark_mode(&mut self) {
         let dark_mode = !self.dark_mode();
         self.update_preferences(|preferences| preferences.dark_mode = dark_mode);
+    }
+
+    pub(crate) fn ui_font(&self) -> &str {
+        self.preferences
+            .ui_font
+            .as_deref()
+            .unwrap_or(crate::DEFAULT_UI_FONT)
+    }
+
+    pub(crate) fn mono_font(&self) -> &str {
+        self.preferences
+            .mono_font
+            .as_deref()
+            .unwrap_or(crate::DEFAULT_MONO_FONT)
+    }
+
+    pub(crate) fn set_ui_font(&mut self, family: String) {
+        self.update_preferences(|preferences| preferences.ui_font = Some(family));
+    }
+
+    pub(crate) fn set_mono_font(&mut self, family: String) {
+        self.update_preferences(|preferences| preferences.mono_font = Some(family));
+    }
+
+    /// The CSS family lists the text system should use: the chosen family
+    /// first, then the shipped one so missing glyphs still resolve.
+    fn font_families(&self) -> (String, String) {
+        (
+            format!("{}, {}", self.ui_font(), crate::DEFAULT_UI_FONT),
+            format!("{}, {}", self.mono_font(), crate::DEFAULT_MONO_FONT),
+        )
     }
 
     pub(crate) fn agent_enabled(&self, agent: CliAgentId) -> bool {
@@ -1335,6 +1374,11 @@ pub fn scene_settings_agents(s: &mut CoderuneApp) {
     s.select_settings(SettingsSection::Agents);
 }
 
+pub fn scene_settings_fonts(s: &mut CoderuneApp) {
+    scene_settings(s);
+    s.font_menu = Some("ui-font");
+}
+
 pub fn scene_home_dark(s: &mut CoderuneApp) {
     scene_home(s);
     s.preferences.dark_mode = true;
@@ -1358,6 +1402,11 @@ pub fn scene_avatars(s: &mut CoderuneApp) {
 
 /// Advances visible animations and applies completed background updates.
 pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
+    let families = s.font_families();
+    if s.applied_fonts.as_ref() != Some(&families) {
+        tx.set_font_families(&families.0, &families.1);
+        s.applied_fonts = Some(families);
+    }
     let update_changed = s.updates.poll(tx);
     let detection_changed = s.agent_detection.poll(tx);
     if detection_changed && matches!(s.agent_detection.check, Check::Finished) {

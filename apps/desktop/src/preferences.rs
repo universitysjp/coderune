@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub(crate) struct Preferences {
     pub(crate) dark_mode: bool,
+    /// The family behind ordinary text, and the one behind code and paths.
+    pub(crate) ui_font: Option<String>,
+    pub(crate) mono_font: Option<String>,
     disabled_agents: Vec<CliAgentId>,
 }
 

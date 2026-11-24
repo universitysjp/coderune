@@ -1,5 +1,6 @@
 mod agent_detection;
 mod app;
+mod fonts;
 mod preferences;
 mod screens;
 mod shell;
@@ -13,6 +14,10 @@ pub(crate) const VERSION: &str = match option_env!("CODERUNE_BUILD_VERSION") {
     Some(version) => version,
     None => env!("CARGO_PKG_VERSION"),
 };
+
+/// The families the app ships with, used until another is chosen.
+pub(crate) const DEFAULT_UI_FONT: &str = "Geist";
+pub(crate) const DEFAULT_MONO_FONT: &str = "Paper Mono";
 
 fn main() {
     update_install::finish_on_launch();
@@ -45,7 +50,7 @@ fn main() {
             include_bytes!("../../../packages/tokens/fonts/Geist-Variable.ttf"),
             include_bytes!("../../../packages/tokens/fonts/PaperMono-Variable.ttf"),
         ],
-        families: ("Geist", "Paper Mono"),
+        families: (DEFAULT_UI_FONT, DEFAULT_MONO_FONT),
         on_key: Some(app::on_key),
         poll: Some(app::poll),
         scenes: &[
@@ -65,6 +70,7 @@ fn main() {
             ("settings-shortcuts", app::scene_shortcuts),
             ("settings-agents", app::scene_settings_agents),
             ("home-dark", app::scene_home_dark),
+            ("settings-fonts", app::scene_settings_fonts),
             ("settings-dark", app::scene_settings_dark),
             ("settings-agents-dark", app::scene_settings_agents_dark),
             ("onboarding-start", app::scene_onboarding_start),
