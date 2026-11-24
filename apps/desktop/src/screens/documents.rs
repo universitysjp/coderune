@@ -75,7 +75,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             row().gap(8.0).children(project_chips),
         ));
     }
-    import_children.push(secondary("Extract text", |s| s.extract_document(), k));
+    import_children.push(row().child(secondary("Extract text", |s| s.extract_document(), k)));
     if let Some(extracted) = &s.document_form.extracted {
         import_children.push(
             col()
@@ -116,7 +116,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
                 .role("button")
                 .label(&document.name)
                 .w_full()
-                .padding(12.0)
+                .py(10.0)
                 .gap(4.0)
                 .radius(6.0)
                 .when(selected, |this| this.fill(theme::accent_soft()))
@@ -201,11 +201,11 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
     } else {
         draft_children.push(row().gap(8.0).children(agent_chips));
     }
-    draft_children.push(secondary(
+    draft_children.push(row().child(secondary(
         "Prepare sharing preview",
         |s| s.prepare_draft(),
         k,
-    ));
+    )));
     if let Some(preview) = &s.document_form.draft_preview {
         draft_children.push(ui::subtle(&format!(
             "{} bytes · limit {} bytes · {}",
@@ -223,15 +223,46 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
         draft_children.push(ui::alert(None, notice));
     }
 
-    col()
-        .w_full()
-        .gap(24.0)
+    ui::page("documents-page")
         .child(ui::page_header(
             "Documents",
             "Import CV and SRS source documents, review the extracted text, and prepare agent drafts.",
             vec![],
         ))
-        .child(ui::card(Some("Import a document"), Some("Extraction is local. The original file is not copied into application storage."), import_children))
-        .child(ui::card(Some("Imported documents"), Some("Approved text retained locally. Select one to prepare a draft."), document_rows))
-        .child(ui::card(Some("Agent-assisted draft"), Some("Coderune shares only the exact text you preview. Sign-in, providers, and models stay with the agent."), draft_children))
+        .child(ui::section(
+            k,
+            "document-import",
+            "Import a document",
+            [col()
+                .w_full()
+                .gap(12.0)
+                .child(ui::subtle(
+                    "Extraction is local. The original file is not copied into application storage.",
+                ))
+                .children(import_children)],
+        ))
+        .child(ui::section(
+            k,
+            "document-list",
+            "Imported documents",
+            [col()
+                .w_full()
+                .gap(12.0)
+                .child(ui::subtle(
+                    "Approved text retained locally. Select one to prepare a draft.",
+                ))
+                .children(document_rows)],
+        ))
+        .child(ui::section(
+            k,
+            "document-draft",
+            "Agent-assisted draft",
+            [col()
+                .w_full()
+                .gap(12.0)
+                .child(ui::subtle(
+                    "Coderune shares only the exact text you preview. Sign-in, providers, and models stay with the agent.",
+                ))
+                .children(draft_children)],
+        ))
 }

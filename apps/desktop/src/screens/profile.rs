@@ -9,7 +9,7 @@ use rune::{col, row, text, El};
 use rune_kit::{Accordion, AccordionItem, Kit, SegmentedControl};
 
 pub(crate) fn profile(s: &CoderuneApp, k: &Kit) -> El {
-    let mut body = col().w_full().gap(24.0).child(ui::page_header(
+    let mut body = ui::page("profile-page").child(ui::page_header(
         "Profile",
         "One developer profile shared across every project. Required answers stay short; optional detail can be added over time.",
         vec![],
@@ -49,53 +49,60 @@ pub(crate) fn profile(s: &CoderuneApp, k: &Kit) -> El {
 }
 
 fn baseline(s: &CoderuneApp, k: &Kit) -> El {
-    let mut body = col().w_full().gap(24.0);
+    let mut body = col().w_full().gap(ui::SECTION_GAP);
     if let Some(profile) = s
         .workspace
         .as_ref()
         .and_then(|workspace| workspace.profile())
     {
-        body = body.child(ui::card(
-            Some("Current baseline"),
-            Some("Edits create a new immutable version. Existing captures keep their snapshot."),
-            vec![
-                row()
-                    .gap(8.0)
-                    .items_center()
-                    .child(
-                        text(&profile.display_name)
-                            .font(HEADING_XS)
-                            .color(theme::ink()),
-                    )
-                    .child(ui::badge(&format!("v{}", profile.version), k))
-                    .child(ui::badge(profile.experience_stage.label(), k)),
-                ui::field(
-                    "Skills",
-                    None,
-                    text(&profile.skills_statement)
-                        .font(BODY)
-                        .color(theme::muted())
-                        .wrap(),
-                ),
-                ui::field(
-                    "Learning goals",
-                    None,
-                    col()
-                        .gap(4.0)
-                        .children(profile.learning_goals.iter().map(|goal| {
-                            text(format!("· {goal}"))
-                                .font(BODY_SM)
-                                .color(theme::muted())
-                        })),
-                ),
-                ui::tiny(&format!(
-                    "{} self-reported skill(s) · {} education · {} employment · {} link(s)",
-                    profile.self_reported_skills.len(),
-                    profile.education.len(),
-                    profile.employment.len(),
-                    profile.links.len()
-                )),
-            ],
+        body = body.child(ui::section(
+            k,
+            "profile-baseline",
+            "Current baseline",
+            [col()
+                .w_full()
+                .gap(12.0)
+                .child(ui::subtle(
+                    "Edits create a new immutable version. Existing captures keep their snapshot.",
+                ))
+                .children(vec![
+                    row()
+                        .gap(8.0)
+                        .items_center()
+                        .child(
+                            text(&profile.display_name)
+                                .font(HEADING_XS)
+                                .color(theme::ink()),
+                        )
+                        .child(ui::badge(&format!("v{}", profile.version), k))
+                        .child(ui::badge(profile.experience_stage.label(), k)),
+                    ui::field(
+                        "Skills",
+                        None,
+                        text(&profile.skills_statement)
+                            .font(BODY)
+                            .color(theme::muted())
+                            .wrap(),
+                    ),
+                    ui::field(
+                        "Learning goals",
+                        None,
+                        col()
+                            .gap(4.0)
+                            .children(profile.learning_goals.iter().map(|goal| {
+                                text(format!("· {goal}"))
+                                    .font(BODY_SM)
+                                    .color(theme::muted())
+                            })),
+                    ),
+                    ui::tiny(&format!(
+                        "{} self-reported skill(s) · {} education · {} employment · {} link(s)",
+                        profile.self_reported_skills.len(),
+                        profile.education.len(),
+                        profile.employment.len(),
+                        profile.links.len()
+                    )),
+                ])],
         ));
     }
 
@@ -157,10 +164,17 @@ fn baseline(s: &CoderuneApp, k: &Kit) -> El {
             s.profile_form.details_count()
         )));
     }
-    body.child(ui::card(
-        Some("Edit required fields"),
-        Some("Self-reported skills are never presented as verified mastery."),
-        form_children,
+    body.child(ui::section(
+        k,
+        "profile-required",
+        "Edit required fields",
+        [col()
+            .w_full()
+            .gap(12.0)
+            .child(ui::subtle(
+                "Self-reported skills are never presented as verified mastery.",
+            ))
+            .children(form_children)],
     ))
 }
 
@@ -175,22 +189,19 @@ fn details(s: &CoderuneApp, k: &Kit) -> El {
                 .child(section_body(s, section, k)),
         );
     }
-    col()
-        .w_full()
-        .gap(16.0)
-        .child(
-            row()
-                .w_full()
-                .items_center()
-                .gap(12.0)
-                .child(ui::section_title(
-                    "Complete your profile",
-                    "Optional. Each entry makes future project context more useful, but none is required to start.",
-                ))
-                .child(rune::el().grow(1.0))
-                .child(primary("Save profile", |s| s.save_profile(), k)),
-        )
-        .child(accordion.build(k))
+    col().w_full().gap(ui::SECTION_GAP).child(ui::section_with(
+        k,
+        "profile-details",
+        "Complete your profile",
+        primary("Save profile", |s| s.save_profile(), k),
+        [col()
+            .w_full()
+            .gap(10.0)
+            .child(ui::subtle(
+                "Optional. Each entry makes future project context more useful, but none is required to start.",
+            ))
+            .child(accordion.build(k))],
+    ))
 }
 
 fn section_body(s: &CoderuneApp, section: ProfileSection, k: &Kit) -> El {

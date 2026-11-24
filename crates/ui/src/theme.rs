@@ -92,6 +92,16 @@ pub fn panel() -> Color {
     kit().c.bg_base
 }
 
+/// The page behind grouped content, one step under a raised card.
+pub fn canvas() -> Color {
+    kit().c.page
+}
+
+/// A raised card: the surface grouped rows and panels share.
+pub fn raised() -> Color {
+    kit().c.bg_base
+}
+
 pub fn ink() -> Color {
     kit().c.text_base
 }

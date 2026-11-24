@@ -58,22 +58,101 @@ pub fn surface_frame(k: &Kit, fill: rune::Color, radius: f32) -> El {
         .clip_rounded(radius)
 }
 
-/// Related settings in one framed group with inset row dividers.
-pub fn settings_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
-    let children = rows.into_iter().enumerate().flat_map(|(index, row)| {
+/// A row's inset inside its card, and the gap between sections.
+pub const ROW_PAD: f32 = 16.0;
+pub const ROW_H: f32 = 48.0;
+pub const ROW_H_DESCRIBED: f32 = 60.0;
+pub const SECTION_GAP: f32 = 24.0;
+
+/// The page column every workspace destination stacks its sections in.
+pub fn page(key: &str) -> El {
+    col().key(key).w_full().gap(SECTION_GAP)
+}
+
+/// A labelled group of rows on one raised card.
+pub fn section(k: &Kit, key: &str, title: &str, rows: impl IntoIterator<Item = El>) -> El {
+    col()
+        .key(key)
+        .w_full()
+        .gap(8.0)
+        .child(text(title).font(LABEL_SM).color(theme::muted()))
+        .child(rows_card(k, &format!("{key}-card"), rows))
+}
+
+/// A [`section`] whose label line carries a control, such as an action.
+pub fn section_with(
+    k: &Kit,
+    key: &str,
+    title: &str,
+    accessory: El,
+    rows: impl IntoIterator<Item = El>,
+) -> El {
+    col()
+        .key(key)
+        .w_full()
+        .gap(8.0)
+        .child(
+            row()
+                .w_full()
+                .items_center()
+                .gap(12.0)
+                .child(text(title).font(LABEL_SM).color(theme::muted()).grow(1.0))
+                .child(accessory),
+        )
+        .child(rows_card(k, &format!("{key}-card"), rows))
+}
+
+/// Rows on one raised card, a hairline between each pair.
+pub fn rows_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
+    let children = rows.into_iter().enumerate().flat_map(|(index, item)| {
         let separator = (index > 0).then(|| {
             rune::el()
                 .h(1.0)
-                .mx(12.0)
+                .mx(ROW_PAD)
                 .fill(k.c.border_muted)
                 .a11y_hidden()
         });
-        separator.into_iter().chain(std::iter::once(row.px(12.0)))
+        separator
+            .into_iter()
+            .chain(std::iter::once(item.px(ROW_PAD)))
     });
-    surface_frame(k, k.c.bg_base, k.radius.lg)
+    let mut surface = col()
         .key(key)
         .w_full()
-        .children(children)
+        .radius(k.radius.lg)
+        .continuous_corners()
+        .fill(theme::raised())
+        .clip_rounded(k.radius.lg)
+        .children(children);
+    for shadow in &k.elevation.raised {
+        surface = surface.box_shadow(*shadow);
+    }
+    surface
+}
+
+/// Related rows in one raised card with inset dividers.
+pub fn settings_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
+    rows_card(k, key, rows)
+}
+
+/// A title, an optional one-line description, and the control on the right.
+pub fn setting_row(title: &str, detail: Option<String>, action: El) -> El {
+    let described = detail.is_some();
+    let mut copy = col()
+        .grow(1.0)
+        .min_w(0.0)
+        .gap(2.0)
+        .child(text(title).font(LABEL).color(theme::ink()).wrap());
+    if let Some(detail) = detail {
+        copy = copy.child(text(detail).font(BODY_SM).color(theme::muted()).wrap());
+    }
+    row()
+        .w_full()
+        .min_h(if described { ROW_H_DESCRIBED } else { ROW_H })
+        .items_center()
+        .gap(16.0)
+        .child(copy)
+        .child(action)
 }
 
 pub fn page_header(title: &str, description: &str, actions: Vec<El>) -> El {
@@ -108,14 +187,19 @@ pub fn card_leading(
     description: Option<&str>,
     children: Vec<El>,
 ) -> El {
+    let k = theme::kit();
     let mut root = col()
         .w_full()
-        .fill(theme::surface())
-        .radius(10.0)
+        .fill(theme::raised())
+        .radius(k.radius.lg)
+        .continuous_corners()
         .padding(20.0)
         .gap(16.0)
         .shrink()
-        .clip_rounded(10.0);
+        .clip_rounded(k.radius.lg);
+    for shadow in &k.elevation.raised {
+        root = root.box_shadow(*shadow);
+    }
     if let Some(title) = title {
         let mut heading = col()
             .grow(1.0)

@@ -172,16 +172,22 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
         .grow(1.0)
         .min_w(336.0)
         .gap(16.0)
-        .child(ui::card(
-            Some(if editing {
+        .child(ui::section(
+            k,
+            "project-identity",
+            if editing {
                 "Project details"
             } else {
                 "New project details"
-            }),
-            None,
-            identity,
+            },
+            [col().w_full().gap(12.0).children(identity)],
         ))
-        .child(ui::card(Some("Capture scope"), None, scope));
+        .child(ui::section(
+            k,
+            "project-scope",
+            "Capture scope",
+            [col().w_full().gap(12.0).children(scope)],
+        ));
     if confirm_delete {
         editor = editor.child(ui::alert(None, "Deleting a project also deletes its captures and project-linked documents. Click Confirm delete to proceed."));
     }
@@ -219,9 +225,7 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
     } else {
         actions = actions.child(ghost("Clear", |s| s.new_project_form(), k));
     }
-    col()
-        .w_full()
-        .gap(24.0)
+    ui::page("projects-page")
         .child(ui::page_header(
             "Projects",
             "Project context is stored locally and reused on later captures.",
@@ -233,10 +237,11 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
                 .flex_wrap()
                 .gap(24.0)
                 .items_start()
-                .child(col().key("project-list").w(216.0).child(ui::card(
-                    Some("Saved projects"),
-                    None,
-                    vec![list],
+                .child(col().key("project-list").w(216.0).child(ui::section(
+                    k,
+                    "project-saved",
+                    "Saved projects",
+                    [list],
                 )))
                 .child(editor.child(actions)),
         )

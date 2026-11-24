@@ -13,10 +13,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();
     let project = workspace.and_then(|workspace| workspace.selected_project());
     let captures = &s.captures;
-    let mut body = col()
-        .w_full()
-        .gap(24.0)
-        .child(ui::page_header(
+    let mut body = ui::page("capture-page").child(ui::page_header(
             "Capture",
             "Collect repository context only on explicit request. Nothing is saved until you review and confirm the exact file list.",
             vec![
@@ -25,10 +22,16 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
             ],
         ));
     if let Some(project) = project {
-        body = body.child(ui::card(
-            Some(&project.name),
-            Some("Effective scope and limits for the next preview."),
-            vec![
+        body = body.child(ui::section(
+            k,
+            "capture-scope",
+            "Scope",
+            [col()
+                .w_full()
+                .gap(10.0)
+                .child(text(&project.name).font(theme::LABEL).color(theme::ink()))
+                .child(ui::subtle("Effective scope and limits for the next preview."))
+                .children(vec![
                 ui::mono_line(&project.root_path, theme::muted()),
                 ui::subtle(&format!(
                     "Includes: {} · Excludes: {} · .gitignore: {} · per file: {} KiB · per capture: {} MiB",
@@ -38,7 +41,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                     project.limits.per_file_bytes / 1024,
                     project.limits.per_capture_bytes / (1024 * 1024),
                 )),
-            ],
+            ])],
         ));
     }
     if let Some(session) = &s.capture_session {
@@ -142,10 +145,17 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
         if let Some(notice) = &s.notice {
             review_children.push(ui::alert(None, notice));
         }
-        body = body.child(ui::card(
-            Some("Review preview"),
-            Some("Saving re-collects the repository. If anything changed, you must preview again."),
-            review_children,
+        body = body.child(ui::section(
+            k,
+            "capture-review",
+            "Review preview",
+            [col()
+                .w_full()
+                .gap(10.0)
+                .child(ui::subtle(
+                    "Saving re-collects the repository. If anything changed, you must preview again.",
+                ))
+                .children(review_children)],
         ));
     } else {
         if let Some(error) = &s.error {
@@ -168,7 +178,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                 .flex_wrap()
                 .gap(8.0)
                 .items_center()
-                .padding(12.0)
+                .py(10.0)
                 .child(
                     text(format!("v{}", capture.version))
                         .font(LABEL)
@@ -205,10 +215,17 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     if capture_rows.is_empty() {
         capture_rows.push(ui::subtle("No captures for this project yet."));
     }
-    body = body.child(ui::card(
-        Some("Capture history"),
-        Some("Older captures remain immutable when the profile or project changes."),
-        capture_rows,
+    body = body.child(ui::section(
+        k,
+        "capture-history",
+        "Capture history",
+        [col()
+            .w_full()
+            .gap(4.0)
+            .child(ui::subtle(
+                "Older captures remain immutable when the profile or project changes.",
+            ))
+            .children(capture_rows)],
     ));
 
     if let Some(detail) = &s.capture_detail {
@@ -245,21 +262,28 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                     }),
             );
         }
-        body = body.child(ui::card(
-            Some(&format!("Capture v{}", detail.capture.version)),
-            Some("Saved content is read back from the local content store by hash."),
-            vec![
-                col()
-                    .w_full()
-                    .h(200.0)
-                    .scroll(ScrollSpec {
-                        stick_bottom: false,
-                    })
-                    .children(file_buttons),
-                ui::code_well_tall(
-                    selected_content.map_or("No stored content for this path.", String::as_str),
-                ),
-            ],
+        body = body.child(ui::section(
+            k,
+            "capture-detail",
+            &format!("Capture v{}", detail.capture.version),
+            [col()
+                .w_full()
+                .gap(10.0)
+                .child(ui::subtle(
+                    "Saved content is read back from the local content store by hash.",
+                ))
+                .children(vec![
+                    col()
+                        .w_full()
+                        .h(200.0)
+                        .scroll(ScrollSpec {
+                            stick_bottom: false,
+                        })
+                        .children(file_buttons),
+                    ui::code_well_tall(
+                        selected_content.map_or("No stored content for this path.", String::as_str),
+                    ),
+                ])],
         ));
     }
     body

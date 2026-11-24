@@ -102,11 +102,11 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
         View::Profile => screens::profile(s, k),
         View::Projects => screens::projects(s, k),
         View::Documents => screens::documents(s, k),
-        View::Subagents => text("Subagents").font(theme::HEADING).color(theme::ink()),
+        View::Subagents => screens::subagents(s),
         View::Capture => screens::capture(s, k),
         View::Avatars => screens::avatar_gallery(s),
     };
-    let content = ui::surface_frame(k, theme::panel(), k.radius.lg)
+    let content = ui::surface_frame(k, theme::canvas(), k.radius.lg)
         .key("workspace-panel")
         .role("group")
         .label(active.label())

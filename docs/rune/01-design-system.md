@@ -75,10 +75,13 @@ Desktop text uses weight 400. Buttons and shortcut keycaps use Geist.
 - The sidebar starts at 236 points and collapses below 1080 points of window
   width. The titlebar is 48 points, the frame inset is 8, and the page gutter
   is 32. Content is capped at 1120 points and tall code wells at 176.
-- Outer spacing and surface color group sections. Projects shows a compact
-  saved-project list beside an editor grouped into project details and capture
-  scope.
-- Controls: 24/28/32/44 high; rows 32/40; icon 20.
+- Every workspace destination builds its body from `ui::page` and `ui::section`:
+  a muted label, then one raised card of rows with 16-point insets and hairline
+  dividers. Settings, Profile, Projects, Documents, Subagents, and Capture share
+  that rhythm; a page never invents its own card padding.
+- Cards sit on the page canvas in the raised surface with the kit's raised
+  elevation, so a section reads as one object in both appearances.
+- Controls: 24/28/32/44 high; rows 48 plain and 60 described; icon 20.
 
 ## Desktop components
 
