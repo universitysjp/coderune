@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Avatar, AvatarFallback } from "@ui-sdk/react/avatar";
 
 import { ContentSection } from "@/components/content-section";
 import { PageHeader } from "@/components/page-header";
@@ -40,7 +40,13 @@ const milestones = [
   },
 ] as const;
 
-const TeamPage = () => (
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .map((part) => part[0])
+    .join("");
+
+export const TeamPage = () => (
   <div>
     <PageHeader
       description="Coderune is a final-year research project at the University of Sri Jayewardenepura. The team combines application engineering, local storage, and research evaluation."
@@ -81,12 +87,12 @@ const TeamPage = () => (
               <span className="text-muted-foreground text-xs">
                 {member.index}
               </span>
-              <span className="text-muted-foreground text-xs">
-                {member.name
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")}
-              </span>
+              <Avatar className="team-avatar">
+                <AvatarFallback>
+                  <span aria-hidden="true">{initials(member.name)}</span>
+                  <span className="visually-hidden">{member.name}</span>
+                </AvatarFallback>
+              </Avatar>
             </div>
             <h3 className="mt-4 text-sm font-medium">{member.name}</h3>
             <p className="text-muted-foreground mt-1 text-xs">{member.role}</p>
@@ -173,7 +179,3 @@ const TeamPage = () => (
     </ContentSection>
   </div>
 );
-
-export const Route = createFileRoute("/team")({
-  component: TeamPage,
-});

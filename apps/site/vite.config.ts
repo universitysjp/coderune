@@ -1,15 +1,17 @@
 import { fileURLToPath, URL } from "node:url";
 
 import tailwindcss from "@tailwindcss/vite";
-import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, lazyPlugins } from "vite-plus";
+import { defineConfig } from "vite-plus";
 
 import { navItems } from "./src/lib/site";
 
+const pagesBase = process.env.PAGES_BASE_PATH?.replace(/\/+$/u, "") ?? "";
+const base = pagesBase === "" ? "/" : `${pagesBase}/`;
+
 export default defineConfig({
-  plugins: lazyPlugins(() => [
-    tanstackRouter({ autoCodeSplitting: true }),
+  base,
+  plugins: [
     tailwindcss(),
     react({ compiler: true }),
     {
@@ -32,12 +34,18 @@ export default defineConfig({
               });
             }
           }
+
+          this.emitFile({
+            fileName: "404.html",
+            source: index.source,
+            type: "asset",
+          });
         },
         order: "post",
       },
       name: "coderune:static-pages",
     },
-  ]),
+  ],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("src", import.meta.url)),

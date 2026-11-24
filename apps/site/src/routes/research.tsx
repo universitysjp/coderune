@@ -1,6 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-
 import { ContentSection } from "@/components/content-section";
+import { Link } from "@/components/link";
 import { PageHeader } from "@/components/page-header";
 
 const evidence = [
@@ -68,7 +67,7 @@ const humanFailures = [
   "Loss of situational awareness across changes",
 ];
 
-const ResearchPage = () => (
+export const ResearchPage = () => (
   <div>
     <PageHeader
       description="AI coding assistants fill gaps in context with assumptions. Developers carry the burden of discovering those assumptions, usually without evidence to check them. Coderune treats this as a two-sided alignment problem."
@@ -215,7 +214,3 @@ const ResearchPage = () => (
     </ContentSection>
   </div>
 );
-
-export const Route = createFileRoute("/research")({
-  component: ResearchPage,
-});

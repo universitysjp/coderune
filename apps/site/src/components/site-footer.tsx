@@ -1,5 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Separator } from "@ui-sdk/react/separator";
 
+import { Link } from "@/components/link";
 import { navItems, site } from "@/lib/site";
 
 export const SiteFooter = () => (
@@ -8,6 +9,7 @@ export const SiteFooter = () => (
       {site.name} is a research prototype at {site.university}. Local-first by
       design; no participant data leaves the device.
     </p>
+    <Separator className="footer-rule" />
     <nav aria-label="Footer navigation" className="footer-nav">
       {navItems.map((item) => (
         <Link key={item.to} to={item.to}>

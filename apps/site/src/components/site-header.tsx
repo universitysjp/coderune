@@ -1,6 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { cn } from "cn";
-
+import { Link } from "@/components/link";
 import { SiteLogo } from "@/components/site-logo";
 import { navItems, pageSections, site } from "@/lib/site";
 
@@ -12,11 +10,7 @@ const isActive = (pathname: string, target: string) => {
   return pathname === target || pathname.startsWith(`${target}/`);
 };
 
-export const SiteHeader = () => {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-
+export const SiteHeader = ({ pathname }: { pathname: string }) => {
   const activeItem = navItems.find(({ to }) => isActive(pathname, to));
   const sections = activeItem ? pageSections[activeItem.to] : [];
 
@@ -83,12 +77,11 @@ export const SiteHeader = () => {
         {navItems.map((item) => (
           <Link
             aria-current={activeItem?.to === item.to ? "page" : undefined}
-            className={cn(
-              "shrink-0 transition-colors",
+            className={
               activeItem?.to === item.to
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+                ? "text-foreground shrink-0 transition-colors"
+                : "text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+            }
             key={item.to}
             to={item.to}
           >

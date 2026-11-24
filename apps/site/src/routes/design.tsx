@@ -1,6 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-
 import { ContentSection } from "@/components/content-section";
+import { Link } from "@/components/link";
 import { PageHeader } from "@/components/page-header";
 
 const principles = [
@@ -81,7 +80,7 @@ const modules = [
   },
 ] as const;
 
-const DesignPage = () => (
+export const DesignPage = () => (
   <div>
     <PageHeader
       description="The prototype keeps the system of record local, uses workspace evidence to check AI claims, and only shares selected text when a developer explicitly requests an agent-assisted import."
@@ -285,7 +284,3 @@ const DesignPage = () => (
     </ContentSection>
   </div>
 );
-
-export const Route = createFileRoute("/design")({
-  component: DesignPage,
-});

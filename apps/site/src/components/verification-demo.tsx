@@ -1,26 +1,77 @@
-import { CheckCircle, Question, WarningCircle } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
-import { cn } from "cn";
+import type { JSX } from "react";
 
 type Verdict = "Verified" | "Contradicted" | "Unresolved";
 
+const CheckIcon = () => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="12"
+    viewBox="0 0 12 12"
+    width="12"
+  >
+    <path
+      d="m2.5 6.2 2.2 2.2 4.8-4.8"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.6"
+    />
+  </svg>
+);
+
+const AlertIcon = () => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="12"
+    viewBox="0 0 12 12"
+    width="12"
+  >
+    <path
+      d="M6 1.5v5.2M6 9.4v1"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.6"
+    />
+  </svg>
+);
+
+const QuestionIcon = () => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="12"
+    viewBox="0 0 12 12"
+    width="12"
+  >
+    <path
+      d="M4.2 4.1a1.8 1.8 0 1 1 2.2 1.8c-.3.1-.4.4-.4.7v.4"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.4"
+    />
+    <circle cx="6" cy="9.3" fill="currentColor" r="0.8" />
+  </svg>
+);
+
 const verdictStyles: Record<
   Verdict,
-  { badge: string; icon: Icon; label: string }
+  { badge: string; icon: () => JSX.Element; label: string }
 > = {
   Contradicted: {
     badge: "bg-foreground text-background",
-    icon: WarningCircle,
+    icon: AlertIcon,
     label: "Conflicts with captured evidence",
   },
   Unresolved: {
     badge: "border border-border text-muted-foreground",
-    icon: Question,
+    icon: QuestionIcon,
     label: "Not enough evidence in scope",
   },
   Verified: {
     badge: "bg-primary text-primary-foreground",
-    icon: CheckCircle,
+    icon: CheckIcon,
     label: "Supported by captured evidence",
   },
 };
@@ -76,28 +127,22 @@ export const VerificationDemo = () => (
         <span>Workspace evidence</span>
         <span className="ml-auto">Local capture</span>
       </div>
-      <ul className="mt-3">
+      <ul className="assumption-list mt-3">
         {assumptions.map((assumption) => {
           const style = verdictStyles[assumption.verdict];
           const VerdictIcon = style.icon;
 
           return (
-            <li
-              className="border-border border-b py-3 first:pt-1 last:border-b-0 last:pb-0"
-              key={assumption.claim}
-            >
+            <li key={assumption.claim}>
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                 <p className="min-w-0 flex-1 basis-48 text-sm leading-6">
                   {assumption.claim}
                 </p>
                 <span
-                  className={cn(
-                    "inline-flex min-h-5 shrink-0 items-center gap-1 rounded-full px-2 font-mono text-xs font-medium",
-                    style.badge
-                  )}
+                  className={`verdict-badge ${style.badge}`}
                   title={style.label}
                 >
-                  <VerdictIcon aria-hidden="true" weight="bold" />
+                  <VerdictIcon />
                   {assumption.verdict}
                 </span>
               </div>

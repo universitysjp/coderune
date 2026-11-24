@@ -1,6 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-
 import { ContentSection } from "@/components/content-section";
+import { Link } from "@/components/link";
 import { SiteLogo } from "@/components/site-logo";
 import { VerificationDemo } from "@/components/verification-demo";
 import { site } from "@/lib/site";
@@ -99,7 +98,7 @@ const explore = [
   },
 ] as const;
 
-const HomePage = () => (
+export const HomePage = () => (
   <div>
     <section className="home-hero">
       <SiteLogo className="hero-logo" />
@@ -274,7 +273,3 @@ const HomePage = () => (
     </ContentSection>
   </div>
 );
-
-export const Route = createFileRoute("/")({
-  component: HomePage,
-});

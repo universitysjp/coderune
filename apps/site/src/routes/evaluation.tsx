@@ -1,6 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-
 import { ContentSection } from "@/components/content-section";
+import { Link } from "@/components/link";
 import { PageHeader } from "@/components/page-header";
 
 const method = [
@@ -75,7 +74,7 @@ const parameters = [
   ["Setting", "Participants' personal computers"],
 ] as const;
 
-const EvaluationPage = () => (
+export const EvaluationPage = () => (
   <div>
     <PageHeader
       description="The evaluation compares three levels of support, from a plain assistant to a context-aware verification layer. The aim is to test whether grounding assumptions in workspace evidence improves outcomes without harming productivity."
@@ -222,7 +221,3 @@ const EvaluationPage = () => (
     </ContentSection>
   </div>
 );
-
-export const Route = createFileRoute("/evaluation")({
-  component: EvaluationPage,
-});

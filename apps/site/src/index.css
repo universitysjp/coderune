@@ -1,5 +1,6 @@
+@layer ui-sdk;
+
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "@coderune/tokens";
 
 @theme inline {
@@ -106,6 +107,10 @@
     }
   }
 }
+
+@source "./components";
+@source "./lib";
+@source "./routes";
 
 @layer components {
   .site-layout {
@@ -512,4 +517,70 @@
       padding-inline: 16px;
     }
   }
+}
+
+.footer-rule {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+}
+
+.team-avatar {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.text-link {
+  font-size: var(--font-size-small);
+  text-decoration-line: underline;
+  text-underline-offset: 4px;
+}
+
+.text-link:hover {
+  color: var(--muted-foreground);
+}
+
+.assumption-list li {
+  padding-block: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.assumption-list li:first-child {
+  padding-block-start: 4px;
+}
+
+.assumption-list li:last-child {
+  padding-block-end: 0;
+  border-bottom: 0;
+}
+
+.verdict-badge {
+  display: inline-flex;
+  min-height: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding-inline: 8px;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
 }
