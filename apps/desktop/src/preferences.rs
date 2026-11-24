@@ -7,6 +7,16 @@ use std::path::{Path, PathBuf};
 use coderune_agents::CliAgentId;
 use serde::{Deserialize, Serialize};
 
+/// Where a chat's agent panel sits inside the content area.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub(crate) enum AgentDock {
+    #[default]
+    Right,
+    Left,
+    Floating,
+    Hidden,
+}
+
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
 pub(crate) struct Preferences {
@@ -14,6 +24,11 @@ pub(crate) struct Preferences {
     /// The family behind ordinary text, and the one behind code and paths.
     pub(crate) ui_font: Option<String>,
     pub(crate) mono_font: Option<String>,
+    /// Whether the sidebar's Projects section shows its rows.
+    pub(crate) projects_collapsed: bool,
+    /// Projects whose chats are listed under them.
+    pub(crate) expanded_projects: Vec<String>,
+    pub(crate) agent_dock: AgentDock,
     disabled_agents: Vec<CliAgentId>,
 }
 
@@ -51,6 +66,20 @@ impl Preferences {
         file.as_file().sync_all()?;
         file.persist(path)?;
         Ok(preferences)
+    }
+
+    pub(crate) fn project_expanded(&self, id: &str) -> bool {
+        self.expanded_projects.iter().any(|project| project == id)
+    }
+
+    pub(crate) fn set_project_expanded(&mut self, id: &str, expanded: bool) {
+        if expanded {
+            if !self.project_expanded(id) {
+                self.expanded_projects.push(id.to_string());
+            }
+        } else {
+            self.expanded_projects.retain(|project| project != id);
+        }
     }
 
     pub(crate) fn agent_enabled(&self, agent: CliAgentId) -> bool {
