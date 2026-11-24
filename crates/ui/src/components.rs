@@ -59,10 +59,11 @@ pub fn surface_frame(k: &Kit, fill: rune::Color, radius: f32) -> El {
 }
 
 /// A row's inset inside its card, and the gap between sections.
-pub const ROW_PAD: f32 = 16.0;
-pub const ROW_H: f32 = 48.0;
-pub const ROW_H_DESCRIBED: f32 = 60.0;
-pub const SECTION_GAP: f32 = 24.0;
+pub const ROW_PAD: f32 = 14.0;
+pub const ROW_H: f32 = 44.0;
+pub const ROW_H_DESCRIBED: f32 = 56.0;
+pub const SECTION_GAP: f32 = 20.0;
+pub const SECTION_LABEL_GAP: f32 = 6.0;
 
 /// The page column every workspace destination stacks its sections in.
 pub fn page(key: &str) -> El {
@@ -74,7 +75,7 @@ pub fn section(k: &Kit, key: &str, title: &str, rows: impl IntoIterator<Item = E
     col()
         .key(key)
         .w_full()
-        .gap(8.0)
+        .gap(SECTION_LABEL_GAP)
         .child(text(title).font(LABEL_SM).color(theme::muted()))
         .child(rows_card(k, &format!("{key}-card"), rows))
 }
@@ -90,7 +91,7 @@ pub fn section_with(
     col()
         .key(key)
         .w_full()
-        .gap(8.0)
+        .gap(SECTION_LABEL_GAP)
         .child(
             row()
                 .w_full()

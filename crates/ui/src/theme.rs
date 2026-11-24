@@ -162,25 +162,27 @@ pub fn inverse() -> Color {
     kit().c.text_inverse
 }
 
-pub const SIDEBAR: f32 = 236.0;
-pub const TOPBAR: f32 = 48.0;
+pub const SIDEBAR: f32 = 264.0;
+pub const TOPBAR: f32 = 44.0;
 pub const FRAME: f32 = 8.0;
-pub const GUTTER: f32 = 32.0;
-pub const CONTAINER: f32 = 1120.0;
-pub const PAGE_HEADER_MAX: f32 = 720.0;
+pub const GUTTER: f32 = 28.0;
+pub const CONTAINER: f32 = 1080.0;
+pub const PAGE_HEADER_MAX: f32 = 640.0;
 pub const FIELD_MAX_HEIGHT: f32 = 176.0;
 pub const ICON: f32 = 20.0;
 
-pub const HEADING_LG: TextStyle = TextStyle::new(32.0, 400.0).lh(36.0);
-pub const HEADING: TextStyle = TextStyle::new(24.0, 400.0).lh(28.0);
-pub const HEADING_SM: TextStyle = TextStyle::new(20.0, 400.0).lh(24.0);
-pub const HEADING_XS: TextStyle = TextStyle::new(16.0, 400.0).lh(20.0);
-pub const BODY: TextStyle = TextStyle::new(14.0, 400.0).lh(20.0);
-pub const BODY_SM: TextStyle = TextStyle::new(13.0, 400.0).lh(18.0);
-pub const LABEL: TextStyle = TextStyle::new(14.0, 400.0).lh(16.0);
-pub const LABEL_SM: TextStyle = TextStyle::new(12.0, 400.0).lh(16.0);
-pub const CODE: TextStyle = TextStyle::new(13.0, 400.0).lh(20.0).mono();
-pub const CODE_SM: TextStyle = TextStyle::new(12.0, 400.0).lh(16.0).mono();
+/// A compact scale. Titles sit close to body size, as desktop shells do, and
+/// hierarchy comes from weight and colour more than from size.
+pub const HEADING_LG: TextStyle = TextStyle::new(20.0, 500.0).lh(26.0).tracking(-0.3);
+pub const HEADING: TextStyle = TextStyle::new(17.0, 500.0).lh(22.0).tracking(-0.2);
+pub const HEADING_SM: TextStyle = TextStyle::new(15.0, 500.0).lh(20.0).tracking(-0.1);
+pub const HEADING_XS: TextStyle = TextStyle::new(13.5, 500.0).lh(18.0);
+pub const BODY: TextStyle = TextStyle::new(13.0, 400.0).lh(19.0);
+pub const BODY_SM: TextStyle = TextStyle::new(12.0, 400.0).lh(16.0);
+pub const LABEL: TextStyle = TextStyle::new(13.0, 450.0).lh(16.0);
+pub const LABEL_SM: TextStyle = TextStyle::new(11.0, 450.0).lh(14.0);
+pub const CODE: TextStyle = TextStyle::new(12.0, 400.0).lh(18.0).mono();
+pub const CODE_SM: TextStyle = TextStyle::new(11.0, 400.0).lh(15.0).mono();
 
 #[cfg(test)]
 mod tests {
