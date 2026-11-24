@@ -119,7 +119,7 @@ These are planned responsibilities, not a statement that the packages are implem
 | `crates/collectors` | Local repository/Git capture, selected-document extraction, scope enforcement, limits, hashes, and source metadata. |
 | `crates/storage` | SeaORM entities and migrations, transactional persistence, versions, history, retention, and export reads. |
 | `crates/agents` | Existing-tool detection, protocol adapters, capabilities, draft jobs, progress/cancellation, and actionable errors. |
-| `apps/web`, `packages/ui`, `packages/tokens` | React site, shared web registry, and font assets. |
+| `apps/site`, `packages/tokens` | React site and the shared token and font package. |
 
 The core defines the interfaces used by its operations. Collectors, storage, and agents implement them and can depend on core types; the core does not import those implementations. The desktop app composes the implementations. Agent wire formats and database rows do not become UI form contracts.
 

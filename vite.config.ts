@@ -6,8 +6,6 @@ import react from "ultracite/oxlint/react";
 import tanstack from "ultracite/oxlint/tanstack";
 import { defineConfig } from "vite-plus";
 
-import { appRules as uiAppRules } from "./scripts/ui-lint/plugin.mts";
-
 const reactDoctor = selectJsPlugins(["react-doctor"]);
 
 const testFiles = [
@@ -28,7 +26,6 @@ export default defineConfig({
       "README.md",
       "crates/avatars/upstream/**",
       "docs/**",
-      "scripts/ui-lint/**",
     ],
     proseWrap: "preserve",
   },
@@ -38,14 +35,11 @@ export default defineConfig({
       ...(core.ignorePatterns ?? []),
       ".agents/**",
       "crates/avatars/upstream/**",
-      "packages/ui/src/web/**",
-      "scripts/ui-lint/**",
       ...testFiles,
     ],
     jsPlugins: [
       ...(reactDoctor.jsPlugins ?? []),
       ...(antiSlop.jsPlugins ?? []),
-      { name: "ui", specifier: "./scripts/ui-lint/plugin.mts" },
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
     ],
     plugins: [
@@ -70,15 +64,6 @@ export default defineConfig({
         capabilities: ["react-compiler"],
       },
     },
-    overrides: [
-      {
-        // UI app rules: desktop screens, the UI block kept in the web
-        // app, and the web bootstrap. The marketing site's existing cream
-        // design is outside the desktop migration.
-        files: ["apps/web/src/main.tsx", "apps/web/src/routes/__root.tsx"],
-        rules: uiAppRules,
-      },
-    ],
   },
   staged: {
     "*.{css,js,jsx,json,jsonc,md,ts,tsx}": "vp check --fix",

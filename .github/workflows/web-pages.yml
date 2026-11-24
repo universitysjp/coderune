@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - .github/workflows/web-pages.yml
-      - apps/web/**
-      - packages/**
+      - apps/site/**
+      - packages/tokens/**
       - bun.lock
       - package.json
       - vite.config.ts
@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24'
+          node-version: "24"
       - id: bun
         name: Read the workspace Bun version
         run: |
@@ -47,10 +47,10 @@ jobs:
       - name: Build the website
         env:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-        run: bun run --cwd apps/web build --base "${PAGES_BASE_PATH%/}/"
+        run: bun run build:site
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
-          path: apps/web/dist
+          path: apps/site/dist
 
   deploy:
     needs: build

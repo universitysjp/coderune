@@ -10,10 +10,8 @@
     "build": "turbo run build",
     "check": "vp check",
     "check-types": "turbo run check-types",
-    "dev": "turbo run dev --filter=web",
-    "dev:all": "turbo run dev",
+    "dev": "bun run --cwd apps/site dev",
     "dev:desktop": "turbo run dev --filter=coderune-desktop",
-    "dev:web": "turbo run dev --filter=web",
     "fix": "vp check --fix",
     "format": "turbo run format --filter=./apps/* --filter=./crates/*",
     "icon:build": "bun scripts/make-app-icon.ts",
@@ -28,7 +26,10 @@
     "test:desktop": "turbo run test --filter=coderune-desktop",
     "setup:rune": "bash scripts/setup-rune.sh",
     "verify:ui": "bash scripts/verify-ui.sh",
-    "skills:ts": "bun scripts/skills-to-typescript.ts"
+    "skills:ts": "bun scripts/skills-to-typescript.ts",
+    "build:site": "bun run --cwd apps/site build",
+    "check:site": "bun run --cwd apps/site check-types",
+    "dev:site": "bun run --cwd apps/site dev"
   },
   "dependencies": {},
   "devDependencies": {

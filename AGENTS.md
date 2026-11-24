@@ -118,24 +118,23 @@ Skills live in `.agents/skills/` and are recorded in `skills-lock.json`. Besides
 
 # Project overview
 
-Coderune researches local shared context and assumption verification for AI coding assistants. It is a Bun + Turborepo monorepo with a native Rust desktop app and a web app. The proposal and architecture are in `docs/presentation.pdf`.
+Coderune researches local shared context and assumption verification for AI coding assistants. It is a Bun + Turborepo monorepo with a native Rust desktop app and a React website. The proposal and architecture are in `docs/presentation.pdf`.
 
 | Path | What it is |
 | --- | --- |
 | `apps/desktop` | Native Rust desktop app built with [Rune](https://github.com/anomalyco/rune) (`coderune-desktop`, binary `coderune`). `src/app.rs` holds state and actions, `src/screens/` has one view module per screen, `src/widgets.rs` has shared controls. |
-| `apps/web` | Web app: React 19, TanStack Router, Tailwind v4, built with Vite+ (`vp`). |
+| `apps/site` | Website: React 19, Vite+, Tailwind v4, and ui-sdk. `src/routes` holds the five pages, `src/components` the site's own frame and sections, and `src/app.tsx` picks a page from the pathname. |
 | `crates/ui` | Rune design system for the desktop: tokens, icons, cards, fields, alerts. |
 | `crates/avatars` | Animated bot avatars for agents, ported from `bot-avatars` onto Rune's vector canvas. `src/engine.rs` is the rig, `src/render.rs` draws a pose as `rune::Shape`. |
 | `crates/domain`, `crates/storage`, `crates/collectors`, `crates/agents`, `crates/app` | Framework-independent domain and application operations (SeaORM/SQLite storage, context collectors, coding-agent connections). |
-| `packages/ui` | Shared React component registry for the web app (`src/web`). |
-| `packages/tokens` | Shared design tokens and fonts for the web app. |
-| `scripts/` | Repo scripts: `setup-rune.sh`, `verify-ui.sh`, `render-wbs.ts`, `skills-to-typescript.ts`, and `ui-lint/` (custom oxlint rules). |
+| `packages/tokens` | Design tokens and fonts shared by the website and the desktop. The site imports `src/tokens.css`; the TTF files are bundled locally. |
+| `scripts/` | Repo scripts: `setup-rune.sh`, `verify-ui.sh`, `render-wbs.ts`, and `skills-to-typescript.ts`. |
 | `docs/` | `adr/`, `rune/` (desktop notes), `wbs/` (work breakdown), `agents/` (skills conventions), plus design notes. |
 
 Architecture rules:
 
 - Screens never own data, and service crates never import the UI. Keep the desktop views thin over `coderune-app`.
-- Keep UI logic in `crates/ui` and `apps/desktop`; keep the shared React UI in `packages/ui`.
+- Keep desktop UI logic in `crates/ui` and `apps/desktop`. The website keeps its own React components in `apps/site` and reads `packages/tokens`; do not add a shared React UI package.
 - Local-only directories are git-ignored: `.rune/` (pinned Rune checkout), `.hex/`, `target/`, `.design-system/`, `.ui-review/`, `.playwright-cli/`, `.turbo/`. Never commit them and never edit the vendored crates under `.rune/vendor/`.
 
 # Commands
@@ -145,15 +144,16 @@ Run everything from the repository root. Use Bun, never npm, yarn, or pnpm.
 ```sh
 bun install                 # install JS dependencies
 bun run setup:rune          # clone the pinned Rune checkout into .rune (required before any cargo command)
-bun run dev                 # web app only
-bun run dev:all             # web and desktop
+bun run dev                 # serve the website
 bun run dev:desktop         # desktop only (cargo run -p coderune-desktop also works)
 bun run build               # turbo build
+bun run build:site          # static website into apps/site/dist
 bun run build:desktop       # release desktop build
 bun run check               # vp check: format, lint, and types for JS/TS
 bun run fix                 # vp check --fix
 bun run check-types         # tsc through turbo
 bun run check:desktop       # cargo check for the desktop app
+bun run check:site          # TypeScript check for the website
 bun run lint                # lint apps and crates (oxlint and clippy)
 bun run format              # format apps and crates (scoped, so vendored Rune members are untouched)
 bun run test                # tests for apps and crates
@@ -195,15 +195,16 @@ test("hello world", () => {
 });
 ```
 
-## Web app tooling
+## Website tooling
 
-The web app does not use `Bun.serve()` HTML imports. It is built and linted with Vite+ (`vp`), where `vite` is aliased to `@voidzero-dev/vite-plus-core` through `overrides` in `package.json`.
+The website is React, built with Vite+ (`vp`) and deployed as static files to GitHub Pages.
 
-- Run the web app through `bun run dev` or `bun run dev:web`, not by invoking `vite` directly.
-- Import from `vite-plus` instead of `vite` (enforced by the `vite-plus/prefer-vite-plus-imports` lint rule).
-- Formatting and linting are configured in `vite.config.ts` (Ultracite oxfmt/oxlint presets plus custom rules in `scripts/ui-lint/`).
-- Routing is TanStack Router with generated `apps/web/src/routeTree.gen.ts`; do not hand-edit it.
-- Shared UI comes from `packages/ui` and tokens from `packages/tokens`; reuse the shared button variants and theme instead of adding one-off styles.
+- Run the site through `bun run dev` (or `bun run dev:site`), not by invoking `vite` directly.
+- `bun run build:site` runs the site's TypeScript check and Vite build into `apps/site/dist`; the build emits every route's `index.html` and a `404.html`.
+- The site keeps its components in `apps/site/src/components`; there is no shared React UI package.
+- Use [ui-sdk](https://ui-sdk.dev) components (`@ui-sdk/react/<component>`) for behavior-heavy parts instead of Base UI. Before using them, read `node_modules/@ui-sdk/react/docs/llms.txt`; the `ui-sdk` skill in `.agents/skills/ui-sdk` has the workflow.
+- Colors and fonts come from `packages/tokens`; map semantic colors through the existing Tailwind theme in `src/index.css` instead of adding one-off values.
+- TypeScript still runs the agent skills and repository scripts; do not remove Bun or the workspace packages for those.
 
 For Bun API details, read the docs in `node_modules/bun-types/docs/**.mdx`.
 
