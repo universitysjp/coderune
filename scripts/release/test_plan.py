@@ -54,6 +54,34 @@ class ReleasePlanTest(unittest.TestCase):
         self.git("tag", "v0.3.1", patch)
         self.assertEqual(self.plan(), {"tags": {}, "release": release})
 
+    def test_explicit_patch_bump_reserves_its_tag_and_retries_its_build(self):
+        self.git("tag", "v0.3.0", self.commit("0.3.0"))
+        self.commit("0.3.0")
+        release_commit = self.commit("0.3.1")
+        later = self.commit("0.3.1")
+        release = {"version": "0.3.1", "commit": release_commit}
+
+        self.assertEqual(
+            self.plan(),
+            {"tags": {"v0.3.1": release_commit, "v0.3.2": later}, "release": release},
+        )
+        self.git("tag", "v0.3.1", release_commit)
+        self.git("tag", "v0.3.2", later)
+        self.assertEqual(self.plan(), {"tags": {}, "release": release})
+
+    def test_explicit_patch_bump_cannot_reuse_an_automatic_tag(self):
+        self.git("tag", "v0.3.0", self.commit("0.3.0"))
+        automatic_tag = self.commit("0.3.0")
+        self.git("tag", "v0.3.1", automatic_tag)
+        self.commit("0.3.1")
+
+        result = subprocess.run(
+            ["python3", str(PLANNER)], cwd=self.root, capture_output=True, text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("v0.3.1 already belongs to another commit", result.stderr)
+        self.assertEqual(self.git("rev-parse", "v0.3.1"), automatic_tag)
+
     def test_merge_preserves_existing_tags_and_tags_the_merge(self):
         self.git("switch", "-qc", "setup")
         self.commit("0.2.0")

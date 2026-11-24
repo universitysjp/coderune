@@ -17,9 +17,13 @@ def git(*args):
 def declared_version(commit):
     value = tomllib.loads(git("show", f"{commit}:Cargo.toml"))["workspace"]["package"]["version"]
     version = VERSION.fullmatch(value)
-    if version is None or version[3] != "0":
-        raise ValueError(f"{commit}: set the workspace version to MAJOR.MINOR.0")
-    return int(version[1]), int(version[2])
+    if version is None:
+        raise ValueError(f"{commit}: set the workspace version to MAJOR.MINOR.PATCH")
+    return tuple(map(int, version.groups()))
+
+
+def tag_name(version):
+    return "v" + ".".join(map(str, version))
 
 
 def plan():
@@ -33,34 +37,45 @@ def plan():
         for tag in merged
         if (match := VERSION.fullmatch(tag.removeprefix("v"))) and tag.startswith("v")
     ]
-    major, minor, patch = max(versions)
-    previous = f"v{major}.{minor}.{patch}"
+    latest = max(versions)
+    previous = tag_name(latest)
+    declared = declared_version(previous)
+    commits = git("rev-list", "--reverse", "--first-parent", "HEAD", f"^{previous}").splitlines()
+    changes = [(commit, declared_version(commit)) for commit in commits]
+    declared_bumps = iter(sorted({version for _, version in changes if version > declared}))
+    next_release = next(declared_bumps, None)
     tags = {}
-    for commit in git("rev-list", "--reverse", "--first-parent", "HEAD", f"^{previous}").splitlines():
-        line = declared_version(commit)
-        if line < (major, minor):
+    for commit, version in changes:
+        if version < declared:
             # Main can have commits predating the merge of the initial version.
-            if (major, minor) == (0, 2) and not is_ancestor(BASELINE, commit):
+            if declared[:2] == (0, 2) and not is_ancestor(BASELINE, commit):
                 continue
             raise ValueError(f"{commit}: the workspace version decreased")
-        if line == (major, minor):
-            patch += 1
-            while f"v{major}.{minor}.{patch}" in known:
-                patch += 1
-        else:
-            major, minor = line
-            patch = 0
-        tag = f"v{major}.{minor}.{patch}"
-        if tag in known:
-            raise ValueError(f"{tag} already belongs to another commit")
-        tags[tag] = commit
 
-    version = f"{major}.{minor}.0"
-    milestone = f"v{version}"
+        if version > declared:
+            tag = tag_name(version)
+            if tag in known:
+                raise ValueError(f"{tag} already belongs to another commit")
+            if version <= latest:
+                raise ValueError(f"{commit}: the workspace version must exceed {tag_name(latest)}")
+            latest = declared = version
+            next_release = next(declared_bumps, None)
+        else:
+            major, minor, patch = latest
+            candidate = (major, minor, patch + 1)
+            while tag_name(candidate) in known:
+                candidate = (major, minor, candidate[2] + 1)
+            # Leave the next declared version available for the commit that declares it.
+            if next_release is not None and candidate >= next_release:
+                continue
+            latest = candidate
+        tags[tag_name(latest)] = commit
+
+    release_tag = tag_name(declared)
     release = None
-    if milestone != BASELINE:
-        commit = tags.get(milestone) or git("rev-parse", f"{milestone}^{{commit}}")
-        release = {"version": version, "commit": commit}
+    if release_tag != BASELINE:
+        commit = tags.get(release_tag) or git("rev-parse", f"{release_tag}^{{commit}}")
+        release = {"version": release_tag.removeprefix("v"), "commit": commit}
     return {"tags": tags, "release": release}
 
 
