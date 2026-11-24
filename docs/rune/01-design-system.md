@@ -1,12 +1,12 @@
 # Design system
 
-The native app has light and dark appearances. The web app uses the shared
-React registry's light palette.
+The native app has light and dark appearances. The website uses the neutral
+light palette in `packages/tokens`.
 
 ## Sources of truth
 
 - Desktop (Rust/Rune): `crates/ui/src/theme.rs` and `crates/ui/src/components.rs`.
-- Web (React): `packages/ui/src/web/tokens.css`, `base.css`, and `ui/*`.
+- Website (React): `packages/tokens/src/tokens.css` and `apps/site/src/index.css`.
 - Fonts: Geist and Paper Mono in `packages/tokens/fonts`.
 - Layout, spacing, and type roles: the constants in `crates/ui/src/theme.rs`.
 
@@ -100,12 +100,11 @@ Application updates run in the app: macOS swaps the verified bundle beside the
 installed one, and Windows runs the per-user installer quietly. Both reopen
 Coderune from the **Restart to update** row in Settings → General.
 
-## Web components
+## Website
 
-`packages/ui/src/web` is the shared React registry. It is scoped under `.ui`,
-compiles Tailwind utilities for its own sources, and exposes badges, buttons,
-charts, tables, panels, filters, inputs, and statuses. `apps/web` imports them
-from `@coderune/ui/web`; do not duplicate the registry inside the app.
+`apps/site` is the public React site. `src/components` holds the frame,
+navigation, sections, panels and links; `src/routes` holds the pages and copy.
+The site keeps its own components; it does not import a shared React registry.
 
 ## Verification
 
@@ -113,4 +112,4 @@ from `@coderune/ui/web`; do not duplicate the registry inside the app.
 - `bun run lint`
 - `bun run check`
 - `bun run verify:ui`
-- `bun run --cwd apps/web build`
+- `bun run build:site`

@@ -21,6 +21,8 @@ GitHub Actions build, install Coderune, and check for updates.
 - `apps/desktop/src/app.rs` — application state, actions, and the workspace shell.
 - `apps/desktop/src/screens/` — one Rune view module per screen.
 - `apps/desktop/src/widgets.rs` — app-specific controls shared by screens.
+- `apps/site` — the React website; `src/routes` has the pages, and Vite builds a
+  static site for GitHub Pages.
 - `crates/ui` — the Rune design system: tokens, icons, cards, fields, alerts.
 - `crates/domain`, `crates/storage`, `crates/collectors`, `crates/agents`, and
   `crates/app` — framework-independent domain and application operations.
@@ -31,8 +33,8 @@ headless snapshots make the views reviewable without a window.
 ## Prerequisites
 
 You need Git, [Bun](https://bun.sh), and Rust. Bun runs the monorepo scripts and
-the web app. Rust builds the native desktop app; `rust-toolchain.toml` pins the
-toolchain, so `rustup` installs it automatically.
+the website build; Rust builds the desktop app and the website. `rust-toolchain.toml`
+pins the toolchain and the wasm target, so `rustup` installs both automatically.
 
 Install Bun:
 
@@ -69,8 +71,9 @@ Open a new terminal after installing Bun or Rust so `bun` and `cargo` are on
 
 ## Setup
 
-The web app uses Bun. The desktop app is native Rust with [Rune](https://github.com/anomalyco/rune), in
-`apps/desktop`.
+The website is React with Vite in `apps/site`; the desktop is native Rust with
+[Rune](https://github.com/anomalyco/rune) in `apps/desktop`. Bun drives the scripts,
+the site build, and the agent-skill tooling.
 
 ```sh
 git clone https://github.com/universitysjp/coderune.git
@@ -85,8 +88,8 @@ any `cargo` command: the workspace patches Rune’s vendored crates, so Cargo
 cannot resolve without that checkout.
 
 Turbo drives the native tasks too: `bun run dev:desktop`, `bun run check:desktop`,
-`bun run test`, `bun run lint`, and `bun run format`. `bun run dev` stays web-only; use
-`bun run dev:all` for web and desktop together. Run the desktop app with
+`bun run test`, `bun run lint`, and `bun run format`. `bun run dev` builds the website and
+serves it; run the desktop app separately with
 `cargo run -p coderune-desktop`, or pass a directory:
 `cargo run -p coderune-desktop -- .`. The binary is
 `target/debug/coderune`; `cargo install --path apps/desktop` puts
@@ -99,7 +102,8 @@ reads your current login-shell PATH. On Windows, restart Coderune after an
 installer adds a new directory to PATH. **Subagents** in the workspace
 sidebar is for Coderune specialists and their bot avatars.
 
-The native desktop notes live in `docs/rune/`. The desktop is Rust/Rune; the shared web UI is in `packages/ui`.
+The native desktop notes live in `docs/rune/`. The website is React; its static build is in `apps/site/dist` and deploys through
+`.github/workflows/web-pages.yml`.
 
 Pele is installed for diagrams. Matt Pocock's skills are installed in `.agents/skills`
 and recorded in `skills-lock.json`.

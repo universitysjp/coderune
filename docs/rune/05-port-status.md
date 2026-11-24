@@ -1,7 +1,7 @@
 # Native desktop port status
 
 `apps/desktop` is the Rune desktop application. `crates/ui` is its Rust design
-system. The web app keeps its own React registry in `packages/ui`.
+system. The website is a separate React app in `apps/site`.
 
 ## Implemented
 
@@ -66,7 +66,7 @@ bun run lint
 bun run check
 bun run verify:ui
 bun run icon:build
-bun run --cwd apps/web build
+bun run build:site
 ```
 
 Turborepo discovers the Cargo workspace through the experimental
