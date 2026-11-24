@@ -1,5 +1,6 @@
 mod agent_detection;
 mod app;
+mod chats;
 mod fonts;
 mod preferences;
 mod screens;
