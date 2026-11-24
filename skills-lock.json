@@ -241,6 +241,13 @@
       "skillPath": "skills/ui-review/SKILL.md",
       "computedHash": "16106d08018859dade85074982e831a11807352dfff74af72edeb6fe8df2f339"
     },
+    "ui-sdk": {
+      "source": "vercel-labs/ui",
+      "commit": "074ac1c4e7ac6607b7291a4ff71eb4ee3154fa98",
+      "sourceType": "github",
+      "skillPath": "packages/core/skills/ui-sdk/SKILL.md",
+      "computedHash": "cabe635c8f279e77b50a265c499ea2e8ebd471574b96acfc61a11a147d553e6d"
+    },
     "untangle-codebase": {
       "source": "caldoai/skills",
       "sourceType": "github",
