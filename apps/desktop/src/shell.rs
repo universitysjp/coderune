@@ -1,7 +1,5 @@
 //! Workspace chrome and in-window page navigation.
 
-use std::sync::LazyLock;
-
 use coderune_ui::components::{self as ui, WhenExt};
 use coderune_ui::icons;
 use coderune_ui::theme::{self, LABEL, LABEL_SM};
@@ -214,18 +212,15 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
         .h_full()
         .fill(theme::surface())
         .instant_changes()
-        .child(titlebar(cx))
+        .child(titlebar(cx, k))
         .child(layout.child(grip).child(content))
         .child(width_class)
 }
 
-fn titlebar(cx: &Cx<CoderuneApp>) -> El {
-    static TAB_KIT: LazyLock<Kit> = LazyLock::new(|| {
-        let mut kit = theme::kit().clone();
-        kit.c.layer_03 = Color::TRANSPARENT;
-        kit.c.pressed = theme::accent_soft();
-        kit
-    });
+fn titlebar(cx: &Cx<CoderuneApp>, k: &Kit) -> El {
+    let mut tab_kit = k.clone();
+    tab_kit.c.layer_03 = Color::TRANSPARENT;
+    tab_kit.c.pressed = theme::accent_soft();
     let tabs = TabStrip::new(TAB_STRIP_KEY, TabOrientation::Horizontal)
         .label("Window tabs")
         .active(Some("workspace"))
@@ -240,12 +235,12 @@ fn titlebar(cx: &Cx<CoderuneApp>) -> El {
         .tabs([TabItem::<CoderuneApp>::new("workspace", "Workspace")
             .icon(View::Home.icon())
             .closable(false)])
-        .build(&TAB_KIT);
+        .build(&tab_kit);
     WindowTitlebar::from_insets(cx.chrome_insets())
         .height(theme::TOPBAR)
         .fill(theme::surface())
         .tabs(tabs)
-        .build(theme::kit())
+        .build(k)
 }
 
 fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
@@ -257,15 +252,23 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
     for view in View::NAV {
         nav = nav.child(nav_item(s, view));
     }
-    nav.footer(ui::nav_item(
+    let (modifier, shortcut) = if cfg!(target_os = "macos") {
+        ("⌘", "Command+,")
+    } else {
+        ("Ctrl", "Ctrl+,")
+    };
+    let settings = ui::nav_item(
         "nav-data-footer",
         "Settings",
         &icons::GEAR,
         s.settings.is_some(),
         |s: &mut CoderuneApp| s.select_settings(SettingsSection::General),
-    ))
-    .footer(profile_item(s))
-    .build(k)
+    )
+    .gap(6.0)
+    .child(el().grow(1.0))
+    .child(ui::keycaps("settings-shortcut", &[modifier, ","], k))
+    .shortcut_hint(shortcut);
+    nav.footer(settings).footer(profile_item(s)).build(k)
 }
 
 fn nav_item(s: &CoderuneApp, view: View) -> El {

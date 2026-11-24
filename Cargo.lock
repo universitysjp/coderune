@@ -1029,6 +1029,7 @@ version = "0.2.0"
 dependencies = [
  "rune",
  "rune-kit",
+ "rune-theme-opencode",
 ]
 
 [[package]]
@@ -3492,15 +3493,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ordered-float"
-version = "5.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f59006ce1e204c30956638535b74d317bca99477b9356dfaec54c37f6f600ab"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "ordered-stream"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4358,6 +4350,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rune-theme-opencode"
+version = "0.0.1"
+source = "git+https://github.com/anomalyco/rune?rev=8fc71fbf21db41920409bf6fa20ffb41ddb2f99d#8fc71fbf21db41920409bf6fa20ffb41ddb2f99d"
+dependencies = [
+ "rune",
+ "rune-kit",
+ "serde_json",
+]
+
+[[package]]
 name = "rust_decimal"
 version = "1.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4623,7 +4625,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "546040c653a705e60ec65ecd3191a809603734bebbc225775916dea9ae409b31"
 dependencies = [
  "chrono",
- "ordered-float 4.6.0",
+ "ordered-float",
  "rust_decimal",
  "sea-query-derive",
  "serde_json",
@@ -6248,7 +6250,7 @@ dependencies = [
  "objc2-metal 0.3.2",
  "objc2-quartz-core 0.3.2",
  "once_cell",
- "ordered-float 5.5.1",
+ "ordered-float",
  "parking_lot",
  "portable-atomic",
  "portable-atomic-util",

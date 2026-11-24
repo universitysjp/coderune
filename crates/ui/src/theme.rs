@@ -1,77 +1,142 @@
-//! Coderune's fixed light theme for Rune.
-//!
-//! Values transcribe Coderune's design roles. There is no dark theme. Blue is a non-text accent; focus rings are ink.
+//! Desktop appearance tokens for Rune controls.
 
-use std::sync::LazyLock;
+use std::{cell::Cell, sync::OnceLock};
 
-use rune::{color::srgb_decode, Color, Family, Shadow, TextStyle};
+use rune::{Color, Family, TextStyle};
 use rune_kit::{kit::Type, Kit};
 
-fn hex(value: u32) -> Color {
-    static SRGB: LazyLock<[f32; 256]> =
-        LazyLock::new(|| std::array::from_fn(|value| srgb_decode(value as f32 / 255.0)));
-    let channel = |shift: u32| SRGB[((value >> shift) & 0xff) as usize];
-    Color {
-        r: channel(16),
-        g: channel(8),
-        b: channel(0),
-        a: 1.0,
+thread_local! {
+    static DARK: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Resolve semantic colors and controls for one synchronous view render.
+pub fn with_dark<R>(dark: bool, render: impl FnOnce() -> R) -> R {
+    struct Restore(bool);
+
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DARK.set(self.0);
+        }
     }
+
+    let _restore = Restore(DARK.replace(dark));
+    render()
+}
+
+pub fn kit() -> &'static Kit {
+    kit_for(DARK.get())
+}
+
+pub fn kit_for(dark: bool) -> &'static Kit {
+    static KITS: [[OnceLock<Kit>; 2]; 2] = [const { [const { OnceLock::new() }; 2] }; 2];
+    KITS[usize::from(dark)][usize::from(rune::theme::blends_srgb())].get_or_init(|| {
+        let mut k = rune_theme_opencode::kit(dark).clone();
+        k.ty = Type {
+            ui: BODY.family(Family::Sans),
+            ui_medium: BODY.family(Family::Sans),
+            ui_compact: LABEL.family(Family::Sans),
+            small: LABEL_SM.family(Family::Sans),
+            small_medium: LABEL_SM.family(Family::Sans),
+            body: BODY.family(Family::Sans),
+            body_medium: BODY.family(Family::Sans),
+            text_small: BODY_SM.family(Family::Sans),
+            text_small_medium: BODY_SM.family(Family::Sans),
+            text_xsmall: LABEL_SM.family(Family::Sans),
+            text_xsmall_medium: LABEL_SM.family(Family::Sans),
+            mono: CODE,
+        };
+        if dark {
+            let c = &mut k.c;
+            // Use neutral grays for dark selections, focus and switches.
+            c.bg_accent = c.text_faint;
+            c.text_accent = c.text_base;
+            c.icon_accent = c.icon_base;
+            c.border_focus = c.text_base;
+            c.border_active = c.border_strong;
+            c.info.bg = c.layer_02;
+            c.info.fg = c.text_muted;
+            c.info.border = c.border_base;
+            c.info.icon = c.icon_muted;
+        }
+        k
+    })
 }
 
 pub fn bg() -> Color {
-    hex(0xfcfcfc)
+    kit().c.bg_deep
 }
+
 pub fn surface() -> Color {
-    hex(0xf7f7f7)
+    let k = kit();
+    if k.dark {
+        k.c.layer_01
+    } else {
+        k.c.page
+    }
 }
+
 pub fn panel() -> Color {
-    hex(0xffffff)
+    kit().c.bg_base
 }
+
 pub fn ink() -> Color {
-    hex(0x161616)
+    kit().c.text_base
 }
+
 pub fn muted() -> Color {
-    hex(0x454545)
+    kit().c.text_muted
 }
+
 pub fn faint() -> Color {
-    hex(0x656565)
+    kit().c.text_faint
 }
+
 pub fn line() -> Color {
-    hex(0xdedede)
+    kit().c.border_base
 }
+
 pub fn row_line() -> Color {
-    hex(0xececec)
+    kit().c.border_muted
 }
+
 pub fn control_line() -> Color {
-    hex(0xdadada)
+    kit().c.border_base
 }
+
 pub fn control_hover() -> Color {
-    hex(0xb4b4b4)
+    kit().c.border_strong
 }
+
 pub fn accent() -> Color {
-    hex(0x4c94fc)
+    kit().c.bg_accent
 }
+
 pub fn accent_soft() -> Color {
-    hex(0xe3eefa)
+    kit().c.layer_02
 }
+
 pub fn danger() -> Color {
-    hex(0xb72728)
+    kit().c.danger.fg
 }
+
 pub fn danger_soft() -> Color {
-    hex(0xffe6e3)
+    kit().c.danger.bg
 }
+
 pub fn code() -> Color {
-    hex(0xf0f0f0)
+    kit().c.layer_02
 }
+
 pub fn hover() -> Color {
-    hex(0xf3f3f3)
+    kit().c.hover
 }
+
 pub fn pressed() -> Color {
-    hex(0xececec)
+    kit().c.pressed
 }
+
 pub fn inverse() -> Color {
-    hex(0xffffff)
+    kit().c.text_inverse
 }
 
 pub const SIDEBAR: f32 = 236.0;
@@ -94,140 +159,33 @@ pub const LABEL_SM: TextStyle = TextStyle::new(12.0, 400.0).lh(16.0);
 pub const CODE: TextStyle = TextStyle::new(13.0, 400.0).lh(20.0).mono();
 pub const CODE_SM: TextStyle = TextStyle::new(12.0, 400.0).lh(16.0).mono();
 
-fn ts(size: f32, weight: f32, line: f32) -> TextStyle {
-    TextStyle::new(size, weight).lh(line).family(Family::Sans)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// The single light kit every screen reads.
-pub fn kit() -> &'static Kit {
-    static KIT: LazyLock<Kit> = LazyLock::new(build_kit);
-    &KIT
-}
+    #[test]
+    fn scoped_appearance_reaches_shared_controls_and_restores_the_theme() {
+        let light_surface = surface();
+        with_dark(true, || {
+            assert!(kit().dark);
+            assert_ne!(surface(), light_surface);
+            assert_eq!(with_dark(false, surface), light_surface);
+            assert!(kit().dark);
+        });
+        assert!(!kit().dark);
+    }
 
-fn build_kit() -> Kit {
-    let mut k = Kit::neutral(false);
-    k.dark = false;
-    k.invalid_text = false;
-    k.ring = None;
-    k.elevation.raised.clear();
-    k.elevation.floating.clear();
-    k.elevation.overlay.clear();
-    k.elevation.button_neutral = vec![Shadow {
-        x: 0.0,
-        y: 0.0,
-        blur: 0.0,
-        spread: 0.5,
-        color: control_line(),
-        inset: false,
-    }];
-    k.elevation.button_contrast.clear();
-    k.elevation.elements.clear();
-    k.elevation.switch_off.clear();
-    k.elevation.switch_on.clear();
-    k.elevation.md.clear();
-    k.elevation.knob.clear();
-
-    k.c.page = bg();
-    k.c.bg_base = panel();
-    k.c.bg_deep = bg();
-    k.c.layer_01 = bg();
-    k.c.layer_02 = code();
-    k.c.layer_03 = pressed();
-    k.c.layer_04 = accent_soft();
-    k.c.bg_inverse = ink();
-    k.c.bg_contrast = ink();
-    k.c.bg_button_neutral = panel();
-    k.c.bg_icon_button_contrast = ink();
-    k.c.bg_accent = accent();
-    k.c.submit_highlight = inverse().alpha(0.0);
-    k.c.submit_hover = ink().alpha(0.9);
-    k.c.submit_fg = inverse();
-    k.c.submit_icon = inverse();
-    k.c.text_base = ink();
-    k.c.text_muted = muted();
-    k.c.text_faint = faint();
-    k.c.text_inverse = inverse();
-    k.c.text_contrast = inverse();
-    k.c.text_accent = ink();
-    k.c.icon_base = ink();
-    k.c.icon_muted = muted();
-    k.c.icon_faint = faint();
-    k.c.icon_inverse = inverse();
-    k.c.icon_contrast = inverse();
-    k.c.icon_accent = ink();
-    k.c.border_muted = row_line();
-    k.c.border_base = line();
-    k.c.border_strong = control_line();
-    k.c.border_focus = ink();
-    k.c.hover = hover();
-    k.c.pressed = pressed();
-    k.c.contrast_hover = hex(0x373737);
-    k.c.contrast_pressed = hex(0x373737);
-    k.c.scrim = ink().alpha(0.25);
-    k.c.depth_top = inverse().alpha(0.0);
-    k.c.depth_bottom = inverse().alpha(0.0);
-    k.c.white = inverse();
-    k.c.black = ink();
-    k.c.knob = inverse();
-    k.c.knob_on = inverse();
-    k.c.danger.fg = danger();
-    k.c.danger.bg = danger_soft();
-    k.c.danger.border = danger();
-    k.c.danger.icon = danger();
-    k.c.success.fg = ink();
-    k.c.success.bg = code();
-    k.c.success.border = line();
-    k.c.success.icon = ink();
-    k.c.warning.fg = ink();
-    k.c.warning.bg = code();
-    k.c.warning.border = line();
-    k.c.warning.icon = ink();
-    k.c.info.fg = ink();
-    k.c.info.bg = code();
-    k.c.info.border = line();
-    k.c.info.icon = ink();
-    k.c.surface_base = code();
-    k.c.surface_weak = code();
-    k.c.surface_hover = hover();
-    k.c.surface_raised = panel();
-    k.c.surface_raised_base = panel();
-    k.c.surface_raised_hover = hover();
-    k.c.surface_float = panel();
-    k.c.surface_disabled = code();
-    k.c.border_weak = row_line();
-    k.c.border_hover = control_hover();
-    k.c.border_active = accent();
-    k.c.border_disabled = row_line();
-    k.c.text_strong = ink();
-    k.c.text_weak = muted();
-    k.c.text_invert_strong = inverse();
-    k.c.icon_weaker = faint();
-    k.c.std_border = control_line();
-    k.c.std_icon = ink();
-    k.c.std_icon_invert = inverse();
-    k.c.std_icon_strong = ink();
-    k.c.std_text = ink();
-    k.blend_over = Some(bg());
-
-    let ui = ts(14.0, 400.0, 20.0);
-    k.ty = Type {
-        ui,
-        ui_medium: ui,
-        ui_compact: ts(14.0, 400.0, 16.0),
-        small: ts(12.0, 400.0, 16.0),
-        small_medium: ts(12.0, 400.0, 16.0),
-        body: ts(14.0, 400.0, 20.0),
-        body_medium: ts(14.0, 400.0, 20.0),
-        text_small: ts(13.0, 400.0, 18.0),
-        text_small_medium: ts(13.0, 400.0, 18.0),
-        text_xsmall: ts(12.0, 400.0, 16.0),
-        text_xsmall_medium: ts(12.0, 400.0, 16.0),
-        mono: TextStyle::new(13.0, 400.0).lh(20.0).mono(),
-    };
-    k.radius.xs = 2.0;
-    k.radius.sm = 4.0;
-    k.radius.md = 6.0;
-    k.radius.lg = 10.0;
-    k.radius.xl = 10.0;
-    k
+    #[test]
+    fn dark_chrome_uses_grays_for_selection_and_interaction() {
+        let palette = rune_theme_opencode::kit(true);
+        with_dark(true, || {
+            let colors = &kit().c;
+            assert_eq!(surface(), palette.c.layer_01);
+            assert_eq!(panel(), palette.c.bg_base);
+            for color in [accent(), accent_soft(), colors.border_focus, colors.info.fg] {
+                assert_eq!(color.r, color.g);
+                assert_eq!(color.g, color.b);
+            }
+        });
+    }
 }

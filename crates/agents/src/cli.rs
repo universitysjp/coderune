@@ -5,8 +5,10 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use coderune_domain::AgentId;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum CliAgentId {
     ClaudeCode,
     Codex,

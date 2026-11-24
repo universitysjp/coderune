@@ -1,5 +1,6 @@
 mod agent_detection;
 mod app;
+mod preferences;
 mod screens;
 mod shell;
 mod updates;
@@ -60,6 +61,8 @@ fn main() {
             ("settings", app::scene_settings),
             ("storage", app::scene_storage),
             ("settings-agents", app::scene_settings_agents),
+            ("settings-dark", app::scene_settings_dark),
+            ("settings-agents-dark", app::scene_settings_agents_dark),
             ("onboarding-start", app::scene_onboarding_start),
             ("onboarding-review", app::scene_onboarding_review),
         ],

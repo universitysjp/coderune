@@ -3,10 +3,11 @@
 use crate::app::CoderuneApp;
 use crate::widgets::*;
 use coderune_ui::components as ui;
+use coderune_ui::components::PushButtonExt;
 use coderune_ui::theme::{self, BODY_SM, CODE_SM, LABEL};
 use coderune_ui::WhenExt;
 use rune::{col, row, text, El, ScrollSpec};
-use rune_kit::{Badge, Button, ButtonVariant, ControlSize, Kit};
+use rune_kit::{Badge, Button, ButtonVariant, Kit};
 
 pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();
@@ -130,10 +131,9 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                 .child(
                     Button::new("Save capture")
                         .variant(ButtonVariant::Contrast)
-                        .control_size(ControlSize::ExtraLarge)
                         .disabled(!s.capture_reviewed)
                         .on_press(|s: &mut CoderuneApp| s.save_capture())
-                        .build(k),
+                        .build_push(k),
                 ),
         );
         if let Some(error) = &s.error {
@@ -186,7 +186,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                     Button::new("Inspect")
                         .variant(ButtonVariant::Ghost)
                         .on_press(move |s: &mut CoderuneApp| s.inspect_capture(&inspect_id))
-                        .build(k),
+                        .build_small_push(k),
                 )
                 .child(
                     Button::new(if confirming { "Confirm" } else { "Delete" })
@@ -198,7 +198,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                                 s.confirm_delete_capture = Some(delete_id.clone());
                             }
                         })
-                        .build(k),
+                        .build_small_push(k),
                 ),
         );
     }

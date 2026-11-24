@@ -3,9 +3,9 @@
 use crate::app::{CoderuneApp, SettingsSection};
 use crate::updates::Status;
 use crate::widgets::text_input;
-use coderune_ui::{components as ui, icons, theme};
+use coderune_ui::{components as ui, components::PushButtonExt, icons, theme};
 use rune::{col, el, row, text, El, ScrollSpec};
-use rune_kit::{Button, ButtonVariant, Dialog, Kit};
+use rune_kit::{Button, ButtonVariant, Dialog, Kit, Switch};
 
 pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlays: &mut Vec<El>) {
     let nav = col()
@@ -56,6 +56,8 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
             Err(error) => ui::alert(Some(error.code.as_str()), &error.message),
         });
     }
+    let mut dialog_kit = k.clone();
+    dialog_kit.c.layer_01 = theme::surface();
     Dialog::new("settings", "Settings")
         .open(true)
         .width(760.0)
@@ -78,13 +80,14 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
                         .grow(1.0)
                         .min_w(0.0)
                         .h_full()
+                        .fill(theme::panel())
                         .scroll(ScrollSpec {
                             stick_bottom: false,
                         })
                         .child(panel),
                 ),
         )
-        .build(k, overlays);
+        .build(&dialog_kit, overlays);
 }
 
 fn general(s: &CoderuneApp, k: &Kit) -> El {
@@ -92,7 +95,7 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
     let check = Button::new("Check for updates")
         .disabled(busy)
         .on_press(|s: &mut CoderuneApp| s.updates.check())
-        .build(k)
+        .build_push(k)
         .key("check-updates");
     let mut body = col().w_full().gap(12.0).child(setting_row(
         "Application updates",
@@ -100,29 +103,42 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
         check,
     ));
     let status = match &s.updates.status {
-        Status::Idle => return body,
-        Status::Checking => ui::subtle("Checking for updates…"),
-        Status::Current => ui::subtle("Coderune is up to date."),
-        Status::NoRelease => ui::subtle("No desktop release has been published yet."),
-        Status::Available(update) => Button::new(format!("Download Coderune {}", update.version))
-            .variant(ButtonVariant::Contrast)
-            .on_press(|s: &mut CoderuneApp| s.updates.download())
-            .build(k),
-        Status::Downloading => ui::subtle("Downloading and verifying the update…"),
+        Status::Idle => None,
+        Status::Checking => Some(ui::subtle("Checking for updates…")),
+        Status::Current => Some(ui::subtle("Coderune is up to date.")),
+        Status::NoRelease => Some(ui::subtle("No desktop release has been published yet.")),
+        Status::Available(update) => Some(
+            Button::new(format!("Download Coderune {}", update.version))
+                .variant(ButtonVariant::Contrast)
+                .on_press(|s: &mut CoderuneApp| s.updates.download())
+                .build_push(k),
+        ),
+        Status::Downloading => Some(ui::subtle("Downloading and verifying the update…")),
         Status::Downloaded(folder) => {
             let folder = folder.clone();
-            setting_row(
+            Some(setting_row(
                 "Update downloaded",
                 Some("Close Coderune before installing the update.".to_string()),
                 Button::new("Open download folder")
                     .on_press(move |s: &mut CoderuneApp| s.open_settings_folder(&folder))
-                    .build(k),
-            )
+                    .build_push(k),
+            ))
         }
-        Status::Failed(message) => ui::alert(None, message),
+        Status::Failed(message) => Some(ui::alert(None, message)),
     };
-    body = body.child(col().items_start().child(status));
-    body
+    if let Some(status) = status {
+        body = body.child(col().w_full().items_start().child(status));
+    }
+    body.child(divider()).child(setting_row(
+        "Dark mode",
+        None,
+        Switch::new(s.dark_mode())
+            .label("Dark mode")
+            .hide_label()
+            .on_toggle(CoderuneApp::toggle_dark_mode)
+            .build(k)
+            .key("dark-mode"),
+    ))
 }
 
 fn storage(s: &CoderuneApp, k: &Kit) -> El {
@@ -138,12 +154,12 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
                 s.open_settings_folder(folder);
             }
         })
-        .build(k)
+        .build_push(k)
         .key("open-data-folder");
     let export = Button::new("Export JSON")
         .variant(ButtonVariant::Contrast)
         .on_press(CoderuneApp::export_data)
-        .build(k)
+        .build_push(k)
         .key("export-data");
     let delete = Button::new("Delete all data")
         .variant(ButtonVariant::Danger)
@@ -152,7 +168,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
             s.confirm_delete_all = true;
             s.settings_feedback = None;
         })
-        .build(k)
+        .build_push(k)
         .key("delete-data");
 
     let mut database = col()
@@ -212,14 +228,14 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
                 .child(
                     Button::new("Cancel")
                         .on_press(|s: &mut CoderuneApp| s.confirm_delete_all = false)
-                        .build(k)
+                        .build_push(k)
                         .key("cancel-delete-data"),
                 )
                 .child(
                     Button::new("Confirm delete all")
                         .variant(ButtonVariant::Danger)
                         .on_press(CoderuneApp::delete_all_data)
-                        .build(k)
+                        .build_push(k)
                         .key("confirm-delete-data"),
                 ),
         ));

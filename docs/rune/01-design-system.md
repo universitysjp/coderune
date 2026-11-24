@@ -1,18 +1,24 @@
 # Design system
 
-The desktop look and the web look share one palette, type ramp, and control
-language. They are implemented twice because the runtimes differ.
+The native app has light and dark appearances. The web app uses the shared
+React registry's light palette.
 
 ## Sources of truth
 
 - Desktop (Rust/Rune): `crates/ui/src/theme.rs` and `crates/ui/src/components.rs`.
 - Web (React): `packages/ui/src/web/tokens.css`, `base.css`, and `ui/*`.
-- Font assets: `packages/tokens/fonts` (Geist and Paper Mono, OFL).
+- Fonts: Geist and Paper Mono in `packages/tokens/fonts`.
 - Layout, spacing, and type roles: the constants in `crates/ui/src/theme.rs`.
 
 Do not introduce a second palette or type scale in either surface.
 
-## Colour
+## Desktop colour
+
+General in Settings offers a persistent Dark mode switch. Window chrome, the
+Settings header, and the Settings sidebar use the same gray surface in each
+appearance. Dark selection, focus, and switch colors use the neutral ramp.
+
+## Web colour
 
 | Role | Value | Use |
 | --- | --- | --- |
@@ -33,7 +39,7 @@ Do not introduce a second palette or type scale in either surface.
 
 Rules:
 
-- Fixed light appearance. No dark theme.
+- Fixed light appearance.
 - Blue is never small text on a light surface.
 - Primary fills are ink; destructive actions are paper + danger edge + danger word.
 - Focus is a 2px ink ring with a 2px offset.
@@ -58,8 +64,7 @@ Geist for UI and prose. Paper Mono for code, paths, IDs, hashes, and JSON.
 | Code | 13 / 20 | Code and JSON |
 | Code sm | 12 / 16 | Paths, IDs, hashes |
 
-Weight is 400 only. Hierarchy comes from size, colour, and family. No uppercase,
-tracking, or synthetic bold in the desktop UI.
+Desktop text uses weight 400. Buttons and shortcut keycaps use Geist.
 
 ## Space, shape, layout
 
@@ -81,6 +86,10 @@ and code wells. `apps/desktop/src/widgets.rs` owns app-specific builders
 (buttons, text inputs, choice chips). Buttons, text fields, menus, the
 workspace's `Sidebar`, `WindowTitlebar` and `TabStrip`, and the onboarding
 `Page` come from `rune-kit`.
+
+Text buttons are 28 points high at standard size and 24 points high at compact
+size. Shortcut keycaps use a recessed tray and separate key faces, as shown in
+the workspace sidebar.
 
 ## Web components
 

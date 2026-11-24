@@ -2,6 +2,7 @@
 
 use crate::app::CoderuneApp;
 use crate::widgets::*;
+use coderune_agents::CliAgentId;
 use coderune_domain::{AgentAvailability, DocumentKind};
 use coderune_ui::components as ui;
 use coderune_ui::theme::{self, CODE_SM, LABEL};
@@ -165,7 +166,10 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
         .map(|workspace| workspace.agents.as_slice())
         .unwrap_or(&[]);
     let mut agent_chips = Vec::new();
-    for status in agents {
+    for status in agents
+        .iter()
+        .filter(|status| s.agent_enabled(CliAgentId::from(status.id)))
+    {
         let id = status.id;
         let enabled = status.availability == AgentAvailability::Ready;
         agent_chips.push(option_chip(
@@ -192,7 +196,11 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             "Select an imported document from the list below.",
         ));
     }
-    draft_children.push(row().gap(8.0).children(agent_chips));
+    if agent_chips.is_empty() {
+        draft_children.push(ui::subtle("Enable a coding agent in Settings → Agents."));
+    } else {
+        draft_children.push(row().gap(8.0).children(agent_chips));
+    }
     draft_children.push(secondary(
         "Prepare sharing preview",
         |s| s.prepare_draft(),

@@ -2,41 +2,38 @@
 
 use crate::app::CoderuneApp;
 use coderune_domain::ExperienceStage;
+use coderune_ui::components::PushButtonExt;
 use coderune_ui::theme::{self, LABEL};
 use coderune_ui::WhenExt;
 use rune::{row, text, El, TextEdit};
-use rune_kit::{Button, ButtonVariant, ControlSize, Kit, TextArea, TextInput};
+use rune_kit::{Button, ButtonVariant, Kit, TextArea, TextInput};
 
 pub(crate) fn primary(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
     Button::new(label)
         .variant(ButtonVariant::Contrast)
-        .control_size(ControlSize::ExtraLarge)
         .on_press(press)
-        .build(k)
+        .build_push(k)
 }
 
 pub(crate) fn secondary(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
     Button::new(label)
         .variant(ButtonVariant::Neutral)
-        .control_size(ControlSize::ExtraLarge)
         .on_press(press)
-        .build(k)
+        .build_push(k)
 }
 
 pub(crate) fn ghost(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
     Button::new(label)
         .variant(ButtonVariant::Ghost)
-        .control_size(ControlSize::ExtraLarge)
         .on_press(press)
-        .build(k)
+        .build_push(k)
 }
 
 pub(crate) fn destructive(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
     Button::new(label)
         .variant(ButtonVariant::Danger)
-        .control_size(ControlSize::ExtraLarge)
         .on_press(press)
-        .build(k)
+        .build_push(k)
 }
 
 pub(crate) fn text_input<'a>(

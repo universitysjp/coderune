@@ -46,6 +46,10 @@ Open **Settings → General** and choose **Check for updates**. The app
 shows its installed version and offers the matching
 package if GitHub has a newer published release.
 
+General also has a Dark mode switch. Settings remembers that choice across
+launches. In **Settings → Agents**, use the switch beside an installed coding
+agent to turn it on or off for Coderune.
+
 Update checks and downloads use public GitHub Releases.
 
 Choose **Download Coderune**. The app verifies the downloaded bytes against

@@ -3,12 +3,13 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use coderune_agents::CliAgentId;
 use coderune_app::{PreviewSession, Workspace};
 use coderune_avatars::BotAvatarStage;
 use coderune_domain::{
-    AgentId, AppError, Certification, ContextCapture, DocumentKind, EducationEntry,
-    EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft, ProjectDraft,
-    ProjectExperience, SelfReportedSkill, SkillRating,
+    AgentAvailability, AgentId, AppError, Certification, ContextCapture, DocumentKind,
+    EducationEntry, EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft,
+    ProjectDraft, ProjectExperience, SelfReportedSkill, SkillRating,
 };
 use rune::{col, text, Cx, El, Key, KeyEvent, TextEdit, Tx};
 use rune_kit::shell::is_sidebar_toggle;
@@ -17,6 +18,7 @@ use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, HEADING};
 
 use crate::agent_detection::{AgentDetection, Check};
+use crate::preferences::Preferences;
 use crate::screens;
 use crate::shell::{self, SidebarPane};
 use crate::updates::Updates;
@@ -470,6 +472,7 @@ pub struct CoderuneApp {
     pub(crate) export_path: TextEdit,
     pub(crate) settings: Option<SettingsSection>,
     pub(crate) settings_feedback: Option<Result<String, AppError>>,
+    preferences: Preferences,
     pub(crate) agent_detection: AgentDetection,
     pub(crate) updates: Updates,
     pub error: Option<AppError>,
@@ -525,6 +528,15 @@ impl CoderuneApp {
                 })
                 .unwrap_or_else(|_| "coderune-export.json".to_string()),
         );
+        let preferences = workspace
+            .as_ref()
+            .map(|workspace| Preferences::load(&Preferences::path(&workspace.data_path())))
+            .transpose()
+            .unwrap_or_else(|error| {
+                eprintln!("Could not load desktop settings: {error}");
+                None
+            })
+            .unwrap_or_default();
         let mut app = Self {
             workspace,
             fatal,
@@ -546,6 +558,7 @@ impl CoderuneApp {
             export_path,
             settings: None,
             settings_feedback: None,
+            preferences,
             agent_detection: AgentDetection::default(),
             updates: Updates::new(),
             error: None,
@@ -660,6 +673,49 @@ impl CoderuneApp {
         self.settings = None;
         self.settings_feedback = None;
         self.confirm_delete_all = false;
+    }
+
+    pub(crate) fn dark_mode(&self) -> bool {
+        self.preferences.dark_mode
+    }
+
+    pub(crate) fn toggle_dark_mode(&mut self) {
+        let dark_mode = !self.dark_mode();
+        self.update_preferences(|preferences| preferences.dark_mode = dark_mode);
+    }
+
+    pub(crate) fn agent_enabled(&self, agent: CliAgentId) -> bool {
+        self.preferences.agent_enabled(agent)
+    }
+
+    pub(crate) fn set_agent_enabled(&mut self, agent: CliAgentId, enabled: bool) {
+        self.update_preferences(|preferences| preferences.set_agent_enabled(agent, enabled));
+        if self
+            .document_form
+            .agent
+            .is_some_and(|selected| !self.agent_enabled(selected.into()))
+        {
+            self.document_form.agent = None;
+            self.document_form.draft_preview = None;
+        }
+    }
+
+    fn update_preferences(&mut self, change: impl FnOnce(&mut Preferences)) {
+        let Some(workspace) = self.workspace.as_ref() else {
+            return;
+        };
+        match Preferences::update(&Preferences::path(&workspace.data_path()), change) {
+            Ok(next) => {
+                self.preferences = next;
+                self.settings_feedback = None;
+            }
+            Err(error) => {
+                self.settings_feedback = Some(Err(AppError::new(
+                    coderune_domain::ErrorCode::UnreadablePath,
+                    format!("Could not save desktop settings: {error}"),
+                )));
+            }
+        }
     }
 
     pub(crate) fn save_draft(&mut self) {
@@ -953,9 +1009,28 @@ impl CoderuneApp {
             ));
             return;
         };
+        if !self.agent_enabled(agent.into()) {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::Validation,
+                "Turn on this coding agent in Settings before using it.",
+            ));
+            return;
+        }
         let Some(workspace) = self.workspace.as_ref() else {
             return;
         };
+        if !workspace
+            .agents
+            .iter()
+            .any(|status| status.id == agent && status.availability == AgentAvailability::Ready)
+        {
+            self.document_form.draft_preview = None;
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::Validation,
+                "This coding agent is unavailable. Recheck installed agents in Settings.",
+            ));
+            return;
+        }
         match workspace.prepare_draft(agent, &document_id) {
             Ok(preview) => {
                 self.document_form.draft_preview = Some(preview);
@@ -1127,7 +1202,7 @@ impl CoderuneApp {
         match workspace.delete_all_data() {
             Ok(()) => {
                 self.notice =
-                    Some("All application data deleted. Onboarding is required again.".to_string());
+                    Some("All workspace data deleted. Onboarding is required again.".to_string());
                 self.error = None;
                 self.close_settings();
                 self.view = View::Home;
@@ -1232,6 +1307,16 @@ pub fn scene_settings_agents(s: &mut CoderuneApp) {
     s.agent_detection.results = coderune_agents::detect_cli_agents();
     s.agent_detection.check = Check::Finished;
     s.select_settings(SettingsSection::Agents);
+}
+
+pub fn scene_settings_dark(s: &mut CoderuneApp) {
+    scene_settings(s);
+    s.preferences.dark_mode = true;
+}
+
+pub fn scene_settings_agents_dark(s: &mut CoderuneApp) {
+    scene_settings_agents(s);
+    s.preferences.dark_mode = true;
 }
 
 /// The avatar gallery, a development scene reached with `--scene avatars`.
@@ -1492,6 +1577,10 @@ pub(crate) fn split_list(value: &str) -> Vec<String> {
 }
 
 pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
+    theme::with_dark(s.dark_mode(), || themed_view(s, cx))
+}
+
+fn themed_view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
     let k = theme::kit();
     let inset = cx.titlebar_inset();
     let body = if let Some(message) = &s.fatal {
@@ -1831,6 +1920,10 @@ mod tests {
         assert!(app.find("settings-dialog").is_some());
         assert!(app.find("check-updates").is_some());
         assert!(app.find("projects").is_some());
+        assert!(!app.state.dark_mode());
+        click(&mut app, "dark-mode");
+        assert!(app.state.dark_mode());
+        assert!(CoderuneApp::init().dark_mode());
 
         click(&mut app, "settings-storage");
         for key in ["open-data-folder", "export-data", "delete-data"] {
@@ -1888,6 +1981,7 @@ mod tests {
             },
         ];
         state.agent_detection.check = Check::Finished;
+        state.document_form.agent = Some(AgentId::Codex);
         state.select_settings(SettingsSection::Agents);
         let mut app = Runtime::new(state, view, (960.0, 640.0), Env::new(false, 1.0));
         for _ in 0..24 {
@@ -1896,6 +1990,15 @@ mod tests {
 
         assert!(app.find("recheck-agents").is_some());
         assert!(app.find("install-codex").is_none());
+        assert!(app.find("agent-switch-opencode").is_none());
+        let [x, y, w, h] = app.presented("agent-switch-codex").unwrap().0;
+        app.pointer_down(x + w / 2.0, y + h / 2.0);
+        app.pointer_up(x + w / 2.0, y + h / 2.0);
+        app.frame(1.0 / 60.0);
+        assert!(!app.state.agent_enabled(CliAgentId::Codex));
+        assert_eq!(app.state.document_form.agent, None);
+        assert!(!CoderuneApp::init().agent_enabled(CliAgentId::Codex));
+
         let [x, y, w, h] = app.presented("install-opencode").unwrap().0;
         app.pointer_down(x + w / 2.0, y + h / 2.0);
         app.pointer_up(x + w / 2.0, y + h / 2.0);
