@@ -129,7 +129,7 @@ fn agent_row(agent: &CliAgentStatus, status: Option<&str>, action: El, k: &Kit) 
         .child(action)
 }
 
-fn logo(agent: CliAgentId, dark: bool) -> El {
+pub(super) fn logo(agent: CliAgentId, dark: bool) -> El {
     use CliAgentId::*;
     static IMAGES: LazyLock<ImageCache> = LazyLock::new(|| ImageCache::new(Arc::new(|| {})));
     const SIZE: f32 = 20.0;

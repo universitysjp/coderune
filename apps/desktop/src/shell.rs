@@ -5,9 +5,10 @@ use coderune_ui::icons;
 use coderune_ui::theme::{self, LABEL, LABEL_SM};
 use rune::{col, el, row, text, Color, Cursor, Cx, Drag, El, Phase, ScrollSpec};
 use rune_kit::shell::{
-    PaneState, Sidebar, TabItem, TabOrientation, TabOverflow, TabStrip, WindowTitlebar,
+    PaneState, Sidebar, SidebarRow, SidebarSection, TabItem, TabOrientation, TabOverflow, TabStrip,
+    WindowTitlebar,
 };
-use rune_kit::Kit;
+use rune_kit::{ControlSize, IconButton, IconButtonVariant, Kit};
 
 use crate::app::{CoderuneApp, SettingsSection, View};
 use crate::screens;
@@ -97,6 +98,7 @@ const WORKSPACE_KEY: &str = "workspace";
 
 pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> El {
     let active = s.view;
+    let chat = s.active_chat();
     let page = match active {
         View::Home => screens::home(s, k),
         View::Profile => screens::profile(s, k),
@@ -109,11 +111,21 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
     let content = ui::surface_frame(k, theme::canvas(), k.radius.lg)
         .key("workspace-panel")
         .role("group")
-        .label(active.label())
+        .label(if chat.is_some() {
+            "Chat"
+        } else {
+            active.label()
+        })
         .grow(1.0)
         .min_w(0.0)
         .h_full()
-        .child(
+        .child(if let Some(chat) = chat {
+            col()
+                .key(format!("t-chat-{}", chat.id))
+                .w_full()
+                .h_full()
+                .child(screens::chat(s, k))
+        } else {
             col()
                 .key(active.id())
                 .w_full()
@@ -129,8 +141,8 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
                         .py(24.0)
                         .items_center()
                         .child(col().w_full().max_w(theme::CONTAINER).child(page)),
-                ),
-        );
+                )
+        });
 
     let mut layout = row()
         .key("workspace-layout")
@@ -210,46 +222,141 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
         .h_full()
         .fill(theme::surface())
         .instant_changes()
-        .child(titlebar(cx, k))
+        .child(titlebar(s, cx, k, narrow, pane.is_open()))
         .child(layout.child(grip).child(content))
         .child(width_class)
 }
 
-fn titlebar(cx: &Cx<CoderuneApp>, k: &Kit) -> El {
+fn titlebar(
+    s: &CoderuneApp,
+    cx: &Cx<CoderuneApp>,
+    k: &Kit,
+    narrow: bool,
+    sidebar_open: bool,
+) -> El {
     let mut tab_kit = k.clone();
     tab_kit.c.layer_03 = Color::TRANSPARENT;
     tab_kit.c.pressed = theme::accent_soft();
-    let tabs = TabStrip::new(TAB_STRIP_KEY, TabOrientation::Horizontal)
-        .label("Window tabs")
-        .active(Some("workspace"))
+    let mut tabs = vec![TabItem::<CoderuneApp>::new("workspace", "Workspace")
+        .icon(s.view.icon())
+        .closable(false)];
+    for id in &s.chats.open {
+        if let Some(chat) = s.chats.chat(id) {
+            tabs.push(
+                TabItem::<CoderuneApp>::new(chat.id.as_str(), chat.title.as_str())
+                    .icon(&icons::MESSAGE)
+                    .closable(true),
+            );
+        }
+    }
+    let strip = TabStrip::new(TAB_STRIP_KEY, TabOrientation::Horizontal)
+        .label("Chat tabs")
+        .active(Some(s.chats.active.as_deref().unwrap_or("workspace")))
         .row_height(32.0)
         .overflow(TabOverflow::ShrinkThenScroll {
             min_width: 96.0,
-            max_width: 144.0,
+            max_width: 168.0,
             pinned_width: 36.0,
             fade_width: 16.0,
         })
         .fill(theme::surface())
-        .tabs([TabItem::<CoderuneApp>::new("workspace", "Workspace")
-            .icon(View::Home.icon())
-            .closable(false)])
+        .tabs(tabs)
+        .on_select(|s: &mut CoderuneApp, id: &str, _: &mut rune::Tx| {
+            if id == "workspace" {
+                s.show_workspace();
+            } else {
+                s.open_chat(id);
+            }
+        })
+        .on_close(|s: &mut CoderuneApp, id: &str, _: &mut rune::Tx| s.close_chat(id))
         .build(&tab_kit);
-    WindowTitlebar::from_insets(cx.chrome_insets())
+    let mut titlebar = WindowTitlebar::from_insets(cx.chrome_insets())
         .height(theme::TOPBAR)
         .fill(theme::surface())
-        .tabs(tabs)
-        .build(k)
+        .tabs(strip);
+    if narrow || !sidebar_open {
+        titlebar = titlebar.leading(
+            IconButton::new(&icons::PANEL_LEFT)
+                .variant(IconButtonVariant::Ghost)
+                .control_size(ControlSize::Small)
+                .label(if sidebar_open {
+                    "Hide sidebar"
+                } else {
+                    "Show sidebar"
+                })
+                .on_press(move |s: &mut CoderuneApp| {
+                    s.sidebar.set_narrow(narrow);
+                    s.sidebar.toggle();
+                })
+                .build(k)
+                .key("sidebar-toggle"),
+        );
+    }
+    titlebar.build(k)
 }
 
 fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
     let mut nav = Sidebar::new()
         .label("Workspace navigation")
-        .inset(10.0)
-        .header_padding(0.0, 8.0)
-        .row_gap(2.0);
-    for view in View::NAV {
-        nav = nav.child(nav_item(s, view));
+        .inset(8.0)
+        .header_padding(0.0, 6.0)
+        .row_gap(1.0);
+    nav = nav.child(
+        SidebarRow::new("Home")
+            .icon(&icons::HOUSE)
+            .selected(s.view == View::Home && s.active_chat().is_none())
+            .on_select(|s: &mut CoderuneApp, _: &mut rune::Tx| s.navigate(View::Home))
+            .build(k)
+            .key(View::Home.nav_key()),
+    );
+
+    let mut projects = SidebarSection::new("Projects")
+        .key("nav-projects")
+        .collapsed(s.projects_collapsed())
+        .on_toggle(|s: &mut CoderuneApp, _: &mut rune::Tx| s.toggle_projects_section())
+        .action(
+            IconButton::new(&icons::PLUS)
+                .variant(IconButtonVariant::Ghost)
+                .control_size(ControlSize::Small)
+                .label("New project")
+                .on_press(|s: &mut CoderuneApp| {
+                    s.new_project_form();
+                    s.navigate(View::Projects);
+                })
+                .build(k)
+                .key("sidebar-new-project"),
+        );
+    for project in s.workspace.iter().flat_map(|workspace| &workspace.projects) {
+        projects = projects.row(project_row(s, project, k));
+        if s.project_expanded(&project.id) {
+            for chat in s.chats.chats_for(&project.id) {
+                projects = projects.row(chat_row(s, chat, k));
+            }
+            let project_id = project.id.clone();
+            projects = projects.row(
+                SidebarRow::new("New chat")
+                    .icon(&icons::PLUS)
+                    .depth(1)
+                    .on_select(move |s: &mut CoderuneApp, tx: &mut rune::Tx| {
+                        s.new_chat(&project_id);
+                        tx.instant();
+                    })
+                    .build(k)
+                    .key(format!("new-chat-{}", project.id)),
+            );
+        }
     }
+    nav = nav.section(projects);
+
+    let tools = SidebarSection::new("Workspace")
+        .key("workspace-tools")
+        .rows(
+            [View::Documents, View::Subagents, View::Capture]
+                .into_iter()
+                .map(|view| nav_item(s, view, k)),
+        );
+    nav = nav.section(tools);
+
     let settings = ui::nav_item(
         "nav-data-footer",
         "Settings",
@@ -260,14 +367,92 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
     nav.footer(settings).footer(profile_item(s)).build(k)
 }
 
-fn nav_item(s: &CoderuneApp, view: View) -> El {
-    ui::nav_item(
-        view.nav_key(),
-        view.label(),
-        view.icon(),
-        s.view == view,
-        move |s: &mut CoderuneApp| s.navigate(view),
-    )
+fn project_row(s: &CoderuneApp, project: &coderune_domain::Project, k: &Kit) -> El {
+    let id = project.id.clone();
+    let select = id.clone();
+    let chevron = id.clone();
+    let open = s.project_expanded(&id);
+    let selected = s.active_chat().is_none()
+        && s.view == View::Projects
+        && s.project_form.editing.as_deref() == Some(id.as_str());
+    let (done, total) = s.context_done(&id);
+    SidebarRow::new(&project.name)
+        .icon(&icons::FOLDER)
+        .subtitle(format!("{done} of {total} context items"))
+        .height(46.0)
+        .selected(selected)
+        .trailing(
+            row()
+                .gap(4.0)
+                .items_center()
+                .child(progress_bar(done, total))
+                .child(
+                    IconButton::new(if open {
+                        k.glyph.triangle_down
+                    } else {
+                        k.glyph.triangle_right
+                    })
+                    .variant(IconButtonVariant::Ghost)
+                    .control_size(ControlSize::Mini)
+                    .label(if open { "Hide chats" } else { "Show chats" })
+                    .on_press(move |s: &mut CoderuneApp| s.toggle_project_chats(&chevron))
+                    .build(k)
+                    .key(format!("project-chats-{id}")),
+                ),
+        )
+        .on_select(move |s: &mut CoderuneApp, tx: &mut rune::Tx| {
+            s.load_project_form(&select);
+            s.navigate(View::Projects);
+            tx.instant();
+        })
+        .build(k)
+        .key(format!("project-{id}"))
+}
+
+fn chat_row(s: &CoderuneApp, chat: &crate::chats::Chat, k: &Kit) -> El {
+    let id = chat.id.clone();
+    let select = id.clone();
+    let close = id.clone();
+    SidebarRow::new(&chat.title)
+        .icon(&icons::MESSAGE)
+        .depth(1)
+        .selected(s.chats.active.as_deref() == Some(id.as_str()))
+        .on_select(move |s: &mut CoderuneApp, tx: &mut rune::Tx| {
+            s.open_chat(&select);
+            tx.instant();
+        })
+        .on_close(move |s: &mut CoderuneApp, _: &mut rune::Tx| s.close_chat(&close))
+        .build(k)
+        .key(format!("chat-{id}"))
+}
+
+fn progress_bar(done: u8, total: u8) -> El {
+    let fraction = if total == 0 {
+        0.0
+    } else {
+        f32::from(done) / f32::from(total)
+    };
+    row()
+        .w(36.0)
+        .h(3.0)
+        .radius(2.0)
+        .clip_rounded(2.0)
+        .fill(theme::line())
+        .a11y_hidden()
+        .child(el().h_full().w_frac(fraction).fill(if fraction >= 1.0 {
+            theme::muted()
+        } else {
+            theme::ink()
+        }))
+}
+
+fn nav_item(s: &CoderuneApp, view: View, k: &Kit) -> El {
+    SidebarRow::new(view.label())
+        .icon(view.icon())
+        .selected(s.view == view && s.active_chat().is_none())
+        .on_select(move |s: &mut CoderuneApp, _: &mut rune::Tx| s.navigate(view))
+        .build(k)
+        .key(view.nav_key())
 }
 
 fn profile_item(s: &CoderuneApp) -> El {

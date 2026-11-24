@@ -108,7 +108,13 @@ pub struct CliAgentStatus {
 ///
 /// Shell startup can take a few seconds, so call from a background worker.
 pub fn detect_cli_agents() -> Vec<CliAgentStatus> {
-    detect_cli_agents_on(&SearchPath::discover())
+    detect_cli_agents_with_path().0
+}
+
+/// Detect coding agents and supply the same PATH to their child processes.
+pub fn detect_cli_agents_with_path() -> (Vec<CliAgentStatus>, Option<OsString>) {
+    let path = SearchPath::discover();
+    (detect_cli_agents_on(&path), path.joined().ok())
 }
 
 fn detect_cli_agents_on(path: &SearchPath) -> Vec<CliAgentStatus> {

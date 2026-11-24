@@ -14,6 +14,10 @@ Shared vocabulary for Coderune's developer and project context, agent skills, ve
 
 **Agent connection**: A developer-configured connection to a coding agent and the models available through it. _Avoid_: Subscription, model provider
 
+**Project chat** is a local conversation associated with one project. It opens in a workspace tab and can run a selected coding agent in the project folder.
+
+**Context readiness** is the completion of a project's folder, goals, collection scope, and first capture.
+
 **Bot avatar**: The animated character that represents a subagent in the desktop app, showing whether it is idle, working, or asleep. _Avoid_: Coding agent logo, profile picture
 
 **Subagent** (defined subagent): A reusable Coderune specialist with a defined purpose and a configured default model assignment. The workspace destination for these specialists is labeled Subagents. _Avoid_: Coding agent, individual task, agent skill

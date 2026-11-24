@@ -2,6 +2,7 @@
 
 pub(crate) mod avatars;
 pub(crate) mod capture;
+pub(crate) mod chat;
 mod coding_agents;
 pub(crate) mod documents;
 pub(crate) mod home;
@@ -13,6 +14,7 @@ pub(crate) mod subagents;
 
 pub(crate) use avatars::{avatar_gallery, register_gallery};
 pub(crate) use capture::capture;
+pub(crate) use chat::chat;
 pub(crate) use documents::documents;
 pub(crate) use home::home;
 pub(crate) use onboarding::onboarding;

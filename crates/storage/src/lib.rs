@@ -29,7 +29,7 @@ use migration::Migrator;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set, TransactionTrait,
+    QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
 };
 use sea_orm_migration::MigratorTrait;
 
@@ -514,6 +514,19 @@ impl Storage {
             .into_iter()
             .map(|model| serde_json::from_str(&model.data).map_err(StorageError::from))
             .collect()
+    }
+
+    pub fn projects_with_captures(&self) -> Result<BTreeSet<String>> {
+        self.run(async {
+            let ids = capture::Entity::find()
+                .select_only()
+                .column(capture::Column::ProjectId)
+                .distinct()
+                .into_tuple::<String>()
+                .all(&self.conn)
+                .await?;
+            Ok(ids.into_iter().collect())
+        })
     }
 
     pub fn capture_contents(&self, capture_id: &str) -> Result<BTreeMap<String, String>> {

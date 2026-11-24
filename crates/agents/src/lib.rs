@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 mod cli;
 use cli::SearchPath;
-pub use cli::{detect_cli_agents, CliAgentId, CliAgentStatus};
+pub use cli::{detect_cli_agents, detect_cli_agents_with_path, CliAgentId, CliAgentStatus};
 
 use coderune_domain::{
     AgentAvailability, AgentDraft, AgentId, AgentStatus, AppError, DocumentKind, ErrorCode,

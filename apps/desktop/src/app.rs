@@ -1,6 +1,6 @@
 //! Coderune's native desktop application.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 
 use coderune_agents::CliAgentId;
@@ -18,7 +18,9 @@ use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, HEADING};
 
 use crate::agent_detection::{AgentDetection, Check};
-use crate::preferences::Preferences;
+use crate::chat_terminal::Terminal;
+use crate::chats::{Author, Chat, Chats};
+use crate::preferences::{AgentDock, Preferences};
 use crate::screens;
 use crate::shell::{self, SidebarPane};
 use crate::updates::Updates;
@@ -83,14 +85,6 @@ impl View {
             Self::Avatars => "nav-avatars",
         }
     }
-
-    pub const NAV: [Self; 5] = [
-        Self::Home,
-        Self::Projects,
-        Self::Documents,
-        Self::Subagents,
-        Self::Capture,
-    ];
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -466,6 +460,11 @@ impl DocumentForm {
     }
 }
 
+pub(crate) struct ContextItem {
+    pub label: &'static str,
+    pub done: bool,
+}
+
 pub struct CaptureDetail {
     pub capture: ContextCapture,
     pub contents: BTreeMap<String, String>,
@@ -482,10 +481,12 @@ pub struct CoderuneApp {
     pub profile_section: Option<ProfileSection>,
     pub(crate) profile_form: ProfileForm,
     pub(crate) project_form: ProjectForm,
+    pub(crate) project_scope_expanded: bool,
     pub(crate) document_form: DocumentForm,
     pub(crate) capture_session: Option<PreviewSession>,
     pub(crate) capture_reviewed: bool,
     pub(crate) captures: Vec<ContextCapture>,
+    projects_with_captures: BTreeSet<String>,
     pub(crate) capture_detail: Option<CaptureDetail>,
     pub(crate) confirm_delete_project: Option<String>,
     pub(crate) confirm_delete_capture: Option<String>,
@@ -498,6 +499,11 @@ pub struct CoderuneApp {
     preferences: Preferences,
     pub(crate) agent_detection: AgentDetection,
     pub(crate) updates: Updates,
+    /// Chats on disk and the tabs open in this window.
+    pub(crate) chats: Chats,
+    pub(crate) chat_draft: TextEdit,
+    chat_drafts: HashMap<String, TextEdit>,
+    pub(crate) chat_terminals: HashMap<String, Terminal>,
     /// The family lists last handed to the text system.
     applied_fonts: Option<(String, String)>,
     pub error: Option<AppError>,
@@ -562,6 +568,17 @@ impl CoderuneApp {
                 None
             })
             .unwrap_or_default();
+        let mut chat_error = None;
+        let chats = workspace.as_ref().map_or_else(Chats::default, |workspace| {
+            let path = Chats::path(&workspace.data_path());
+            Chats::load(&path).unwrap_or_else(|error| {
+                chat_error = Some(AppError::new(
+                    coderune_domain::ErrorCode::UnreadablePath,
+                    format!("Could not load saved chats: {error}"),
+                ));
+                Chats::unreadable(path)
+            })
+        });
         let mut app = Self {
             workspace,
             fatal,
@@ -572,10 +589,12 @@ impl CoderuneApp {
             profile_section: None,
             profile_form,
             project_form,
+            project_scope_expanded: false,
             document_form: DocumentForm::empty(),
             capture_session: None,
             capture_reviewed: false,
             captures: Vec::new(),
+            projects_with_captures: BTreeSet::new(),
             capture_detail: None,
             confirm_delete_project: None,
             confirm_delete_capture: None,
@@ -587,12 +606,25 @@ impl CoderuneApp {
             preferences,
             agent_detection: AgentDetection::default(),
             updates: Updates::new(),
+            chats,
+            chat_draft: TextEdit::default(),
+            chat_drafts: HashMap::new(),
+            chat_terminals: HashMap::new(),
             applied_fonts: None,
-            error: None,
+            error: chat_error,
             notice: None,
             avatars: BotAvatarStage::new(),
         };
+        if let Some(workspace) = &app.workspace {
+            match workspace.projects_with_captures() {
+                Ok(projects) => app.projects_with_captures = projects,
+                Err(error) => app.error = Some(error),
+            }
+        }
         app.refresh_captures();
+        if app.active_chat().is_some() {
+            app.refresh_chat_agents();
+        }
         app.onboarding_step = app.initial_onboarding_step();
         app
     }
@@ -649,22 +681,21 @@ impl CoderuneApp {
     }
 
     fn refresh_captures(&mut self) {
-        let project_id = self
-            .workspace
-            .as_ref()
-            .and_then(|workspace| workspace.selected_project_id.clone());
-        let result = project_id.as_deref().and_then(|id| {
-            self.workspace
-                .as_ref()
-                .map(|workspace| workspace.list_captures(id))
-        });
-        match result {
-            Some(Ok(captures)) => self.captures = captures,
-            Some(Err(error)) => {
-                self.captures.clear();
-                self.error = Some(error);
+        self.captures.clear();
+        if let Some(workspace) = &self.workspace {
+            if let Some(id) = &workspace.selected_project_id {
+                match workspace.list_captures(id) {
+                    Ok(captures) => {
+                        if captures.is_empty() {
+                            self.projects_with_captures.remove(id);
+                        } else {
+                            self.projects_with_captures.insert(id.clone());
+                        }
+                        self.captures = captures;
+                    }
+                    Err(error) => self.error = Some(error),
+                }
             }
-            None => self.captures.clear(),
         }
     }
 
@@ -683,6 +714,7 @@ impl CoderuneApp {
         self.notice = None;
         self.confirm_delete_project = None;
         self.confirm_delete_capture = None;
+        self.show_workspace();
     }
 
     pub(crate) fn select_settings(&mut self, section: SettingsSection) {
@@ -711,6 +743,280 @@ impl CoderuneApp {
     pub(crate) fn toggle_dark_mode(&mut self) {
         let dark_mode = !self.dark_mode();
         self.update_preferences(|preferences| preferences.dark_mode = dark_mode);
+    }
+
+    /// What a project still needs before a chat has full context.
+    pub(crate) fn context_items(&self, project_id: &str) -> Vec<ContextItem> {
+        let Some(project) = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.projects.iter().find(|p| p.id == project_id))
+        else {
+            return Vec::new();
+        };
+        vec![
+            ContextItem {
+                label: "Project folder",
+                done: std::path::Path::new(&project.root_path).is_dir(),
+            },
+            ContextItem {
+                label: "Goals",
+                done: !project.goals.is_empty(),
+            },
+            ContextItem {
+                label: "Capture scope",
+                done: !project.scope.include_paths.is_empty()
+                    || !project.scope.exclude_paths.is_empty(),
+            },
+            ContextItem {
+                label: "First capture",
+                done: self.projects_with_captures.contains(project_id),
+            },
+        ]
+    }
+
+    pub(crate) fn context_done(&self, project_id: &str) -> (u8, u8) {
+        let items = self.context_items(project_id);
+        let done = items.iter().filter(|item| item.done).count() as u8;
+        (done, items.len() as u8)
+    }
+
+    pub(crate) fn active_chat(&self) -> Option<&Chat> {
+        self.chats.active_chat()
+    }
+
+    pub(crate) fn show_chat_project(&mut self) {
+        if let Some(project_id) = self.active_chat().map(|chat| chat.project_id.clone()) {
+            self.load_project_form(&project_id);
+            self.navigate(View::Projects);
+        }
+    }
+
+    /// Creates a chat in the selected project and opens its tab.
+    pub(crate) fn new_chat(&mut self, project_id: &str) {
+        self.error = None;
+        self.notice = None;
+        if !self.has_project(project_id) {
+            return;
+        }
+        self.stash_chat_draft();
+        self.chats.new_chat(project_id);
+        self.update_preferences(|preferences| preferences.set_project_expanded(project_id, true));
+        self.save_chats();
+        self.refresh_chat_agents();
+    }
+
+    pub(crate) fn open_chat(&mut self, id: &str) {
+        let project_id = self.chats.chat(id).map(|chat| chat.project_id.clone());
+        if self.chats.active.as_deref() == Some(id) {
+            return;
+        }
+        let Some(project_id) = project_id else { return };
+        self.error = None;
+        self.notice = None;
+        if !self.has_project(&project_id) {
+            return;
+        }
+        self.stash_chat_draft();
+        self.chats.open_chat(id);
+        self.restore_chat_draft();
+        self.save_chats();
+        self.refresh_chat_agents();
+    }
+
+    pub(crate) fn show_workspace(&mut self) {
+        if self.chats.active.is_some() {
+            self.stash_chat_draft();
+            self.chats.active = None;
+            self.save_chats();
+        }
+    }
+
+    pub(crate) fn close_chat(&mut self, id: &str) {
+        let active = self.chats.active.as_deref() == Some(id);
+        if active {
+            self.stash_chat_draft();
+        }
+        self.chats.close_chat(id);
+        self.chat_terminals.remove(id);
+        if active {
+            self.restore_chat_draft();
+        }
+        self.save_chats();
+    }
+
+    fn has_project(&self, project_id: &str) -> bool {
+        self.workspace.as_ref().is_some_and(|workspace| {
+            workspace
+                .projects
+                .iter()
+                .any(|project| project.id == project_id)
+        })
+    }
+
+    fn refresh_chat_agents(&mut self) {
+        if matches!(self.agent_detection.check, Check::NotChecked) {
+            self.agent_detection.refresh();
+        }
+    }
+
+    fn stash_chat_draft(&mut self) {
+        if let Some(id) = &self.chats.active {
+            self.chat_drafts
+                .insert(id.clone(), std::mem::take(&mut self.chat_draft));
+        }
+    }
+
+    fn restore_chat_draft(&mut self) {
+        self.chat_draft = self
+            .chats
+            .active
+            .as_ref()
+            .and_then(|id| self.chat_drafts.remove(id))
+            .unwrap_or_default();
+    }
+
+    /// Sends the message to the running agent in the active tab.
+    pub(crate) fn send_chat_message(&mut self) {
+        let text = self.chat_draft.text.trim();
+        let Some(id) = self.chats.active.clone() else {
+            return;
+        };
+        if text.is_empty() {
+            return;
+        }
+        let Some(terminal) = self
+            .chat_terminals
+            .get_mut(&id)
+            .filter(|term| term.is_running())
+        else {
+            return;
+        };
+        if let Err(error) = terminal.send_line(text) {
+            self.chat_agent_error("Could not send message", error);
+            return;
+        }
+        self.error = None;
+        self.chats.add_message(&id, Author::Developer, text);
+        self.chat_draft = TextEdit::default();
+        self.save_chats();
+    }
+
+    pub(crate) fn set_chat_agent(&mut self, agent: Option<coderune_agents::CliAgentId>) {
+        let Some(id) = self.chats.active.clone() else {
+            return;
+        };
+        if self.active_chat().is_some_and(|chat| chat.agent == agent) {
+            return;
+        }
+        self.chat_terminals.remove(&id);
+        self.chats.set_agent(&id, agent);
+        self.error = None;
+        self.save_chats();
+    }
+
+    pub(crate) fn start_chat_agent(&mut self) {
+        let Some(chat) = self.active_chat() else {
+            return;
+        };
+        let Some(agent) = chat.agent.filter(|agent| self.agent_enabled(*agent)) else {
+            return;
+        };
+        let Some(executable) = self
+            .agent_detection
+            .results
+            .iter()
+            .find(|status| status.id == agent)
+            .and_then(|status| status.executable.as_deref())
+        else {
+            return;
+        };
+        let Some(project) = self.workspace.as_ref().and_then(|workspace| {
+            workspace
+                .projects
+                .iter()
+                .find(|project| project.id == chat.project_id)
+        }) else {
+            return;
+        };
+        if self
+            .chat_terminals
+            .get(&chat.id)
+            .is_some_and(Terminal::is_running)
+        {
+            return;
+        }
+        match Terminal::launch(
+            executable,
+            std::path::Path::new(&project.root_path),
+            self.agent_detection.path.as_deref(),
+        ) {
+            Ok(terminal) => {
+                self.chat_terminals.insert(chat.id.clone(), terminal);
+                self.error = None;
+            }
+            Err(error) => self.chat_agent_error("Could not start agent", error),
+        }
+    }
+
+    pub(crate) fn active_terminal_mut(&mut self) -> Option<&mut Terminal> {
+        self.chat_terminals.get_mut(self.chats.active.as_deref()?)
+    }
+
+    pub(crate) fn stop_chat_agent(&mut self) {
+        if let Some(Err(error)) = self.active_terminal_mut().map(Terminal::stop) {
+            self.chat_agent_error("Could not stop agent", error);
+        }
+    }
+
+    pub(crate) fn clear_chat_terminal(&mut self) {
+        if let Some(id) = &self.chats.active {
+            self.chat_terminals.remove(id);
+        }
+    }
+
+    fn chat_agent_error(&mut self, message: &str, error: std::io::Error) {
+        self.error = Some(AppError::new(
+            coderune_domain::ErrorCode::AgentFailed,
+            format!("{message}: {error}"),
+        ));
+    }
+
+    pub(crate) fn agent_dock(&self) -> AgentDock {
+        self.preferences.agent_dock
+    }
+
+    pub(crate) fn set_agent_dock(&mut self, dock: AgentDock) {
+        self.update_preferences(|preferences| preferences.agent_dock = dock);
+    }
+
+    pub(crate) fn projects_collapsed(&self) -> bool {
+        self.preferences.projects_collapsed
+    }
+
+    pub(crate) fn toggle_projects_section(&mut self) {
+        self.update_preferences(|preferences| {
+            preferences.projects_collapsed = !preferences.projects_collapsed;
+        });
+    }
+
+    pub(crate) fn project_expanded(&self, id: &str) -> bool {
+        self.preferences.project_expanded(id)
+    }
+
+    pub(crate) fn toggle_project_chats(&mut self, id: &str) {
+        let expanded = !self.project_expanded(id);
+        let id = id.to_string();
+        self.update_preferences(move |preferences| preferences.set_project_expanded(&id, expanded));
+    }
+
+    fn save_chats(&mut self) {
+        if let Err(error) = self.chats.save() {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::UnreadablePath,
+                format!("Could not save chats: {error}"),
+            ));
+        }
     }
 
     pub(crate) fn ui_font(&self) -> &str {
@@ -750,6 +1056,13 @@ impl CoderuneApp {
 
     pub(crate) fn set_agent_enabled(&mut self, agent: CliAgentId, enabled: bool) {
         self.update_preferences(|preferences| preferences.set_agent_enabled(agent, enabled));
+        if !enabled {
+            self.chat_terminals.retain(|id, _| {
+                self.chats
+                    .chat(id)
+                    .is_some_and(|chat| chat.agent != Some(agent))
+            });
+        }
         if self
             .document_form
             .agent
@@ -920,6 +1233,7 @@ impl CoderuneApp {
             return;
         };
         self.project_form = ProjectForm::from_project(&project);
+        self.project_scope_expanded = false;
         self.confirm_delete_project = None;
         self.error = None;
         self.reset_capture_state();
@@ -935,6 +1249,7 @@ impl CoderuneApp {
             .as_ref()
             .and_then(|workspace| workspace.launch_directory.clone());
         self.project_form = ProjectForm::empty(initial_root);
+        self.project_scope_expanded = false;
         self.confirm_delete_project = None;
         self.error = None;
         self.reset_capture_state();
@@ -990,9 +1305,15 @@ impl CoderuneApp {
         };
         match workspace.delete_project(&id) {
             Ok(()) => {
-                self.notice = Some("Project and its captures deleted.".to_string());
-                self.error = None;
+                for chat in self.chats.chats_for(&id) {
+                    self.chat_terminals.remove(&chat.id);
+                    self.chat_drafts.remove(&chat.id);
+                }
+                self.chats.delete_for_project(&id);
+                self.projects_with_captures.remove(&id);
                 self.new_project_form();
+                self.save_chats();
+                self.notice = Some("Project, captures, and chats deleted.".to_string());
             }
             Err(error) => self.error = Some(error),
         }
@@ -1261,8 +1582,14 @@ impl CoderuneApp {
         };
         match workspace.delete_all_data() {
             Ok(()) => {
-                self.notice =
-                    Some("All workspace data deleted. Onboarding is required again.".to_string());
+                self.chat_terminals.clear();
+                self.chat_drafts.clear();
+                self.chat_draft = TextEdit::default();
+                let clear_chats = self.chats.clear();
+                self.projects_with_captures.clear();
+                self.notice = clear_chats.is_ok().then(|| {
+                    "All workspace data deleted. Onboarding is required again.".to_string()
+                });
                 self.error = None;
                 self.close_settings();
                 self.view = View::Home;
@@ -1273,6 +1600,9 @@ impl CoderuneApp {
                 self.document_form = DocumentForm::empty();
                 self.refresh_profile_form();
                 self.refresh_captures();
+                if let Err(error) = clear_chats {
+                    self.chat_agent_error("Could not remove saved chats", error);
+                }
             }
             Err(error) => self.settings_feedback = Some(Err(error)),
         }
@@ -1374,6 +1704,30 @@ pub fn scene_settings_agents(s: &mut CoderuneApp) {
     s.select_settings(SettingsSection::Agents);
 }
 
+pub fn scene_chat(s: &mut CoderuneApp) {
+    seed_demo(s);
+    let project = s
+        .workspace
+        .as_ref()
+        .and_then(|workspace| workspace.selected_project_id.clone());
+    if let Some(project) = project {
+        s.chats = Chats::default();
+        let chat = s.chats.new_chat(&project);
+        s.agent_detection.results = coderune_agents::detect_cli_agents();
+        s.agent_detection.check = Check::Finished;
+        s.chats.add_message(
+            &chat,
+            Author::Developer,
+            "Which parts of this project should the agent read first?",
+        );
+    }
+}
+
+pub fn scene_chat_floating(s: &mut CoderuneApp) {
+    scene_chat(s);
+    s.preferences.agent_dock = AgentDock::Floating;
+}
+
 pub fn scene_settings_fonts(s: &mut CoderuneApp) {
     scene_settings(s);
     s.font_menu = Some("ui-font");
@@ -1409,6 +1763,10 @@ pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
     }
     let update_changed = s.updates.poll(tx);
     let detection_changed = s.agent_detection.poll(tx);
+    let mut chat_changed = false;
+    for terminal in s.chat_terminals.values_mut() {
+        chat_changed |= terminal.poll(tx);
+    }
     if detection_changed && matches!(s.agent_detection.check, Check::Finished) {
         if let Some(workspace) = s.workspace.as_mut() {
             workspace.agents = coderune_agents::draft_statuses(&s.agent_detection.results);
@@ -1426,7 +1784,7 @@ pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
             false
         }
     };
-    update_changed || detection_changed || avatar_changed
+    update_changed || detection_changed || avatar_changed || chat_changed
 }
 
 /// Onboarding's second step, with the first step's answers filled in.
@@ -1709,7 +2067,10 @@ fn fatal(message: &str, inset: f32) -> El {
 
 pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, tx: &mut rune::Tx) -> bool {
     match event.key {
-        Key::Command('q') => std::process::exit(0),
+        Key::Command('q') => {
+            s.chat_terminals.clear();
+            std::process::exit(0);
+        }
         Key::Command(',' | '7') if s.workspace.is_some() => {
             if s.settings.is_none() {
                 s.select_settings(SettingsSection::General);
@@ -1901,7 +2262,18 @@ mod tests {
         assert!(workspace.find("nav-capture").is_some());
         assert!(workspace.find("sidebar-toggle").is_none());
 
-        let [x, y, w, h] = workspace.presented("nav-projects").unwrap().0;
+        let project_id = workspace
+            .state
+            .workspace
+            .as_ref()
+            .unwrap()
+            .selected_project_id
+            .as_ref()
+            .unwrap();
+        let [x, y, w, h] = workspace
+            .presented(&format!("project-{project_id}"))
+            .unwrap()
+            .0;
         workspace.pointer_down(x + w / 2.0, y + h / 2.0);
         workspace.pointer_up(x + w / 2.0, y + h / 2.0);
         workspace.frame(0.0);
@@ -1964,6 +2336,67 @@ mod tests {
         workspace.frame(0.0);
         workspace.frame(1.0 / 60.0);
         assert_eq!(position(&workspace, "workspace-sidebar")[2], wide_sidebar);
+    }
+
+    #[test]
+    fn chats_preserve_workspace_selection_and_the_floating_panel_leaves_send_visible() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        seed_demo(&mut state);
+        let first = state.project_form.editing.clone().unwrap();
+        let other_folder = tempfile::tempdir().unwrap();
+        state.project_form = ProjectForm::empty(Some(other_folder.path().to_path_buf()));
+        state.project_form.name = edit("Second project");
+        state.project_form.goals = edit("Keep its chat separate");
+        state.save_project();
+        let second = state.project_form.editing.clone().unwrap();
+        state.load_project_form(&first);
+        state.view = View::Projects;
+        state.agent_detection.check = Check::Finished;
+        state.new_chat(&second);
+        let chat_id = state.active_chat().unwrap().id.clone();
+        state.chat_draft = edit("Draft only for this chat");
+        state.set_agent_dock(AgentDock::Floating);
+        let mut app = Runtime::new(
+            state,
+            view,
+            (960.0, 640.0),
+            Env {
+                system_dark: false,
+                scale: 1.0,
+            },
+        );
+        app.frame(0.0);
+        app.frame(1.0 / 60.0);
+        let [_, panel_y, _, panel_height] = app.presented("agent-panel").unwrap().0;
+        let [_, send_y, _, _] = app.presented("send-message").unwrap().0;
+        assert!(panel_y + panel_height < send_y);
+        assert!(app.find(&format!("t-{chat_id}")).is_some());
+
+        app.update(|state, _| state.show_workspace());
+        assert_eq!(
+            app.state
+                .workspace
+                .as_ref()
+                .unwrap()
+                .selected_project_id
+                .as_deref(),
+            Some(first.as_str())
+        );
+        assert_eq!(
+            app.state.project_form.editing.as_deref(),
+            Some(first.as_str())
+        );
+        app.update(|state, _| state.open_chat(&chat_id));
+        assert_eq!(app.state.chat_draft.text, "Draft only for this chat");
+        app.update(|state, _| state.new_chat(&first));
+        assert!(app.state.chat_draft.text.is_empty());
+        app.update(|state, _| state.close_chat(&chat_id));
+        assert!(app.state.chats.chat(&chat_id).is_some());
+        assert!(!app.state.chats.open.contains(&chat_id));
+        assert!(CoderuneApp::init().chats.chat(&chat_id).is_some());
     }
 
     #[test]

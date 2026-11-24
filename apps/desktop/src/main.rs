@@ -1,5 +1,6 @@
 mod agent_detection;
 mod app;
+mod chat_terminal;
 mod chats;
 mod fonts;
 mod preferences;
@@ -71,6 +72,8 @@ fn main() {
             ("settings-shortcuts", app::scene_shortcuts),
             ("settings-agents", app::scene_settings_agents),
             ("home-dark", app::scene_home_dark),
+            ("chat", app::scene_chat),
+            ("chat-floating", app::scene_chat_floating),
             ("settings-fonts", app::scene_settings_fonts),
             ("settings-dark", app::scene_settings_dark),
             ("settings-agents-dark", app::scene_settings_agents_dark),

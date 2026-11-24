@@ -330,7 +330,8 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
         ui::setting_row(
             "Delete all data",
             Some(
-                "Permanently removes your profile, projects, documents, and captures.".to_string(),
+                "Permanently removes your profile, projects, chats, documents, and captures."
+                    .to_string(),
             ),
             delete,
         ),

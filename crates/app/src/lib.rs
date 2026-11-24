@@ -4,7 +4,7 @@
 //! extraction, agent detection, and OS integration, and converts infrastructure
 //! failures into the domain error taxonomy.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use coderune_agents::{self as agents, DraftSharingPreview};
@@ -143,6 +143,10 @@ impl Workspace {
 
     pub fn list_captures(&self, project_id: &str) -> AppResult<Vec<ContextCapture>> {
         self.storage.list_captures(project_id).map_err(map_storage)
+    }
+
+    pub fn projects_with_captures(&self) -> AppResult<BTreeSet<String>> {
+        self.storage.projects_with_captures().map_err(map_storage)
     }
 
     pub fn capture_contents(&self, capture_id: &str) -> AppResult<BTreeMap<String, String>> {

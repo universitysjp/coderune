@@ -1,11 +1,12 @@
 //! Local chats, the tabs that hold them, and the agent each chat points at.
 
-use std::fs::{self, File};
-use std::io::{self, ErrorKind};
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 use coderune_agents::CliAgentId;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// Who wrote a message. Coderune writes the notes the app itself adds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -77,6 +78,8 @@ pub(crate) struct Chats {
     pub active: Option<String>,
     #[serde(skip)]
     path: Option<PathBuf>,
+    #[serde(skip)]
+    saved_digest: Option<[u8; 32]>,
 }
 
 impl Chats {
@@ -85,30 +88,75 @@ impl Chats {
     }
 
     pub(crate) fn load(path: &Path) -> io::Result<Self> {
-        let mut chats = match File::open(path) {
-            Ok(file) => serde_json::from_reader(io::BufReader::new(file)).map_err(io::Error::other)?,
-            Err(error) if error.kind() == ErrorKind::NotFound => Self::default(),
-            Err(error) => return Err(error),
+        let mut chats = match read_saved_chats(path)? {
+            Some(contents) => {
+                let mut chats: Self =
+                    serde_json::from_slice(&contents).map_err(io::Error::other)?;
+                chats.saved_digest = Some(Sha256::digest(&contents).into());
+                chats
+            }
+            None => Self::default(),
         };
         chats.path = Some(path.to_path_buf());
         // Drop tabs whose chat vanished, then the active one if it closed elsewhere.
-        chats.open.retain(|id| chats.chats.iter().any(|chat| &chat.id == id));
-        if chats.active.as_ref().is_some_and(|id| !chats.open.contains(id)) {
+        chats
+            .open
+            .retain(|id| chats.chats.iter().any(|chat| &chat.id == id));
+        if chats
+            .active
+            .as_ref()
+            .is_some_and(|id| !chats.open.contains(id))
+        {
             chats.active = chats.open.last().cloned();
         }
         Ok(chats)
     }
 
-    pub(crate) fn save(&self) -> io::Result<()> {
+    pub(crate) fn unreadable(path: PathBuf) -> Self {
+        Self {
+            path: Some(path),
+            ..Self::default()
+        }
+    }
+
+    pub(crate) fn save(&mut self) -> io::Result<()> {
         let Some(path) = &self.path else {
             return Ok(());
         };
-        let folder = path.parent().filter(|parent| !parent.as_os_str().is_empty());
-        fs::create_dir_all(folder.unwrap_or(Path::new(".")))?;
-        let file = tempfile::NamedTempFile::new_in(folder.unwrap_or(Path::new(".")))?;
-        serde_json::to_writer(file.as_file(), self).map_err(io::Error::other)?;
+        let folder = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        fs::create_dir_all(folder)?;
+        let _lock = lock_chats(path)?;
+        let current_digest: Option<[u8; 32]> =
+            read_saved_chats(path)?.map(|bytes| Sha256::digest(bytes).into());
+        if current_digest != self.saved_digest {
+            return Err(io::Error::other(
+                "Saved chats changed. Reopen Coderune before editing them.",
+            ));
+        }
+        let contents = serde_json::to_vec(self).map_err(io::Error::other)?;
+        let mut file = tempfile::NamedTempFile::new_in(folder)?;
+        file.write_all(&contents)?;
         file.as_file().sync_all()?;
         file.persist(path)?;
+        self.saved_digest = Some(Sha256::digest(contents).into());
+        Ok(())
+    }
+
+    pub(crate) fn clear(&mut self) -> io::Result<()> {
+        self.chats.clear();
+        self.open.clear();
+        self.active = None;
+        if let Some(path) = &self.path {
+            let _lock = lock_chats(path)?;
+            match fs::remove_file(path) {
+                Err(error) if error.kind() != ErrorKind::NotFound => return Err(error),
+                _ => {}
+            }
+        }
+        self.saved_digest = None;
         Ok(())
     }
 
@@ -201,5 +249,56 @@ impl Chats {
         chat.agent = agent;
         chat.updated_at = coderune_domain::now_iso();
         true
+    }
+}
+
+fn read_saved_chats(path: &Path) -> io::Result<Option<Vec<u8>>> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+fn lock_chats(path: &Path) -> io::Result<File> {
+    let lock = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path.with_extension("lock"))?;
+    lock.lock()?;
+    Ok(lock)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stale_window_cannot_resurrect_deleted_chats() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("chats.json");
+        let mut first = Chats::load(&path).unwrap();
+        let chat = first.new_chat("project-id");
+        first.save().unwrap();
+        let mut other = Chats::load(&path).unwrap();
+        first.clear().unwrap();
+        other.add_message(&chat, Author::Developer, "A late message");
+        assert!(other.save().is_err());
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn damaged_chat_file_can_be_deleted_without_being_overwritten() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("chats.json");
+        fs::write(&path, "incomplete data").unwrap();
+        assert!(Chats::load(&path).is_err());
+        let mut chats = Chats::unreadable(path.clone());
+        assert!(chats.save().is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "incomplete data");
+        chats.clear().unwrap();
+        assert!(!path.exists());
     }
 }
