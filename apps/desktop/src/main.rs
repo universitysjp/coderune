@@ -64,6 +64,7 @@ fn main() {
             ("storage", app::scene_storage),
             ("settings-shortcuts", app::scene_shortcuts),
             ("settings-agents", app::scene_settings_agents),
+            ("home-dark", app::scene_home_dark),
             ("settings-dark", app::scene_settings_dark),
             ("settings-agents-dark", app::scene_settings_agents_dark),
             ("onboarding-start", app::scene_onboarding_start),

@@ -1335,6 +1335,11 @@ pub fn scene_settings_agents(s: &mut CoderuneApp) {
     s.select_settings(SettingsSection::Agents);
 }
 
+pub fn scene_home_dark(s: &mut CoderuneApp) {
+    scene_home(s);
+    s.preferences.dark_mode = true;
+}
+
 pub fn scene_settings_dark(s: &mut CoderuneApp) {
     scene_settings(s);
     s.preferences.dark_mode = true;
