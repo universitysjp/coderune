@@ -106,16 +106,13 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
         View::Capture => screens::capture(s, k),
         View::Avatars => screens::avatar_gallery(s),
     };
-    let content = col()
+    let content = ui::surface_frame(k, theme::panel(), k.radius.lg)
         .key("workspace-panel")
         .role("group")
         .label(active.label())
         .grow(1.0)
         .min_w(0.0)
         .h_full()
-        .fill(theme::panel())
-        .radius(10.0)
-        .clip_rounded(10.0)
         .child(
             col()
                 .key(active.id())
@@ -124,6 +121,7 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
                 .scroll(ScrollSpec {
                     stick_bottom: false,
                 })
+                .scroll_edge_fade(16.0)
                 .child(
                     col()
                         .w_full()
@@ -252,22 +250,13 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
     for view in View::NAV {
         nav = nav.child(nav_item(s, view));
     }
-    let (modifier, shortcut) = if cfg!(target_os = "macos") {
-        ("⌘", "Command+,")
-    } else {
-        ("Ctrl", "Ctrl+,")
-    };
     let settings = ui::nav_item(
         "nav-data-footer",
         "Settings",
         &icons::GEAR,
         s.settings.is_some(),
         |s: &mut CoderuneApp| s.select_settings(SettingsSection::General),
-    )
-    .gap(6.0)
-    .child(el().grow(1.0))
-    .child(ui::keycaps("settings-shortcut", &[modifier, ","], k))
-    .shortcut_hint(shortcut);
+    );
     nav.footer(settings).footer(profile_item(s)).build(k)
 }
 

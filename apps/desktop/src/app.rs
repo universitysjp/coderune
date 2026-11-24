@@ -98,7 +98,28 @@ pub(crate) enum SettingsSection {
     General,
     Storage,
     Agents,
+    Shortcuts,
 }
+
+impl SettingsSection {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::General => "General",
+            Self::Storage => "Storage",
+            Self::Agents => "Agents",
+            Self::Shortcuts => "Shortcuts",
+        }
+    }
+}
+
+pub(crate) const VIEW_SHORTCUTS: [(char, View); 6] = [
+    ('1', View::Home),
+    ('2', View::Profile),
+    ('3', View::Projects),
+    ('4', View::Documents),
+    ('5', View::Subagents),
+    ('6', View::Capture),
+];
 
 /// The three short onboarding questions. Optional profile detail lives in the
 /// app's Profile screen, so onboarding never becomes a form with everything on
@@ -1302,6 +1323,11 @@ pub fn scene_storage(s: &mut CoderuneApp) {
     s.select_settings(SettingsSection::Storage);
 }
 
+pub fn scene_shortcuts(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.select_settings(SettingsSection::Shortcuts);
+}
+
 pub fn scene_settings_agents(s: &mut CoderuneApp) {
     seed_demo(s);
     s.agent_detection.results = coderune_agents::detect_cli_agents();
@@ -1645,15 +1671,13 @@ pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, tx: &mut rune::Tx) -> bool 
         tx.instant();
         return true;
     }
-    match event.key {
-        Key::Command('1') => s.navigate(View::Home),
-        Key::Command('2') => s.navigate(View::Profile),
-        Key::Command('3') => s.navigate(View::Projects),
-        Key::Command('4') => s.navigate(View::Documents),
-        Key::Command('5') => s.navigate(View::Subagents),
-        Key::Command('6') => s.navigate(View::Capture),
-        _ => return false,
-    }
+    let Key::Command(key) = event.key else {
+        return false;
+    };
+    let Some(&(_, view)) = VIEW_SHORTCUTS.iter().find(|(shortcut, _)| *shortcut == key) else {
+        return false;
+    };
+    s.navigate(view);
     tx.instant();
     true
 }
@@ -1916,6 +1940,7 @@ mod tests {
                 app.frame(1.0 / 60.0);
             }
         };
+        assert!(app.find("settings-shortcut").is_none());
         click(&mut app, "nav-data-footer");
         assert!(app.find("settings-dialog").is_some());
         assert!(app.find("check-updates").is_some());
@@ -1924,6 +1949,12 @@ mod tests {
         click(&mut app, "dark-mode");
         assert!(app.state.dark_mode());
         assert!(CoderuneApp::init().dark_mode());
+        click(&mut app, "settings-shortcuts");
+        assert!(app.find("navigation-shortcuts").is_some());
+        assert!(app.find("window-shortcuts").is_some());
+        for (_, view) in VIEW_SHORTCUTS {
+            assert!(app.find(view.label()).is_some());
+        }
 
         click(&mut app, "settings-storage");
         for key in ["open-data-folder", "export-data", "delete-data"] {

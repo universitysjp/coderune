@@ -47,6 +47,35 @@ use crate::theme::{
     self, BODY, BODY_SM, CODE, HEADING_LG, HEADING_SM, HEADING_XS, LABEL, LABEL_SM,
 };
 
+/// A single continuous frame that keeps child backgrounds inside its border.
+pub fn surface_frame(k: &Kit, fill: rune::Color, radius: f32) -> El {
+    col()
+        .radius(radius)
+        .continuous_corners()
+        .fill(fill)
+        .border(1.0, k.c.border_weak)
+        .padding(1.0)
+        .clip_rounded(radius)
+}
+
+/// Related settings in one framed group with inset row dividers.
+pub fn settings_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
+    let children = rows.into_iter().enumerate().flat_map(|(index, row)| {
+        let separator = (index > 0).then(|| {
+            rune::el()
+                .h(1.0)
+                .mx(12.0)
+                .fill(k.c.border_muted)
+                .a11y_hidden()
+        });
+        separator.into_iter().chain(std::iter::once(row.px(12.0)))
+    });
+    surface_frame(k, k.c.bg_base, k.radius.lg)
+        .key(key)
+        .w_full()
+        .children(children)
+}
+
 pub fn page_header(title: &str, description: &str, actions: Vec<El>) -> El {
     let heading = col()
         .grow(1.0)

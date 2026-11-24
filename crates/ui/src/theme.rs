@@ -47,7 +47,7 @@ pub fn kit_for(dark: bool) -> &'static Kit {
         };
         if dark {
             let c = &mut k.c;
-            // Use neutral grays for dark selections, focus and switches.
+            // Use neutral grays for dark selections and focus.
             c.bg_accent = c.text_faint;
             c.text_accent = c.text_base;
             c.icon_accent = c.icon_base;
@@ -59,6 +59,19 @@ pub fn kit_for(dark: bool) -> &'static Kit {
             c.info.icon = c.icon_muted;
         }
         k
+    })
+}
+
+/// Switches share the workspace's blue accent in both appearances.
+pub fn switch_kit(dark: bool) -> &'static Kit {
+    if !dark {
+        return kit_for(false);
+    }
+    static KITS: [OnceLock<Kit>; 2] = [const { OnceLock::new() }; 2];
+    KITS[usize::from(rune::theme::blends_srgb())].get_or_init(|| {
+        let mut kit = kit_for(true).clone();
+        kit.c.bg_accent = kit_for(false).c.bg_accent;
+        kit
     })
 }
 
@@ -187,5 +200,13 @@ mod tests {
                 assert_eq!(color.g, color.b);
             }
         });
+    }
+
+    #[test]
+    fn dark_switch_uses_the_existing_blue_accent() {
+        let accent = switch_kit(true).c.bg_accent;
+        assert_eq!(accent, kit_for(false).c.bg_accent);
+        assert!(accent.b > accent.r);
+        assert_ne!(accent, kit_for(true).c.bg_accent);
     }
 }

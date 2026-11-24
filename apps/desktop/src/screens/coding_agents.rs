@@ -49,20 +49,22 @@ pub(super) fn coding_agents(s: &CoderuneApp, k: &Kit) -> El {
         return body;
     }
     if installed.clone().next().is_some() {
-        body = body.child(
-            col()
-                .w_full()
-                .children(installed.map(|agent| installed_agent(s, agent, k))),
-        );
+        body = body.child(ui::settings_card(
+            k,
+            "installed-list",
+            installed.map(|agent| installed_agent(s, agent, k)),
+        ));
     } else {
         body = body.child(ui::subtle("No coding agents found."));
     }
     if missing.clone().next().is_some() {
-        body = body.child(heading("Not installed")).child(
-            col()
-                .w_full()
-                .children(missing.map(|agent| missing_agent(agent, k))),
-        );
+        body = body
+            .child(heading("Not installed"))
+            .child(ui::settings_card(
+                k,
+                "missing-list",
+                missing.map(|agent| missing_agent(agent, k)),
+            ));
     }
     body
 }
@@ -78,7 +80,7 @@ fn installed_agent(s: &CoderuneApp, agent: &CliAgentStatus, k: &Kit) -> El {
         .label(format!("Use {}", agent.name))
         .hide_label()
         .on_toggle(move |s: &mut CoderuneApp| s.set_agent_enabled(id, !s.agent_enabled(id)))
-        .build(k)
+        .build(theme::switch_kit(k.dark))
         .min_h(28.0)
         .key(format!("agent-switch-{}", agent.command));
     agent_row(
@@ -117,54 +119,52 @@ fn agent_row(agent: &CliAgentStatus, status: Option<&str>, action: El, k: &Kit) 
     if let Some(status) = status {
         name = name.child(ui::tiny(status));
     }
-    let entry = row()
+    row()
         .w_full()
         .h(48.0)
         .gap(12.0)
         .items_center()
-        .child(logo(agent, k.dark))
+        .child(logo(agent.id, k.dark))
         .child(name.grow(1.0))
-        .child(action);
-    col()
-        .w_full()
-        .child(entry)
-        .child(el().w_full().h(1.0).fill(theme::row_line()))
+        .child(action)
 }
 
-fn logo(agent: &CliAgentStatus, dark: bool) -> El {
+fn logo(agent: CliAgentId, dark: bool) -> El {
     use CliAgentId::*;
     static IMAGES: LazyLock<ImageCache> = LazyLock::new(|| ImageCache::new(Arc::new(|| {})));
     const SIZE: f32 = 20.0;
-    let svg: Option<&'static [u8]> = match (agent.id, dark) {
-        (ClaudeCode, _) => Some(include_bytes!("../../assets/agent-logos/claude-code.svg")),
-        (Codex, false) => Some(include_bytes!("../../assets/agent-logos/codex_light.svg")),
-        (Codex, true) => Some(include_bytes!("../../assets/agent-logos/codex_dark.svg")),
-        (Grok, false) => Some(include_bytes!("../../assets/agent-logos/grok-light.svg")),
-        (Grok, true) => Some(include_bytes!("../../assets/agent-logos/grok-dark.svg")),
-        (OpenCode, false) => Some(include_bytes!("../../assets/agent-logos/opencode.svg")),
-        (OpenCode, true) => Some(include_bytes!("../../assets/agent-logos/opencode-dark.svg")),
-        (Pi, false) => Some(include_bytes!("../../assets/agent-logos/pi-light.svg")),
-        (Pi, true) => Some(include_bytes!("../../assets/agent-logos/pi-dark.svg")),
-        (Amp, _) => Some(include_bytes!("../../assets/agent-logos/amp.svg")),
-        (Cursor, false) => Some(include_bytes!("../../assets/agent-logos/cursor_light.svg")),
-        (Cursor, true) => Some(include_bytes!("../../assets/agent-logos/cursor_dark.svg")),
-        (Antigravity, _) => Some(include_bytes!("../../assets/agent-logos/antigravity.svg")),
-        (Kiro | Muse | Devin | Fx | Jcode, _) => None,
+    let svg: &'static [u8] = match (agent, dark) {
+        (ClaudeCode, _) => include_bytes!("../../assets/agent-logos/claude-code.svg"),
+        (Codex, false) => include_bytes!("../../assets/agent-logos/codex_light.svg"),
+        (Codex, true) => include_bytes!("../../assets/agent-logos/codex_dark.svg"),
+        (Grok, false) => include_bytes!("../../assets/agent-logos/grok-light.svg"),
+        (Grok, true) => include_bytes!("../../assets/agent-logos/grok-dark.svg"),
+        (OpenCode, false) => include_bytes!("../../assets/agent-logos/opencode.svg"),
+        (OpenCode, true) => include_bytes!("../../assets/agent-logos/opencode-dark.svg"),
+        (Pi, false) => include_bytes!("../../assets/agent-logos/pi-light.svg"),
+        (Pi, true) => include_bytes!("../../assets/agent-logos/pi-dark.svg"),
+        (Amp, _) => include_bytes!("../../assets/agent-logos/amp.svg"),
+        (Cursor, false) => include_bytes!("../../assets/agent-logos/cursor_light.svg"),
+        (Cursor, true) => include_bytes!("../../assets/agent-logos/cursor_dark.svg"),
+        (Antigravity, _) => include_bytes!("../../assets/agent-logos/antigravity.svg"),
+        (Kiro, false) => include_bytes!("../../assets/agent-logos/kiro.svg"),
+        (Kiro, true) => include_bytes!("../../assets/agent-logos/kiro-dark.svg"),
+        (Muse, _) => include_bytes!("../../assets/agent-logos/muse.svg"),
+        (Devin, _) => include_bytes!("../../assets/agent-logos/devin.svg"),
+        (Fx, false) => include_bytes!("../../assets/agent-logos/fx.svg"),
+        (Fx, true) => include_bytes!("../../assets/agent-logos/fx-dark.svg"),
+        (Jcode, false) => include_bytes!("../../assets/agent-logos/jcode.svg"),
+        (Jcode, true) => include_bytes!("../../assets/agent-logos/jcode-dark.svg"),
     };
-    let mark = if let Some(svg) = svg {
-        let image = IMAGES.svg(svg, SIZE, 3.0);
-        el().size(SIZE, SIZE)
-            .pixels_fit(image.pixels(), SurfaceFit::Fit)
-    } else {
-        text(&agent.name[..1])
-            .font(theme::LABEL)
-            .color(theme::muted())
-    };
+    let image = IMAGES.svg(svg, SIZE, 3.0);
     row()
         .size(32.0, 32.0)
         .radius(7.0)
         .border(1.0, theme::row_line())
         .center()
         .a11y_hidden()
-        .child(mark)
+        .child(
+            el().size(SIZE, SIZE)
+                .pixels_fit(image.pixels(), SurfaceFit::Fit),
+        )
 }

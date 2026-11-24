@@ -1,53 +1,42 @@
 //! The Settings dialog and its section navigation.
 
-use crate::app::{CoderuneApp, SettingsSection};
+use crate::app::{CoderuneApp, SettingsSection, VIEW_SHORTCUTS};
 use crate::updates::Status;
 use crate::widgets::text_input;
 use coderune_ui::{components as ui, components::PushButtonExt, icons, theme};
 use rune::{col, el, row, text, El, ScrollSpec};
-use rune_kit::{Button, ButtonVariant, Dialog, Kit, Switch};
+use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit, Switch};
 
 pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlays: &mut Vec<El>) {
-    let nav = col()
-        .w(156.0)
-        .h_full()
-        .fill(theme::surface())
-        .padding(12.0)
-        .gap(4.0)
-        .children(
-            [
-                (
-                    SettingsSection::General,
-                    "settings-general",
-                    "General",
-                    &icons::GEAR,
-                ),
-                (
-                    SettingsSection::Storage,
-                    "settings-storage",
-                    "Storage",
-                    &icons::FOLDER,
-                ),
-                (
-                    SettingsSection::Agents,
-                    "settings-agents",
-                    "Agents",
-                    &icons::ROBOT,
-                ),
-            ]
-            .into_iter()
-            .map(|(destination, key, label, icon)| {
-                let selected = section == destination;
-                ui::nav_item(key, label, icon, selected, move |s: &mut CoderuneApp| {
-                    s.select_settings(destination);
-                })
-                .focus_selected(selected)
-            }),
-        );
+    let nav = col().w(166.0).h_full().px(10.0).py(8.0).gap(4.0).children(
+        [
+            (SettingsSection::General, "settings-general", &icons::GEAR),
+            (SettingsSection::Storage, "settings-storage", &icons::FOLDER),
+            (SettingsSection::Agents, "settings-agents", &icons::ROBOT),
+            (
+                SettingsSection::Shortcuts,
+                "settings-shortcuts",
+                &icons::KEYBOARD,
+            ),
+        ]
+        .into_iter()
+        .map(|(destination, key, icon)| {
+            let selected = section == destination;
+            ui::nav_item(
+                key,
+                destination.label(),
+                icon,
+                selected,
+                move |s: &mut CoderuneApp| s.select_settings(destination),
+            )
+            .focus_selected(selected)
+        }),
+    );
     let content = match section {
         SettingsSection::General => general(s, k),
         SettingsSection::Storage => storage(s, k),
         SettingsSection::Agents => super::coding_agents::coding_agents(s, k),
+        SettingsSection::Shortcuts => shortcuts(k),
     };
     let mut panel = col().w_full().padding(20.0).gap(16.0).child(content);
     if let Some(feedback) = &s.settings_feedback {
@@ -56,38 +45,76 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
             Err(error) => ui::alert(Some(error.code.as_str()), &error.message),
         });
     }
-    let mut dialog_kit = k.clone();
-    dialog_kit.c.layer_01 = theme::surface();
-    Dialog::new("settings", "Settings")
-        .open(true)
-        .width(760.0)
-        .fit()
-        .on_close(CoderuneApp::close_settings)
+    let close = IconButton::new(k.glyph.close)
+        .variant(IconButtonVariant::Ghost)
+        .control_size(ControlSize::Regular)
+        .label("Close Settings")
+        .on_press(CoderuneApp::close_settings)
+        .build(k)
+        .key("close");
+    let panel_key = match section {
+        SettingsSection::General => "general-panel",
+        SettingsSection::Storage => "storage-panel",
+        SettingsSection::Agents => "agents-panel",
+        SettingsSection::Shortcuts => "shortcuts-panel",
+    };
+    let content = ui::surface_frame(k, theme::panel(), k.radius.lg)
+        .grow(1.0)
+        .min_w(0.0)
+        .h_full()
+        .child(
+            col()
+                .key(panel_key)
+                .role("group")
+                .label(section.label())
+                .w_full()
+                .h_full()
+                .scroll(ScrollSpec {
+                    stick_bottom: false,
+                })
+                .scroll_edge_fade(16.0)
+                .child(panel),
+        );
+    let mut dialog = ui::surface_frame(k, theme::surface(), k.radius.xl)
+        .key("settings-dialog")
+        .role("dialog")
+        .label("Settings")
+        .w_full()
+        .max_w(760.0)
+        .h(520.0)
         .child(
             row()
                 .w_full()
-                .h(460.0)
-                .clip_rounded(6.0)
-                .child(nav)
-                .child(el().w(1.0).h_full().fill(theme::row_line()))
-                .child(
-                    col()
-                        .key(match section {
-                            SettingsSection::General => "general-panel",
-                            SettingsSection::Storage => "storage-panel",
-                            SettingsSection::Agents => "agents-panel",
-                        })
-                        .grow(1.0)
-                        .min_w(0.0)
-                        .h_full()
-                        .fill(theme::panel())
-                        .scroll(ScrollSpec {
-                            stick_bottom: false,
-                        })
-                        .child(panel),
-                ),
+                .h(46.0)
+                .px(14.0)
+                .items_center()
+                .justify_between()
+                .child(text("Settings").font(theme::HEADING_XS).color(theme::ink()))
+                .child(close),
         )
-        .build(&dialog_kit, overlays);
+        .child(
+            row()
+                .w_full()
+                .grow(1.0)
+                .min_h(0.0)
+                .pr(8.0)
+                .pb(8.0)
+                .child(nav)
+                .child(content),
+        )
+        .modal(true, CoderuneApp::close_settings)
+        .token_motion(k.motion.overlay);
+    for shadow in &k.elevation.overlay {
+        dialog = dialog.box_shadow(*shadow);
+    }
+    let layer = |key| el().key(key).absolute(0.0, 0.0).w_full().h_full();
+    overlays.extend([
+        layer("settings-scrim")
+            .fill(k.c.scrim)
+            .a11y_hidden()
+            .token_motion(k.motion.overlay),
+        layer("settings-layer").padding(16.0).center().child(dialog),
+    ]);
 }
 
 fn general(s: &CoderuneApp, k: &Kit) -> El {
@@ -97,7 +124,7 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
         .on_press(|s: &mut CoderuneApp| s.updates.check())
         .build_push(k)
         .key("check-updates");
-    let mut body = col().w_full().gap(12.0).child(setting_row(
+    let mut updates = col().w_full().child(setting_row(
         "Application updates",
         Some(format!("Installed version {}", crate::VERSION)),
         check,
@@ -127,18 +154,19 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
         Status::Failed(message) => Some(ui::alert(None, message)),
     };
     if let Some(status) = status {
-        body = body.child(col().w_full().items_start().child(status));
+        updates = updates.child(col().w_full().pb(12.0).items_start().child(status));
     }
-    body.child(divider()).child(setting_row(
+    let appearance = setting_row(
         "Dark mode",
         None,
         Switch::new(s.dark_mode())
             .label("Dark mode")
             .hide_label()
             .on_toggle(CoderuneApp::toggle_dark_mode)
-            .build(k)
+            .build(theme::switch_kit(k.dark))
             .key("dark-mode"),
-    ))
+    );
+    ui::settings_card(k, "general-options", [updates, appearance])
 }
 
 fn storage(s: &CoderuneApp, k: &Kit) -> El {
@@ -173,54 +201,47 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
 
     let mut database = col()
         .w_full()
-        .gap(4.0)
         .child(setting_row("Local database", None, open));
     if let Some(path) = data_path {
         database = database.child(
             text(path.display().to_string())
+                .pb(12.0)
                 .font(theme::CODE_SM)
                 .color(theme::muted())
                 .truncate(),
         );
     }
-    let mut body = col()
-        .w_full()
-        .gap(16.0)
-        .child(database)
-        .child(divider())
-        .child(
-            col()
-                .w_full()
-                .gap(10.0)
-                .child(setting_row(
-                    "Export data",
-                    Some(
-                        "Save your profile, projects, documents, and captures as JSON.".to_string(),
-                    ),
-                    export,
-                ))
-                .child(ui::field(
+    let mut rows = vec![
+        database,
+        col()
+            .w_full()
+            .pb(12.0)
+            .child(setting_row(
+                "Export data",
+                Some("Save your profile, projects, documents, and captures as JSON.".to_string()),
+                export,
+            ))
+            .child(ui::field(
+                "Export path",
+                None,
+                text_input(
+                    &s.export_path,
+                    "/path/to/export.json",
                     "Export path",
-                    None,
-                    text_input(
-                        &s.export_path,
-                        "/path/to/export.json",
-                        "Export path",
-                        |s| &mut s.export_path,
-                        k,
-                    ),
-                )),
-        )
-        .child(divider())
-        .child(setting_row(
+                    |s| &mut s.export_path,
+                    k,
+                ),
+            )),
+        setting_row(
             "Delete all data",
             Some(
                 "Permanently removes your profile, projects, documents, and captures.".to_string(),
             ),
             delete,
-        ));
+        ),
+    ];
     if s.confirm_delete_all {
-        body = body.child(setting_row(
+        rows.push(setting_row(
             "This action cannot be undone.",
             None,
             row()
@@ -240,7 +261,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
                 ),
         ));
     }
-    body
+    ui::settings_card(k, "storage-options", rows)
 }
 
 fn setting_row(title: &str, detail: Option<String>, action: El) -> El {
@@ -255,12 +276,69 @@ fn setting_row(title: &str, detail: Option<String>, action: El) -> El {
     }
     row()
         .w_full()
+        .min_h(48.0)
+        .py(10.0)
         .items_center()
         .gap(16.0)
         .child(title)
         .child(action)
 }
 
-fn divider() -> El {
-    el().w_full().h(1.0).fill(theme::row_line())
+fn shortcuts(k: &Kit) -> El {
+    let modifier = if cfg!(target_os = "macos") {
+        "⌘"
+    } else {
+        "Ctrl"
+    };
+    let view_rows = VIEW_SHORTCUTS.into_iter().map(|(key, view)| {
+        let key = key.to_string();
+        shortcut_row(k, view.label(), &[&[modifier, &key]])
+    });
+    let primary_sidebar = &["Shift", modifier, "B"][..];
+    let alternate_sidebar = &["Ctrl", modifier, "S"][..];
+    let sidebar_keys = if cfg!(target_os = "macos") {
+        vec![primary_sidebar, alternate_sidebar]
+    } else {
+        vec![primary_sidebar]
+    };
+    col()
+        .w_full()
+        .gap(12.0)
+        .child(text("Navigation").font(theme::LABEL).color(theme::muted()))
+        .child(ui::settings_card(k, "navigation-shortcuts", view_rows))
+        .child(
+            text("Window")
+                .font(theme::LABEL)
+                .color(theme::muted())
+                .mt(8.0),
+        )
+        .child(ui::settings_card(
+            k,
+            "window-shortcuts",
+            [
+                shortcut_row(k, "Open Settings", &[&[modifier, ","], &[modifier, "7"]]),
+                shortcut_row(k, "Toggle sidebar", &sidebar_keys),
+                shortcut_row(k, "Close Settings", &[&["Esc"]]),
+                shortcut_row(k, "Quit Coderune", &[&[modifier, "Q"]]),
+            ],
+        ))
+}
+
+fn shortcut_row(k: &Kit, title: &str, alternatives: &[&[&str]]) -> El {
+    let mut keys = row().items_center().gap(6.0);
+    for (index, shortcut) in alternatives.iter().enumerate() {
+        if index > 0 {
+            keys = keys.child(ui::tiny("or"));
+        }
+        keys = keys.child(ui::keycaps(&format!("keys-{index}"), shortcut, k));
+    }
+    let description = alternatives
+        .iter()
+        .map(|shortcut| shortcut.join(" + "))
+        .collect::<Vec<_>>()
+        .join(" or ");
+    setting_row(title, None, keys)
+        .key(title)
+        .role("group")
+        .description(description)
 }

@@ -60,6 +60,7 @@ fn main() {
             ("data", app::scene_settings),
             ("settings", app::scene_settings),
             ("storage", app::scene_storage),
+            ("settings-shortcuts", app::scene_shortcuts),
             ("settings-agents", app::scene_settings_agents),
             ("settings-dark", app::scene_settings_dark),
             ("settings-agents-dark", app::scene_settings_agents_dark),

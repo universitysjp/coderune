@@ -16,7 +16,8 @@ Do not introduce a second palette or type scale in either surface.
 
 General in Settings offers a persistent Dark mode switch. Window chrome, the
 Settings header, and the Settings sidebar use the same gray surface in each
-appearance. Dark selection, focus, and switch colors use the neutral ramp.
+appearance. Dark selection and focus colors use the neutral ramp, and enabled
+switches use the app's blue accent in both appearances.
 
 ## Web colour
 
@@ -88,8 +89,9 @@ workspace's `Sidebar`, `WindowTitlebar` and `TabStrip`, and the onboarding
 `Page` come from `rune-kit`.
 
 Text buttons are 28 points high at standard size and 24 points high at compact
-size. Shortcut keycaps use a recessed tray and separate key faces, as shown in
-the workspace sidebar.
+size. Shortcut keycaps use a recessed tray and separate key faces in
+Settings → Shortcuts. The Settings and workspace panes share the same continuous
+frame and scrolling treatment.
 
 ## Web components
 

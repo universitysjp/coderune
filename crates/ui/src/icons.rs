@@ -43,3 +43,9 @@ pub static USER: Icon = Icon {
     view: 256.0,
     body: r#"<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM74.08,197.5a64,64,0,0,1,107.84,0,87.83,87.83,0,0,1-107.84,0ZM96,120a32,32,0,1,1,32,32A32,32,0,0,1,96,120Zm97.76,66.41a79.66,79.66,0,0,0-36.06-28.75,48,48,0,1,0-59.4,0,79.66,79.66,0,0,0-36.06,28.75,88,88,0,1,1,131.52,0Z"/>"#,
 };
+
+pub static KEYBOARD: Icon = Icon {
+    name: "coderune-keyboard",
+    view: 24.0,
+    body: r#"<rect x="2.5" y="5" width="19" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 9.5h1m4 0h1m4 0h1m-11 4h1m4 0h1m4 0h1m-8 2.5h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>"#,
+};
