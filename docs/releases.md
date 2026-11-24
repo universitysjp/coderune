@@ -54,6 +54,17 @@ agent to turn it on or off for Coderune.
 Update checks and downloads use public GitHub Releases.
 
 Choose **Download Coderune**. The app verifies the downloaded bytes against
-the release asset's SHA-256 digest. Open the download folder, close the
-running app, and follow the install step for your platform in the table
-above. Your workspace database lives outside the application install.
+the release asset's SHA-256 digest, then installs the update in place:
+
+- **macOS** unpacks the new `Coderune.app` beside the installed one, checks its
+  identifier, version, and code signature, and swaps the two bundles. A
+  read-only or translocated copy keeps the package in Downloads instead.
+- **Windows** runs the signed per-user installer silently over the current
+  install, then reopens Coderune.
+- **Linux** keeps the `.deb` in Downloads for `sudo dpkg -i`, because package
+  installs belong to the system package manager.
+
+The button becomes **Restart to update**: restarting quits the old version,
+finishes the swap, and reopens the new one. The old bundle is removed on the
+next launch. Your workspace database lives outside the application install, so
+projects, captures, and settings survive the update.

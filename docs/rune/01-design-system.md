@@ -96,6 +96,10 @@ size. Shortcut keycaps use a recessed tray and separate key faces in
 Settings → Shortcuts. The Settings and workspace panes share the same continuous
 frame and scrolling treatment.
 
+Application updates run in the app: macOS swaps the verified bundle beside the
+installed one, and Windows runs the per-user installer quietly. Both reopen
+Coderune from the **Restart to update** row in Settings → General.
+
 ## Web components
 
 `packages/ui/src/web` is the shared React registry. It is scoped under `.ui`,

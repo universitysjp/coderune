@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::Duration;
 
+use crate::update_install::{self, Prepared};
+
 use directories::UserDirs;
 use rune::Tx;
 use semver::Version;
@@ -31,7 +33,10 @@ pub(crate) enum Status {
     NoRelease,
     Available(Update),
     Downloading,
-    Downloaded(PathBuf),
+    /// Staged and verified: restarting installs it.
+    Ready(update_install::Install),
+    /// Kept for the person, because this copy cannot replace itself.
+    Manual(PathBuf),
     Failed(&'static str),
 }
 
@@ -44,6 +49,11 @@ impl Updates {
     }
 
     pub(crate) fn check(&mut self) {
+        // A staged update is the newest one this copy can install; replacing
+        // it with a fresh answer would only mean downloading it again.
+        if matches!(self.status, Status::Ready(_)) {
+            return;
+        }
         self.start(Status::Checking, || {
             let package =
                 platform_package().ok_or("No Coderune package is built for this system.")?;
@@ -75,8 +85,32 @@ impl Updates {
         if let Status::Available(update) = &self.status {
             let update = update.clone();
             self.start(Status::Downloading, move || {
-                download(&update).map(Status::Downloaded)
+                let package = download(&update)?;
+                let version = update.version.to_string();
+                match crate::update_install::prepare(&package, &version)? {
+                    Prepared::Restart(install) => {
+                        // The staged bundle stands on its own; keep the
+                        // download folder from growing a copy per update.
+                        if let Some(folder) = package.parent() {
+                            let _ = fs::remove_dir_all(folder);
+                        }
+                        Ok(Status::Ready(install))
+                    }
+                    Prepared::Manual(path) => Ok(Status::Manual(path)),
+                }
             });
+        }
+    }
+
+    /// Installs the staged update and restarts into it. Never returns on
+    /// success, because the app it would return to is being replaced.
+    pub(crate) fn restart(&mut self) {
+        if let Status::Ready(install) = &self.status {
+            if let Err(message) = crate::update_install::restart_into(install) {
+                self.status = Status::Failed(message);
+                return;
+            }
+            std::process::exit(0);
         }
     }
 

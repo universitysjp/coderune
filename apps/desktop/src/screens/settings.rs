@@ -58,7 +58,7 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
         SettingsSection::Agents => "agents-panel",
         SettingsSection::Shortcuts => "shortcuts-panel",
     };
-    let content = ui::surface_frame(k, theme::panel(), k.radius.lg)
+    let content = ui::surface_frame(k, theme::canvas(), k.radius.lg)
         .grow(1.0)
         .min_w(0.0)
         .h_full()
@@ -118,13 +118,16 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
 }
 
 fn general(s: &CoderuneApp, k: &Kit) -> El {
-    let busy = matches!(s.updates.status, Status::Checking | Status::Downloading);
+    let busy = matches!(
+        s.updates.status,
+        Status::Checking | Status::Downloading | Status::Ready(_)
+    );
     let check = Button::new("Check for updates")
         .disabled(busy)
         .on_press(|s: &mut CoderuneApp| s.updates.check())
         .build_push(k)
         .key("check-updates");
-    let mut updates = col().w_full().child(setting_row(
+    let mut updates = col().w_full().child(ui::setting_row(
         "Application updates",
         Some(format!("Installed version {}", crate::VERSION)),
         check,
@@ -141,11 +144,28 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
                 .build_push(k),
         ),
         Status::Downloading => Some(ui::subtle("Downloading and verifying the update…")),
-        Status::Downloaded(folder) => {
-            let folder = folder.clone();
-            Some(setting_row(
+        Status::Ready(install) => {
+            let version = crate::update_install::version(install).to_string();
+            Some(ui::setting_row(
+                "Update ready",
+                Some("Restarting installs the update and reopens Coderune.".to_string()),
+                Button::new(format!("Restart to update to {version}"))
+                    .variant(ButtonVariant::Contrast)
+                    .on_press(|s: &mut CoderuneApp| s.updates.restart())
+                    .build_push(k)
+                    .key("restart-update"),
+            ))
+        }
+        Status::Manual(path) => {
+            let folder = path
+                .parent()
+                .map(std::path::Path::to_path_buf)
+                .unwrap_or_else(|| path.clone());
+            Some(ui::setting_row(
                 "Update downloaded",
-                Some("Close Coderune before installing the update.".to_string()),
+                Some(
+                    "Open the downloaded package to install it, then reopen Coderune.".to_string(),
+                ),
                 Button::new("Open download folder")
                     .on_press(move |s: &mut CoderuneApp| s.open_settings_folder(&folder))
                     .build_push(k),
@@ -156,7 +176,7 @@ fn general(s: &CoderuneApp, k: &Kit) -> El {
     if let Some(status) = status {
         updates = updates.child(col().w_full().pb(12.0).items_start().child(status));
     }
-    let appearance = setting_row(
+    let appearance = ui::setting_row(
         "Dark mode",
         None,
         Switch::new(s.dark_mode())
@@ -201,7 +221,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
 
     let mut database = col()
         .w_full()
-        .child(setting_row("Local database", None, open));
+        .child(ui::setting_row("Local database", None, open));
     if let Some(path) = data_path {
         database = database.child(
             text(path.display().to_string())
@@ -216,7 +236,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
         col()
             .w_full()
             .pb(12.0)
-            .child(setting_row(
+            .child(ui::setting_row(
                 "Export data",
                 Some("Save your profile, projects, documents, and captures as JSON.".to_string()),
                 export,
@@ -232,7 +252,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
                     k,
                 ),
             )),
-        setting_row(
+        ui::setting_row(
             "Delete all data",
             Some(
                 "Permanently removes your profile, projects, documents, and captures.".to_string(),
@@ -241,7 +261,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
         ),
     ];
     if s.confirm_delete_all {
-        rows.push(setting_row(
+        rows.push(ui::setting_row(
             "This action cannot be undone.",
             None,
             row()
@@ -264,26 +284,6 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
     ui::settings_card(k, "storage-options", rows)
 }
 
-fn setting_row(title: &str, detail: Option<String>, action: El) -> El {
-    let mut title = col().grow(1.0).min_w(0.0).gap(4.0).child(
-        text(title)
-            .font(theme::HEADING_XS)
-            .color(theme::ink())
-            .wrap(),
-    );
-    if let Some(detail) = detail {
-        title = title.child(ui::subtle(&detail));
-    }
-    row()
-        .w_full()
-        .min_h(48.0)
-        .py(10.0)
-        .items_center()
-        .gap(16.0)
-        .child(title)
-        .child(action)
-}
-
 fn shortcuts(k: &Kit) -> El {
     let modifier = if cfg!(target_os = "macos") {
         "⌘"
@@ -304,17 +304,16 @@ fn shortcuts(k: &Kit) -> El {
     col()
         .w_full()
         .gap(12.0)
-        .child(text("Navigation").font(theme::LABEL).color(theme::muted()))
-        .child(ui::settings_card(k, "navigation-shortcuts", view_rows))
-        .child(
-            text("Window")
-                .font(theme::LABEL)
-                .color(theme::muted())
-                .mt(8.0),
-        )
-        .child(ui::settings_card(
+        .child(ui::section(
+            k,
+            "navigation-shortcuts",
+            "Navigation",
+            view_rows,
+        ))
+        .child(ui::section(
             k,
             "window-shortcuts",
+            "Window",
             [
                 shortcut_row(k, "Open Settings", &[&[modifier, ","], &[modifier, "7"]]),
                 shortcut_row(k, "Toggle sidebar", &sidebar_keys),
@@ -337,7 +336,7 @@ fn shortcut_row(k: &Kit, title: &str, alternatives: &[&[&str]]) -> El {
         .map(|shortcut| shortcut.join(" + "))
         .collect::<Vec<_>>()
         .join(" or ");
-    setting_row(title, None, keys)
+    ui::setting_row(title, None, keys)
         .key(title)
         .role("group")
         .description(description)

@@ -25,3 +25,6 @@ serde_json.workspace = true
 sha2.workspace = true
 tempfile = "3"
 ureq = { version = "3.5", default-features = false, features = ["rustls"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"

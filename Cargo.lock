@@ -987,6 +987,7 @@ dependencies = [
  "coderune-ui",
  "directories",
  "hex",
+ "libc",
  "rune",
  "rune-kit",
  "semver",

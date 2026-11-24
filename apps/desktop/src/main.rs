@@ -3,6 +3,7 @@ mod app;
 mod preferences;
 mod screens;
 mod shell;
+mod update_install;
 mod updates;
 mod widgets;
 
@@ -14,6 +15,7 @@ pub(crate) const VERSION: &str = match option_env!("CODERUNE_BUILD_VERSION") {
 };
 
 fn main() {
+    update_install::finish_on_launch();
     if std::env::args_os()
         .nth(1)
         .is_some_and(|arg| arg == "--version")
