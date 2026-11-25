@@ -113,3 +113,33 @@ pub(crate) fn project_name(root: &Path) -> String {
         .map(str::to_string)
         .unwrap_or_else(|| "New project".to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_form_keeps_fields_it_does_not_edit() {
+        let root = std::env::temp_dir();
+        let project = ProjectDraft {
+            name: "Demo".to_string(),
+            root_path: root.display().to_string(),
+            goals: vec!["Ship".to_string()],
+            purpose: Some("Purpose".to_string()),
+            rules: vec!["Rule".to_string()],
+            ..Default::default()
+        }
+        .into_project(None)
+        .unwrap();
+        let form = ProjectForm::from_project(&project);
+        let round_trip = form.to_draft(Some(&project)).unwrap();
+        assert_eq!(round_trip.purpose.as_deref(), Some("Purpose"));
+        assert_eq!(round_trip.rules, vec!["Rule"]);
+    }
+    #[test]
+    fn invalid_capture_limit_is_rejected() {
+        let mut form = ProjectForm::empty(None);
+        form.per_file_kib = edit("not-a-number");
+        assert!(form.to_draft(None).is_err());
+    }
+}

@@ -307,3 +307,87 @@ fn parse_links(value: &str) -> Vec<Link> {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn profile_form_keeps_fields_it_does_not_edit() {
+        let mut draft = ProfileDraft {
+            display_name: "Ada".to_string(),
+            experience_stage: Some(ExperienceStage::EarlyCareer),
+            skills_statement: "Rust".to_string(),
+            learning_goals: vec!["Ship".to_string()],
+            self_reported_skills: vec![coderune_domain::SelfReportedSkill {
+                topic: "Rust".to_string(),
+                rating: Some(coderune_domain::SkillRating::Advanced),
+            }],
+            links: vec![coderune_domain::Link {
+                label: "Site".to_string(),
+                url: "https://example.com".to_string(),
+            }],
+            ..Default::default()
+        };
+        draft.display_name = "Ada".to_string();
+        let profile = draft.into_profile(None).unwrap();
+        let form = ProfileForm::from_value(Some(&profile), None);
+        let round_trip = form.to_draft(ProfileDraft::from_profile(&profile));
+        assert_eq!(round_trip.self_reported_skills.len(), 1);
+        assert_eq!(round_trip.links.len(), 1);
+    }
+    #[test]
+    fn optional_profile_details_round_trip() {
+        let draft = ProfileDraft {
+            display_name: "Ada".to_string(),
+            experience_stage: Some(ExperienceStage::EarlyCareer),
+            skills_statement: "Rust".to_string(),
+            learning_goals: vec!["Ship".to_string()],
+            self_reported_skills: vec![SelfReportedSkill {
+                topic: "Rust".to_string(),
+                rating: Some(SkillRating::Advanced),
+            }],
+            education: vec![EducationEntry {
+                institution: "University".to_string(),
+                qualification: Some("BSc".to_string()),
+                period: Some("2021-2025".to_string()),
+                details: None,
+            }],
+            employment: vec![EmploymentEntry {
+                employer: "Acme".to_string(),
+                role: "Engineer".to_string(),
+                period: None,
+                details: None,
+            }],
+            projects: vec![ProjectExperience {
+                name: "Coderune".to_string(),
+                role: None,
+                period: None,
+                details: None,
+            }],
+            certifications: vec![Certification {
+                name: "AWS".to_string(),
+                issuer: Some("Amazon".to_string()),
+                year: None,
+            }],
+            links: vec![Link {
+                label: "Site".to_string(),
+                url: "https://example.com".to_string(),
+            }],
+            learning_preferences: Some(LearningPreferences {
+                formats: vec!["examples".to_string()],
+                notes: Some("Small runnable examples".to_string()),
+            }),
+            ..Default::default()
+        };
+        let form = ProfileForm::from_draft(&draft);
+        let round_trip = form.to_draft(ProfileDraft::default());
+        assert_eq!(round_trip.self_reported_skills, draft.self_reported_skills);
+        assert_eq!(round_trip.education, draft.education);
+        assert_eq!(round_trip.employment, draft.employment);
+        assert_eq!(round_trip.projects, draft.projects);
+        assert_eq!(round_trip.certifications, draft.certifications);
+        assert_eq!(round_trip.links, draft.links);
+        assert_eq!(round_trip.learning_preferences, draft.learning_preferences);
+    }
+}
