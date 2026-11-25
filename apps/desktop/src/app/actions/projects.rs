@@ -202,3 +202,9 @@ impl CoderuneApp {
         }
     }
 }
+fn folder_picker_error(error: rune::FileDialogError) -> AppError {
+    AppError::new(
+        coderune_domain::ErrorCode::UnreadablePath,
+        format!("Could not open the folder picker: {error}"),
+    )
+}
