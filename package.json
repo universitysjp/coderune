@@ -29,7 +29,8 @@
     "skills:ts": "bun scripts/skills-to-typescript.ts",
     "build:site": "bun run --cwd apps/site build",
     "check:site": "bun run --cwd apps/site check-types",
-    "dev:site": "bun run --cwd apps/site dev"
+    "dev:site": "bun run --cwd apps/site dev",
+    "test:release": "bun test scripts/release/plan.test.ts"
   },
   "dependencies": {},
   "devDependencies": {

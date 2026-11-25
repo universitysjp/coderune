@@ -25,14 +25,22 @@ jobs:
           ref: refs/heads/main
           fetch-depth: 0
           persist-credentials: false
+      - id: bun
+        name: Read the workspace Bun version
+        run: |
+          version=$(jq -er '.devEngines.packageManager.version' package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ steps.bun.outputs.version }}
       - name: Test tag planning
-        run: python3 scripts/release/test_plan.py
+        run: bun test scripts/release/plan.test.ts
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          plan=$(python3 scripts/release/plan.py)
+          plan=$(bun scripts/release/plan.ts)
           tags=$(jq -c .tags <<< "$plan")
           echo "tags=$tags" >> "$GITHUB_OUTPUT"
           version=$(jq -r '.release.version // empty' <<< "$plan")
