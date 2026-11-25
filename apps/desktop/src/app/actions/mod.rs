@@ -9,3 +9,4 @@ mod documents;
 mod profile;
 mod projects;
 mod settings;
+mod storage;
