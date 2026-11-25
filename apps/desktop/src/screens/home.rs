@@ -1,7 +1,7 @@
 //! The home screen.
 
 use crate::app::CoderuneApp;
-use crate::widgets::{primary, primary_tx, secondary, secondary_tx};
+use crate::widgets::{primary, primary_tx, secondary, secondary_tx, status_alerts};
 use coderune_ui::components as ui;
 use coderune_ui::icons;
 use coderune_ui::theme::{self, HEADING_LG, HEADING_SM};
@@ -76,7 +76,7 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
     } else {
         "Edit profile"
     };
-    let mut body = ui::page("home-page")
+    let body = ui::page("home-page")
         .child(header)
         .child(start)
         .child(ui::section(
@@ -90,11 +90,5 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
                     .key("home-profile-action"),
             )],
         ));
-    if let Some(notice) = &s.notice {
-        body = body.child(ui::alert(None, notice));
-    }
-    if let Some(error) = &s.error {
-        body = body.child(ui::alert(Some(error.code.as_str()), &error.message));
-    }
-    body
+    body.children(status_alerts(s))
 }

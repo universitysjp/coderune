@@ -216,12 +216,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
         draft_children.push(ui::code_well_tall(&preview.text));
         draft_children.push(ui::tiny("Draft execution runs through Claude Code's headless mode in the service layer. Review the exact text before requesting."));
     }
-    if let Some(error) = &s.error {
-        draft_children.push(ui::alert(Some(error.code.as_str()), &error.message));
-    }
-    if let Some(notice) = &s.notice {
-        draft_children.push(ui::alert(None, notice));
-    }
+    draft_children.extend(status_alerts(s));
 
     ui::page("documents-page")
         .child(ui::page_header(

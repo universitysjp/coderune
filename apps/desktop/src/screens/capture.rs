@@ -140,12 +140,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                         .build_push(k),
                 ),
         );
-        if let Some(error) = &s.error {
-            review_children.push(ui::alert(Some(error.code.as_str()), &error.message));
-        }
-        if let Some(notice) = &s.notice {
-            review_children.push(ui::alert(None, notice));
-        }
+        review_children.extend(status_alerts(s));
         body = body.child(ui::section(
             k,
             "capture-review",
@@ -160,12 +155,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                 .children(review_children)],
         ));
     } else {
-        if let Some(error) = &s.error {
-            body = body.child(ui::alert(Some(error.code.as_str()), &error.message));
-        }
-        if let Some(notice) = &s.notice {
-            body = body.child(ui::alert(None, notice));
-        }
+        body = body.children(status_alerts(s));
     }
 
     let mut capture_rows = Vec::new();
@@ -194,24 +184,22 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                         .color(theme::faint()),
                 )
                 .child(rune::el().grow(1.0))
-                .child(
-                    Button::new("Inspect")
-                        .variant(ButtonVariant::Ghost)
-                        .on_press(move |s: &mut CoderuneApp| s.inspect_capture(&inspect_id))
-                        .build_small_push(k),
-                )
-                .child(
-                    Button::new(if confirming { "Confirm" } else { "Delete" })
-                        .variant(ButtonVariant::Danger)
-                        .on_press(move |s: &mut CoderuneApp| {
-                            if s.confirm_delete_capture.as_deref() == Some(delete_id.as_str()) {
-                                s.delete_capture(&delete_id);
-                            } else {
-                                s.confirm_delete_capture = Some(delete_id.clone());
-                            }
-                        })
-                        .build_small_push(k),
-                ),
+                .child(small_ghost(
+                    "Inspect",
+                    move |s| s.inspect_capture(&inspect_id),
+                    k,
+                ))
+                .child(small_destructive(
+                    if confirming { "Confirm" } else { "Delete" },
+                    move |s| {
+                        if s.confirm_delete_capture.as_deref() == Some(delete_id.as_str()) {
+                            s.delete_capture(&delete_id);
+                        } else {
+                            s.confirm_delete_capture = Some(delete_id.clone());
+                        }
+                    },
+                    k,
+                )),
         );
     }
     if capture_rows.is_empty() {

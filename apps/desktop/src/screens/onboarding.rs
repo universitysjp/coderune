@@ -87,12 +87,7 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
             .color(theme::faint())
             .wrap(),
         );
-    if let Some(error) = &s.error {
-        body = body.child(ui::alert(Some(error.code.as_str()), &error.message));
-    }
-    if let Some(notice) = &s.notice {
-        body = body.child(ui::alert(None, notice));
-    }
+    body = body.children(status_alerts(s));
 
     let actions = row()
         .w_full()

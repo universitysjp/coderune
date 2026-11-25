@@ -2,7 +2,7 @@
 
 use crate::app::CoderuneApp;
 use coderune_domain::ExperienceStage;
-use coderune_ui::components::PushButtonExt;
+use coderune_ui::components::{self as ui, PushButtonExt};
 use coderune_ui::theme::{self, LABEL};
 use coderune_ui::WhenExt;
 use rune::{row, text, El, TextEdit};
@@ -61,6 +61,42 @@ pub(crate) fn destructive(label: &str, press: impl Fn(&mut CoderuneApp) + 'stati
         .build_push(k)
 }
 
+/// A quiet small button for an inline action.
+pub(crate) fn small_ghost(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
+    Button::new(label)
+        .variant(ButtonVariant::Ghost)
+        .on_press(press)
+        .build_small_push(k)
+}
+
+/// A destructive small button, such as a delete control on a list row.
+pub(crate) fn small_destructive(
+    label: &str,
+    press: impl Fn(&mut CoderuneApp) + 'static,
+    k: &Kit,
+) -> El {
+    Button::new(label)
+        .variant(ButtonVariant::Danger)
+        .on_press(press)
+        .build_small_push(k)
+}
+
+/// The error and notice a page shows above its content, in a stable order.
+pub(crate) fn status_alerts(s: &CoderuneApp) -> Vec<El> {
+    let mut rows = error_alert(s).into_iter().collect::<Vec<_>>();
+    if let Some(notice) = &s.notice {
+        rows.push(ui::alert(None, notice));
+    }
+    rows
+}
+
+/// The error alert alone, for a pane that owns its notice placement.
+pub(crate) fn error_alert(s: &CoderuneApp) -> Option<El> {
+    s.error
+        .as_ref()
+        .map(|error| ui::alert(Some(error.code.as_str()), &error.message))
+}
+
 pub(crate) fn text_input<'a>(
     value: &TextEdit,
     placeholder: &str,
@@ -95,50 +131,31 @@ pub(crate) fn text_area<'a>(
 }
 
 pub(crate) fn stage_chips(s: &CoderuneApp) -> El {
-    let mut chips = Vec::new();
-    for stage in ExperienceStage::ALL {
-        let selected = s.profile_form.stage == Some(stage);
-        let mut chip = row()
-            .key(format!("stage-{stage:?}"))
-            .hit()
-            .focusable(true)
-            .role("button")
-            .label(stage.label())
-            .h(32.0)
-            .px(12.0)
-            .center()
-            .radius(6.0)
-            .border(
-                1.0,
-                if selected {
-                    theme::accent()
-                } else {
-                    theme::control_line()
-                },
-            )
-            .fill(if selected {
-                theme::accent_soft()
-            } else {
-                theme::panel()
-            })
-            .when(!selected, |this| this.hover(theme::hover()))
-            .child(
-                text(stage.label())
-                    .font(LABEL)
-                    .color(theme::ink())
-                    .a11y_hidden(),
-            )
-            .on_press(move |s: &mut CoderuneApp| {
+    let chips = ExperienceStage::ALL.into_iter().map(|stage| {
+        choice_chip(
+            format!("stage-chip-{stage:?}"),
+            stage.label(),
+            s.profile_form.stage == Some(stage),
+            move |s: &mut CoderuneApp| {
                 s.profile_form.stage = Some(stage);
                 s.error = None;
-            });
-        chip = chip.key(format!("stage-chip-{stage:?}"));
-        chips.push(chip);
-    }
+            },
+        )
+    });
     row().w_full().gap(8.0).items_center().children(chips)
 }
 
+/// A selectable pill for one value in a small set.
 pub(crate) fn option_chip<S: 'static>(
+    key: String,
+    label: &str,
+    selected: bool,
+    press: impl Fn(&mut S) + 'static,
+) -> El {
+    choice_chip(key, label, selected, press)
+}
+
+fn choice_chip<S: 'static>(
     key: String,
     label: &str,
     selected: bool,
@@ -171,7 +188,3 @@ pub(crate) fn option_chip<S: 'static>(
         .child(text(label).font(LABEL).color(theme::ink()).a11y_hidden())
         .on_press(press)
 }
-
-// ---------------------------------------------------------------------------
-// Root and shell
-// ---------------------------------------------------------------------------

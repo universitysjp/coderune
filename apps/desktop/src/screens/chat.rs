@@ -89,16 +89,7 @@ pub(crate) fn chat(s: &CoderuneApp, k: &Kit) -> El {
         .w_full()
         .h_full()
         .child(header)
-        .when(s.error.is_some(), |page| {
-            let error = s.error.as_ref();
-            page.children(error.map(|error| {
-                col()
-                    .w_full()
-                    .px(16.0)
-                    .py(8.0)
-                    .child(ui::alert(Some(error.code.as_str()), &error.message))
-            }))
-        })
+        .children(error_alert(s).map(|alert| col().w_full().px(16.0).py(8.0).child(alert)))
         .child(body)
 }
 

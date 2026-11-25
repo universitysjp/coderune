@@ -42,12 +42,7 @@ pub(crate) fn projects(s: &CoderuneApp, k: &Kit) -> El {
     let mut page = ui::page("projects-page")
         .max_w(640.0)
         .child(ui::page_header(title, &description, actions));
-    if let Some(error) = &s.error {
-        page = page.child(ui::alert(Some(error.code.as_str()), &error.message));
-    }
-    if let Some(notice) = &s.notice {
-        page = page.child(ui::alert(None, notice));
-    }
+    page = page.children(status_alerts(s));
     if let Some(project) = project {
         page = page.child(context_progress(s, project, k));
     }

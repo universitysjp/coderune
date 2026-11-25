@@ -35,12 +35,7 @@ pub(crate) fn profile(s: &CoderuneApp, k: &Kit) -> El {
             .build(k),
     );
 
-    if let Some(error) = &s.error {
-        body = body.child(ui::alert(Some(error.code.as_str()), &error.message));
-    }
-    if let Some(notice) = &s.notice {
-        body = body.child(ui::alert(None, notice));
-    }
+    body = body.children(status_alerts(s));
 
     match s.profile_tab {
         ProfileTab::Baseline => body.child(baseline(s, k)),
