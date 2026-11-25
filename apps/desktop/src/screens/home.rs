@@ -1,7 +1,7 @@
 //! The home screen.
 
-use crate::app::{CoderuneApp, View};
-use crate::widgets::{primary, secondary};
+use crate::app::CoderuneApp;
+use crate::widgets::{primary, primary_tx, secondary, secondary_tx};
 use coderune_ui::components as ui;
 use coderune_ui::icons;
 use coderune_ui::theme::{self, HEADING_LG, HEADING_SM};
@@ -22,7 +22,10 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
         .gap(12.0)
         .child(text("Home").font(HEADING_LG).color(theme::ink()));
     let start = if let Some(project) = project {
-        header = header.child(secondary("New project", new_project, k).key("home-new-project"));
+        header = header.child(
+            secondary_tx("New project", |s, tx| s.choose_project_folder(tx), k)
+                .key("home-new-project"),
+        );
         let id = project.id.clone();
         let (done, total) = s.context_done(&id);
         ui::section(
@@ -57,7 +60,14 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
                 .child(ui::subtle(
                     "Add a project folder to start a chat and collect context.",
                 ))
-                .child(primary("Create project", new_project, k).key("home-new-project"))],
+                .child(
+                    primary_tx(
+                        "Choose project folder",
+                        |s, tx| s.choose_project_folder(tx),
+                        k,
+                    )
+                    .key("home-new-project"),
+                )],
         )
     };
 
@@ -87,9 +97,4 @@ pub(crate) fn home(s: &CoderuneApp, k: &Kit) -> El {
         body = body.child(ui::alert(Some(error.code.as_str()), &error.message));
     }
     body
-}
-
-fn new_project(s: &mut CoderuneApp) {
-    s.new_project_form();
-    s.navigate(View::Projects);
 }

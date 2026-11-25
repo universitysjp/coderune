@@ -29,6 +29,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
             [col()
                 .w_full()
                 .gap(10.0)
+                .py(ui::ROW_PAD)
                 .child(text(&project.name).font(theme::LABEL).color(theme::ink()))
                 .child(ui::subtle("Effective scope and limits for the next preview."))
                 .children(vec![
@@ -152,6 +153,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
             [col()
                 .w_full()
                 .gap(10.0)
+                .py(ui::ROW_PAD)
                 .child(ui::subtle(
                     "Saving re-collects the repository. If anything changed, you must preview again.",
                 ))
@@ -222,6 +224,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
         [col()
             .w_full()
             .gap(4.0)
+            .py(ui::ROW_PAD)
             .child(ui::subtle(
                 "Older captures remain immutable when the profile or project changes.",
             ))
@@ -269,6 +272,7 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
             [col()
                 .w_full()
                 .gap(10.0)
+                .py(ui::ROW_PAD)
                 .child(ui::subtle(
                     "Saved content is read back from the local content store by hash.",
                 ))

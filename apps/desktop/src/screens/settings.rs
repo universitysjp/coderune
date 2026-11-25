@@ -2,7 +2,6 @@
 
 use crate::app::{CoderuneApp, SettingsSection, VIEW_SHORTCUTS};
 use crate::updates::Status;
-use crate::widgets::text_input;
 use coderune_ui::{components as ui, components::PushButtonExt, icons, theme};
 use rune::{col, el, row, text, El, ScrollSpec};
 use rune_kit::{
@@ -265,11 +264,11 @@ fn font_row(
 }
 
 fn storage(s: &CoderuneApp, k: &Kit) -> El {
-    let data_path = s.workspace.as_ref().map(|workspace| workspace.data_path());
-    let folder = data_path
-        .as_deref()
-        .and_then(std::path::Path::parent)
-        .map(std::path::Path::to_path_buf);
+    let folder = s
+        .workspace
+        .as_ref()
+        .map(|workspace| workspace.data_path())
+        .and_then(|path| path.parent().map(std::path::Path::to_path_buf));
     let open = Button::new("Open data folder")
         .disabled(folder.is_none())
         .on_press(move |s: &mut CoderuneApp| {
@@ -281,7 +280,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
         .key("open-data-folder");
     let export = Button::new("Export JSON")
         .variant(ButtonVariant::Contrast)
-        .on_press(CoderuneApp::export_data)
+        .on_press_tx(|s: &mut CoderuneApp, tx: &mut rune::Tx| s.export_data(tx))
         .build_push(k)
         .key("export-data");
     let delete = Button::new("Delete all data")
@@ -294,70 +293,66 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
         .build_push(k)
         .key("delete-data");
 
-    let mut database = col()
-        .w_full()
-        .child(ui::setting_row("Local database", None, open));
-    if let Some(path) = data_path {
-        database = database.child(
-            text(path.display().to_string())
-                .pb(12.0)
-                .font(theme::CODE_SM)
-                .color(theme::muted())
-                .truncate(),
+    let data = ui::section(
+        k,
+        "storage-data",
+        "Local data",
+        [
+            ui::setting_row(
+                "Local database",
+                Some(
+                    "Your profile, projects, chats, documents, and captures stay on this computer."
+                        .to_string(),
+                ),
+                open,
+            )
+            .py(ui::ROW_PAD),
+            ui::setting_row(
+                "Export data",
+                Some("Save everything as one JSON file to move or archive it.".to_string()),
+                export,
+            )
+            .py(ui::ROW_PAD),
+        ],
+    );
+    let mut danger_rows = vec![ui::setting_row(
+        "Delete all data",
+        Some(
+            "Permanently removes your profile, projects, chats, documents, and captures."
+                .to_string(),
+        ),
+        delete,
+    )
+    .py(ui::ROW_PAD)];
+    if s.confirm_delete_all {
+        danger_rows.push(
+            ui::setting_row(
+                "This action cannot be undone.",
+                None,
+                row()
+                    .gap(8.0)
+                    .child(
+                        Button::new("Cancel")
+                            .on_press(|s: &mut CoderuneApp| s.confirm_delete_all = false)
+                            .build_push(k)
+                            .key("cancel-delete-data"),
+                    )
+                    .child(
+                        Button::new("Confirm delete all")
+                            .variant(ButtonVariant::Danger)
+                            .on_press(CoderuneApp::delete_all_data)
+                            .build_push(k)
+                            .key("confirm-delete-data"),
+                    ),
+            )
+            .py(ui::ROW_PAD),
         );
     }
-    let mut rows = vec![
-        database,
-        col()
-            .w_full()
-            .pb(12.0)
-            .child(ui::setting_row(
-                "Export data",
-                Some("Save your profile, projects, documents, and captures as JSON.".to_string()),
-                export,
-            ))
-            .child(ui::field(
-                "Export path",
-                None,
-                text_input(
-                    &s.export_path,
-                    "/path/to/export.json",
-                    "Export path",
-                    |s| &mut s.export_path,
-                    k,
-                ),
-            )),
-        ui::setting_row(
-            "Delete all data",
-            Some(
-                "Permanently removes your profile, projects, chats, documents, and captures."
-                    .to_string(),
-            ),
-            delete,
-        ),
-    ];
-    if s.confirm_delete_all {
-        rows.push(ui::setting_row(
-            "This action cannot be undone.",
-            None,
-            row()
-                .gap(8.0)
-                .child(
-                    Button::new("Cancel")
-                        .on_press(|s: &mut CoderuneApp| s.confirm_delete_all = false)
-                        .build_push(k)
-                        .key("cancel-delete-data"),
-                )
-                .child(
-                    Button::new("Confirm delete all")
-                        .variant(ButtonVariant::Danger)
-                        .on_press(CoderuneApp::delete_all_data)
-                        .build_push(k)
-                        .key("confirm-delete-data"),
-                ),
-        ));
-    }
-    ui::settings_card(k, "storage-options", rows)
+    col()
+        .w_full()
+        .gap(ui::SECTION_GAP)
+        .child(data)
+        .child(ui::section(k, "storage-danger", "Danger zone", danger_rows))
 }
 
 fn shortcuts(k: &Kit) -> El {

@@ -62,6 +62,7 @@ fn baseline(s: &CoderuneApp, k: &Kit) -> El {
             [col()
                 .w_full()
                 .gap(12.0)
+                .py(ui::ROW_PAD)
                 .child(ui::subtle(
                     "Edits create a new immutable version. Existing captures keep their snapshot.",
                 ))
@@ -171,6 +172,7 @@ fn baseline(s: &CoderuneApp, k: &Kit) -> El {
         [col()
             .w_full()
             .gap(12.0)
+            .py(ui::ROW_PAD)
             .child(ui::subtle(
                 "Self-reported skills are never presented as verified mastery.",
             ))
@@ -197,6 +199,7 @@ fn details(s: &CoderuneApp, k: &Kit) -> El {
         [col()
             .w_full()
             .gap(10.0)
+            .py(ui::ROW_PAD)
             .child(ui::subtle(
                 "Optional. Each entry makes future project context more useful, but none is required to start.",
             ))

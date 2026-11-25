@@ -1,7 +1,7 @@
 //! Coderune's native desktop application.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use coderune_agents::CliAgentId;
 use coderune_app::{PreviewSession, Workspace};
@@ -11,7 +11,7 @@ use coderune_domain::{
     EducationEntry, EmploymentEntry, ExperienceStage, LearningPreferences, Link, ProfileDraft,
     ProjectDraft, ProjectExperience, SelfReportedSkill, SkillRating,
 };
-use rune::{col, text, Cx, El, Key, KeyEvent, TextEdit, Tx};
+use rune::{col, text, Cx, El, FileDialogOptions, Key, KeyEvent, TextEdit, Tx};
 use rune_kit::shell::is_sidebar_toggle;
 
 use coderune_ui::icons;
@@ -114,64 +114,6 @@ pub(crate) const VIEW_SHORTCUTS: [(char, View); 6] = [
     ('5', View::Subagents),
     ('6', View::Capture),
 ];
-
-/// The three short onboarding questions. Optional profile detail lives in the
-/// app's Profile screen, so onboarding never becomes a form with everything on
-/// one page.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OnboardingStep {
-    About,
-    StartingPoint,
-    Review,
-}
-
-impl OnboardingStep {
-    pub const ALL: [Self; 3] = [Self::About, Self::StartingPoint, Self::Review];
-
-    pub fn index(self) -> usize {
-        match self {
-            Self::About => 0,
-            Self::StartingPoint => 1,
-            Self::Review => 2,
-        }
-    }
-
-    pub fn title(self) -> &'static str {
-        match self {
-            Self::About => "About you",
-            Self::StartingPoint => "Your starting point",
-            Self::Review => "Review your baseline",
-        }
-    }
-
-    pub fn description(self) -> &'static str {
-        match self {
-            Self::About => "Two quick questions. Your name and where you are starting from.",
-            Self::StartingPoint => {
-                "Two more. Say what you can do today and what you want to learn. New to coding is a valid answer."
-            }
-            Self::Review => {
-                "Check the baseline Coderune will share with your projects. You can change it later."
-            }
-        }
-    }
-
-    pub fn previous(self) -> Option<Self> {
-        match self {
-            Self::About => None,
-            Self::StartingPoint => Some(Self::About),
-            Self::Review => Some(Self::StartingPoint),
-        }
-    }
-
-    pub fn next(self) -> Option<Self> {
-        match self {
-            Self::About => Some(Self::StartingPoint),
-            Self::StartingPoint => Some(Self::Review),
-            Self::Review => None,
-        }
-    }
-}
 
 /// Profile's two views: the required baseline and the optional details that
 /// live inside the app after onboarding.
@@ -357,6 +299,13 @@ pub struct ProjectForm {
 }
 
 impl ProjectForm {
+    /// The folder row the panel shows: the picked root, or a prompt when none is
+    /// picked yet.
+    pub(crate) fn folder(&self) -> Option<PathBuf> {
+        let path = self.root.text.trim();
+        (!path.is_empty()).then(|| PathBuf::from(path))
+    }
+
     pub(crate) fn empty(initial_root: Option<PathBuf>) -> Self {
         Self {
             name: edit(""),
@@ -373,6 +322,14 @@ impl ProjectForm {
             per_capture_mib: edit("20"),
             editing: None,
         }
+    }
+
+    /// A new project's form with the picked folder and its name already filled
+    /// in, so the first dialog only asks what still matters.
+    pub(crate) fn from_folder(root: &Path) -> Self {
+        let mut form = Self::empty(Some(root.to_path_buf()));
+        form.name = edit(project_name(root));
+        form
     }
 
     pub(crate) fn from_project(project: &coderune_domain::Project) -> Self {
@@ -476,11 +433,15 @@ pub struct CoderuneApp {
     pub(crate) fatal: Option<String>,
     pub(crate) view: View,
     pub(crate) sidebar: SidebarPane,
-    pub onboarding_step: OnboardingStep,
+    /// Whether the onboarding dialog is showing. It can be dismissed into the
+    /// Profile panel, which finishes the same baseline.
+    pub(crate) onboarding_visible: bool,
     pub profile_tab: ProfileTab,
     pub profile_section: Option<ProfileSection>,
     pub(crate) profile_form: ProfileForm,
     pub(crate) project_form: ProjectForm,
+    /// The new-project dialog opened by picking a folder.
+    pub(crate) project_dialog: bool,
     pub(crate) project_scope_expanded: bool,
     pub(crate) document_form: DocumentForm,
     pub(crate) capture_session: Option<PreviewSession>,
@@ -491,7 +452,6 @@ pub struct CoderuneApp {
     pub(crate) confirm_delete_project: Option<String>,
     pub(crate) confirm_delete_capture: Option<String>,
     pub(crate) confirm_delete_all: bool,
-    pub(crate) export_path: TextEdit,
     pub(crate) settings: Option<SettingsSection>,
     /// The font list open in Settings, by row.
     pub(crate) font_menu: Option<&'static str>,
@@ -549,16 +509,6 @@ impl CoderuneApp {
                     .and_then(|workspace| workspace.launch_directory.clone()),
             ),
         };
-        let export_path = edit(
-            std::env::var("HOME")
-                .map(|home| {
-                    PathBuf::from(home)
-                        .join("coderune-export.json")
-                        .display()
-                        .to_string()
-                })
-                .unwrap_or_else(|_| "coderune-export.json".to_string()),
-        );
         let preferences = workspace
             .as_ref()
             .map(|workspace| Preferences::load(&Preferences::path(&workspace.data_path())))
@@ -584,11 +534,12 @@ impl CoderuneApp {
             fatal,
             view: View::Home,
             sidebar: SidebarPane::default(),
-            onboarding_step: OnboardingStep::About,
+            onboarding_visible: true,
             profile_tab: ProfileTab::Baseline,
             profile_section: None,
             profile_form,
             project_form,
+            project_dialog: false,
             project_scope_expanded: false,
             document_form: DocumentForm::empty(),
             capture_session: None,
@@ -599,7 +550,6 @@ impl CoderuneApp {
             confirm_delete_project: None,
             confirm_delete_capture: None,
             confirm_delete_all: false,
-            export_path,
             settings: None,
             font_menu: None,
             settings_feedback: None,
@@ -625,31 +575,15 @@ impl CoderuneApp {
         if app.active_chat().is_some() {
             app.refresh_chat_agents();
         }
-        app.onboarding_step = app.initial_onboarding_step();
         app
     }
 
-    /// Resume onboarding at the first step whose required answers are missing.
-    fn initial_onboarding_step(&self) -> OnboardingStep {
-        let Some(workspace) = self.workspace.as_ref() else {
-            return OnboardingStep::About;
-        };
-        let Some(draft) = workspace.onboarding.draft.as_ref() else {
-            return OnboardingStep::About;
-        };
-        let draft = &draft.draft;
-        if draft.display_name.trim().is_empty() || draft.experience_stage.is_none() {
-            OnboardingStep::About
-        } else if (!draft.new_to_coding && draft.skills_statement.trim().is_empty())
-            || draft
-                .learning_goals
-                .iter()
-                .all(|goal| goal.trim().is_empty())
-        {
-            OnboardingStep::StartingPoint
-        } else {
-            OnboardingStep::Review
-        }
+    /// Whether the developer baseline is still missing, so the onboarding dialog
+    /// stays in front of the workspace.
+    pub(crate) fn onboarding_required(&self) -> bool {
+        self.workspace
+            .as_ref()
+            .is_some_and(|workspace| !workspace.onboarding.can_start_project)
     }
 
     fn profile_base(&self) -> ProfileDraft {
@@ -990,16 +924,6 @@ impl CoderuneApp {
         self.update_preferences(|preferences| preferences.agent_dock = dock);
     }
 
-    pub(crate) fn projects_collapsed(&self) -> bool {
-        self.preferences.projects_collapsed
-    }
-
-    pub(crate) fn toggle_projects_section(&mut self) {
-        self.update_preferences(|preferences| {
-            preferences.projects_collapsed = !preferences.projects_collapsed;
-        });
-    }
-
     pub(crate) fn project_expanded(&self, id: &str) -> bool {
         self.preferences.project_expanded(id)
     }
@@ -1116,38 +1040,19 @@ impl CoderuneApp {
         }
     }
 
-    /// Why the current onboarding step cannot continue, if it cannot.
+    /// Why the onboarding dialog cannot be confirmed, if it cannot. Only the two
+    /// questions every project needs are required; the rest can wait in Profile.
     fn onboarding_blocker(&self) -> Option<&'static str> {
-        match self.onboarding_step {
-            OnboardingStep::About => {
-                if self.profile_form.display_name.text.trim().is_empty() {
-                    Some("Add a display name or pseudonym to continue.")
-                } else if self.profile_form.stage.is_none() {
-                    Some("Choose the experience stage that fits you today.")
-                } else {
-                    None
-                }
-            }
-            OnboardingStep::StartingPoint => {
-                if !self.profile_form.new_to_coding
-                    && self.profile_form.skills.text.trim().is_empty()
-                {
-                    Some("Say what you can do today, or mark that you are new to coding.")
-                } else if split_list(&self.profile_form.goals.text).is_empty() {
-                    Some("Add at least one learning goal to continue.")
-                } else {
-                    None
-                }
-            }
-            OnboardingStep::Review => None,
+        if self.profile_form.display_name.text.trim().is_empty() {
+            Some("Add a display name or pseudonym to continue.")
+        } else if self.profile_form.stage.is_none() {
+            Some("Choose the experience stage that fits you today.")
+        } else {
+            None
         }
     }
 
-    pub(crate) fn onboarding_next(&mut self) {
-        if self.onboarding_step == OnboardingStep::Review {
-            self.confirm_profile();
-            return;
-        }
+    pub(crate) fn confirm_onboarding(&mut self) {
         if let Some(message) = self.onboarding_blocker() {
             self.error = Some(AppError::new(
                 coderune_domain::ErrorCode::Validation,
@@ -1156,22 +1061,18 @@ impl CoderuneApp {
             self.notice = None;
             return;
         }
-        if !self.persist_draft() {
-            return;
-        }
-        if let Some(next) = self.onboarding_step.next() {
-            self.onboarding_step = next;
-            self.error = None;
-            self.notice = None;
-        }
+        self.confirm_profile();
     }
 
-    pub(crate) fn onboarding_back(&mut self) {
-        if let Some(previous) = self.onboarding_step.previous() {
-            self.onboarding_step = previous;
-            self.error = None;
-            self.notice = None;
-        }
+    /// Closes the onboarding dialog and leaves the same answers in the Profile
+    /// panel, where the rest of the baseline can be finished.
+    pub(crate) fn dismiss_onboarding(&mut self) {
+        self.onboarding_visible = false;
+        self.view = View::Profile;
+        self.profile_tab = ProfileTab::Baseline;
+        self.error = None;
+        self.notice = None;
+        self.show_workspace();
     }
 
     pub(crate) fn open_profile_details(&mut self) {
@@ -1198,6 +1099,7 @@ impl CoderuneApp {
                     profile.version
                 ));
                 self.error = None;
+                self.onboarding_visible = false;
                 self.view = View::Home;
                 self.profile_tab = ProfileTab::Baseline;
                 self.profile_section = None;
@@ -1208,6 +1110,12 @@ impl CoderuneApp {
     }
 
     pub(crate) fn save_profile(&mut self) {
+        // Before the first baseline is confirmed, the Profile panel is the
+        // onboarding fallback: the same form, with the same confirmation.
+        if self.onboarding_required() {
+            self.confirm_profile();
+            return;
+        }
         let base = self.profile_base();
         let draft = self.profile_form.to_draft(base);
         let Some(workspace) = self.workspace.as_mut() else {
@@ -1249,6 +1157,7 @@ impl CoderuneApp {
             .as_ref()
             .and_then(|workspace| workspace.launch_directory.clone());
         self.project_form = ProjectForm::empty(initial_root);
+        self.project_dialog = false;
         self.project_scope_expanded = false;
         self.confirm_delete_project = None;
         self.error = None;
@@ -1257,6 +1166,98 @@ impl CoderuneApp {
             workspace.select_project(None);
         }
         self.refresh_captures();
+    }
+
+    /// Opens the system folder picker. A picked folder fills a new project form
+    /// and opens its quick questions; cancelling changes nothing.
+    pub(crate) fn choose_project_folder(&mut self, tx: &mut Tx) {
+        let directory = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.launch_directory.clone());
+        tx.open_folder(
+            FileDialogOptions {
+                title: "Choose a project folder".to_string(),
+                directory,
+                ..FileDialogOptions::default()
+            },
+            |s: &mut CoderuneApp, result, tx| match result {
+                Ok(Some(path)) => {
+                    s.start_new_project(&path);
+                    tx.instant();
+                }
+                Ok(None) => {}
+                Err(error) => s.error = Some(folder_picker_error(error)),
+            },
+        );
+    }
+
+    /// The panel's folder row. It replaces the form's root, keeping the name the
+    /// developer typed unless it is still untouched.
+    pub(crate) fn change_project_folder(&mut self, tx: &mut Tx) {
+        let directory = self.project_form.folder();
+        tx.open_folder(
+            FileDialogOptions {
+                title: "Choose a project folder".to_string(),
+                directory,
+                ..FileDialogOptions::default()
+            },
+            |s: &mut CoderuneApp, result, tx| match result {
+                Ok(Some(path)) => {
+                    if s.project_form.name.text.trim().is_empty() {
+                        s.project_form.name = edit(project_name(&path));
+                    }
+                    s.project_form.root = edit(path.display().to_string());
+                    s.error = None;
+                    tx.instant();
+                }
+                Ok(None) => {}
+                Err(error) => s.error = Some(folder_picker_error(error)),
+            },
+        );
+    }
+
+    fn start_new_project(&mut self, root: &Path) {
+        self.project_form = ProjectForm::from_folder(root);
+        self.project_dialog = true;
+        self.project_scope_expanded = false;
+        self.confirm_delete_project = None;
+        self.error = None;
+        self.notice = None;
+        self.reset_capture_state();
+        if let Some(workspace) = self.workspace.as_mut() {
+            workspace.select_project(None);
+        }
+        self.view = View::Projects;
+        self.show_workspace();
+        self.refresh_captures();
+    }
+
+    /// Closes the quick questions without creating anything: the picked folder
+    /// stays in the panel, where the rest can be completed.
+    pub(crate) fn close_project_dialog(&mut self) {
+        self.project_dialog = false;
+        self.error = None;
+    }
+
+    /// Creates the project from the dialog. Only the name and one goal are
+    /// required; scope and limits take their defaults.
+    pub(crate) fn create_project_from_dialog(&mut self) {
+        if self.project_form.name.text.trim().is_empty() {
+            self.error = Some(AppError::validation(vec!["name".to_string()]));
+            return;
+        }
+        if split_list(&self.project_form.goals.text).is_empty() {
+            self.error = Some(AppError::new(
+                coderune_domain::ErrorCode::Validation,
+                "Add at least one goal, or finish the project in the panel.",
+            ));
+            return;
+        }
+        self.save_project();
+        if self.project_form.editing.is_some() {
+            self.project_dialog = false;
+        }
     }
 
     pub(crate) fn save_project(&mut self) {
@@ -1559,14 +1560,41 @@ impl CoderuneApp {
         }
     }
 
-    pub(crate) fn export_data(&mut self) {
-        let path = PathBuf::from(self.export_path.text.trim());
+    /// Asks where to write the export, then writes it there. No path field: the
+    /// system save dialog names the file.
+    pub(crate) fn export_data(&mut self, tx: &mut Tx) {
+        let directory = self
+            .workspace
+            .as_ref()
+            .map(|workspace| workspace.data_path())
+            .and_then(|path| path.parent().map(Path::to_path_buf));
+        tx.save_file(
+            FileDialogOptions {
+                title: "Export local context".to_string(),
+                directory,
+                file_name: Some("coderune-export.json".to_string()),
+                ..FileDialogOptions::default()
+            },
+            |s: &mut CoderuneApp, result, _| match result {
+                Ok(Some(path)) => s.export_data_to(&path),
+                Ok(None) => {}
+                Err(error) => {
+                    s.settings_feedback = Some(Err(AppError::new(
+                        coderune_domain::ErrorCode::UnreadablePath,
+                        format!("Could not open the save dialog: {error}"),
+                    )));
+                }
+            },
+        );
+    }
+
+    fn export_data_to(&mut self, path: &Path) {
         let Some(workspace) = self.workspace.as_ref() else {
             return;
         };
         self.settings_feedback = Some(workspace.export_json().and_then(|json| {
-            std::fs::write(&path, json)
-                .map(|()| format!("Exported local context to {}.", path.display()))
+            std::fs::write(path, json)
+                .map(|()| "Local context exported.".to_string())
                 .map_err(|error| {
                     AppError::new(
                         coderune_domain::ErrorCode::Validation,
@@ -1593,6 +1621,7 @@ impl CoderuneApp {
                 self.error = None;
                 self.close_settings();
                 self.view = View::Home;
+                self.onboarding_visible = true;
                 self.reset_capture_state();
                 self.confirm_delete_project = None;
                 self.confirm_delete_capture = None;
@@ -1676,6 +1705,13 @@ pub fn scene_subagents(s: &mut CoderuneApp) {
 pub fn scene_capture(s: &mut CoderuneApp) {
     seed_demo(s);
     s.view = View::Capture;
+}
+
+/// The quick questions shown after a folder is picked.
+pub fn scene_new_project(s: &mut CoderuneApp) {
+    seed_demo(s);
+    let root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    s.start_new_project(&root);
 }
 pub fn scene_capture_preview(s: &mut CoderuneApp) {
     seed_demo(s);
@@ -1787,19 +1823,19 @@ pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
     update_changed || detection_changed || avatar_changed || chat_changed
 }
 
-/// Onboarding's second step, with the first step's answers filled in.
+/// Onboarding with only the two required answers filled in.
 pub fn scene_onboarding_start(s: &mut CoderuneApp) {
     s.profile_form.display_name = edit("Ada");
     s.profile_form.stage = Some(ExperienceStage::EarlyCareer);
-    s.onboarding_step = OnboardingStep::StartingPoint;
 }
 
-/// Onboarding's review step, without confirming the baseline.
+/// Onboarding with every answer filled in, dismissed into the Profile panel so
+/// the same baseline can be finished there.
 pub fn scene_onboarding_review(s: &mut CoderuneApp) {
     scene_onboarding_start(s);
     s.profile_form.skills = edit("TypeScript and a little Rust");
     s.profile_form.goals = edit("Ship the native desktop app, Learn Rune");
-    s.onboarding_step = OnboardingStep::Review;
+    s.dismiss_onboarding();
 }
 
 /// Profile's optional-details view with one section open.
@@ -2014,6 +2050,21 @@ pub(crate) fn split_list(value: &str) -> Vec<String> {
         .collect()
 }
 
+/// A folder's own name, used as a new project's first guess at a name.
+fn project_name(root: &Path) -> String {
+    root.file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| "New project".to_string())
+}
+
+fn folder_picker_error(error: rune::FileDialogError) -> AppError {
+    AppError::new(
+        coderune_domain::ErrorCode::UnreadablePath,
+        format!("Could not open the folder picker: {error}"),
+    )
+}
+
 pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
     theme::with_dark(s.dark_mode(), || themed_view(s, cx))
 }
@@ -2023,20 +2074,20 @@ fn themed_view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
     let inset = cx.titlebar_inset();
     let body = if let Some(message) = &s.fatal {
         fatal(message, inset)
-    } else if s
-        .workspace
-        .as_ref()
-        .is_some_and(|workspace| workspace.onboarding.can_start_project)
-    {
-        shell::workspace(s, k, cx)
     } else {
-        screens::onboarding(s, k, inset)
+        shell::workspace(s, k, cx)
     };
     let base = col().w_full().h_full().fill(theme::bg()).child(body);
     let mut overlays = Vec::new();
     if let Some(section) = s.settings {
         screens::settings::dialog(s, section, k, &mut overlays);
     }
+    if s.project_dialog {
+        screens::projects::dialog(s, k, &mut overlays);
+    }
+    // Onboarding is a dialog over the workspace, not a page of its own: the rest
+    // of the profile can wait in the Profile panel.
+    screens::onboarding::dialog(s, k, &mut overlays);
     rune_kit::root(base, overlays)
 }
 
@@ -2212,33 +2263,72 @@ mod tests {
     }
 
     #[test]
-    fn onboarding_blocks_a_step_until_its_two_answers_exist() {
+    fn onboarding_confirms_the_required_answers() {
         let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("CODERUNE_DATA_DIR", dir.path());
         let mut state = CoderuneApp::init();
-        assert_eq!(state.onboarding_step, OnboardingStep::About);
+        assert!(state.onboarding_required());
 
-        state.onboarding_next();
-        assert_eq!(state.onboarding_step, OnboardingStep::About);
+        state.confirm_onboarding();
+        assert!(state.onboarding_required());
         assert!(state.error.is_some());
 
         state.profile_form.display_name = edit("Ada");
         state.profile_form.stage = Some(ExperienceStage::EarlyCareer);
-        state.onboarding_next();
-        assert_eq!(state.onboarding_step, OnboardingStep::StartingPoint);
-        assert!(state.error.is_none());
-
-        state.onboarding_next();
-        assert_eq!(state.onboarding_step, OnboardingStep::StartingPoint);
+        state.confirm_onboarding();
+        assert!(state.onboarding_required());
         assert!(state.error.is_some());
 
         state.profile_form.new_to_coding = true;
         state.profile_form.goals = edit("Learn Rust");
-        state.onboarding_next();
-        assert_eq!(state.onboarding_step, OnboardingStep::Review);
-        state.onboarding_back();
-        assert_eq!(state.onboarding_step, OnboardingStep::StartingPoint);
+        state.confirm_onboarding();
+        assert!(!state.onboarding_required());
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn the_profile_panel_finishes_onboarding_after_it_is_dismissed() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        state.dismiss_onboarding();
+        assert!(!state.onboarding_visible);
+        assert_eq!(state.view, View::Profile);
+
+        state.profile_form.display_name = edit("Ada");
+        state.profile_form.stage = Some(ExperienceStage::EarlyCareer);
+        state.profile_form.new_to_coding = true;
+        state.profile_form.goals = edit("Learn Rust");
+        state.save_profile();
+        assert!(!state.onboarding_required());
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn a_new_project_folder_opens_the_quick_questions() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        seed_demo(&mut state);
+        let folder = tempfile::tempdir().unwrap();
+        state.start_new_project(folder.path());
+        assert!(state.project_dialog);
+        assert!(state.project_form.editing.is_none());
+
+        // A goal is the one thing the quick questions insist on.
+        state.project_form.goals = edit("");
+        state.create_project_from_dialog();
+        assert!(state.project_dialog);
+        assert!(state.error.is_some());
+
+        state.project_form.goals = edit("Ship the desktop app");
+        state.create_project_from_dialog();
+        assert!(!state.project_dialog);
+        assert!(state.project_form.editing.is_some());
+        assert!(state.workspace.as_ref().unwrap().projects.len() >= 2);
     }
 
     #[test]
@@ -2253,7 +2343,9 @@ mod tests {
 
         let mut onboarding = Runtime::new(CoderuneApp::init(), view, (1280.0, 860.0), env);
         onboarding.frame(0.0);
+        assert!(onboarding.find("onboarding-dialog").is_some());
         assert!(onboarding.find("stage-chip-EarlyCareer").is_some());
+        assert!(onboarding.find("onboarding-confirm").is_some());
 
         let mut workspace_state = CoderuneApp::init();
         seed_demo(&mut workspace_state);
@@ -2407,7 +2499,6 @@ mod tests {
         let mut state = CoderuneApp::init();
         scene_projects(&mut state);
         let export_path = dir.path().join("export.json");
-        state.export_path = edit(&export_path.display().to_string());
         let mut app = Runtime::new(
             state,
             view,
@@ -2450,6 +2541,13 @@ mod tests {
         assert!(app.find("check-updates").is_none());
 
         click(&mut app, "export-data");
+        for _ in 0..8 {
+            app.frame(1.0 / 60.0);
+        }
+        app.resolve_file_dialog(Some(export_path.clone())).unwrap();
+        for _ in 0..8 {
+            app.frame(1.0 / 60.0);
+        }
         let exported: serde_json::Value =
             serde_json::from_slice(&std::fs::read(export_path).unwrap()).unwrap();
         assert_eq!(exported["projects"][0]["name"], "Coderune");

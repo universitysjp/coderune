@@ -15,10 +15,35 @@ pub(crate) fn primary(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k
         .build_push(k)
 }
 
+/// A primary button whose action needs the frame's transaction, such as one
+/// that opens a system dialog.
+pub(crate) fn primary_tx(
+    label: &str,
+    press: impl Fn(&mut CoderuneApp, &mut rune::Tx) + 'static,
+    k: &Kit,
+) -> El {
+    Button::new(label)
+        .variant(ButtonVariant::Contrast)
+        .on_press_tx(press)
+        .build_push(k)
+}
+
 pub(crate) fn secondary(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k: &Kit) -> El {
     Button::new(label)
         .variant(ButtonVariant::Neutral)
         .on_press(press)
+        .build_push(k)
+}
+
+/// A secondary button whose action needs the frame's transaction.
+pub(crate) fn secondary_tx(
+    label: &str,
+    press: impl Fn(&mut CoderuneApp, &mut rune::Tx) + 'static,
+    k: &Kit,
+) -> El {
+    Button::new(label)
+        .variant(ButtonVariant::Neutral)
+        .on_press_tx(press)
         .build_push(k)
 }
 

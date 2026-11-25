@@ -17,7 +17,6 @@ pub(crate) use capture::capture;
 pub(crate) use chat::chat;
 pub(crate) use documents::documents;
 pub(crate) use home::home;
-pub(crate) use onboarding::onboarding;
 pub(crate) use profile::profile;
 pub(crate) use projects::projects;
 pub(crate) use subagents::subagents;

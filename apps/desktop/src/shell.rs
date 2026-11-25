@@ -15,6 +15,9 @@ use crate::screens;
 
 const SIDEBAR_BREAKPOINT: f32 = 1080.0;
 const SIDEBAR_STEP: f32 = 8.0;
+/// Every top-level navigation tab shares this height and inset, so the four
+/// destinations read as one set.
+const NAV_ROW_HEIGHT: f32 = 32.0;
 
 pub(crate) struct SidebarPane {
     wide: PaneState,
@@ -301,31 +304,22 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
         .inset(8.0)
         .header_padding(0.0, 6.0)
         .row_gap(1.0);
-    nav = nav.child(
-        SidebarRow::new("Home")
-            .icon(&icons::HOUSE)
-            .selected(s.view == View::Home && s.active_chat().is_none())
-            .on_select(|s: &mut CoderuneApp, _: &mut rune::Tx| s.navigate(View::Home))
-            .build(k)
-            .key(View::Home.nav_key()),
-    );
+    // The four destinations sit together at the top, with no group label.
+    for view in [View::Home, View::Documents, View::Subagents, View::Capture] {
+        nav = nav.child(nav_item(s, view, k));
+    }
 
-    let mut projects = SidebarSection::new("Projects")
-        .key("nav-projects")
-        .collapsed(s.projects_collapsed())
-        .on_toggle(|s: &mut CoderuneApp, _: &mut rune::Tx| s.toggle_projects_section())
-        .action(
-            IconButton::new(&icons::PLUS)
-                .variant(IconButtonVariant::Ghost)
-                .control_size(ControlSize::Small)
-                .label("New project")
-                .on_press(|s: &mut CoderuneApp| {
-                    s.new_project_form();
-                    s.navigate(View::Projects);
-                })
-                .build(k)
-                .key("sidebar-new-project"),
-        );
+    // Projects come below the tabs. The header carries only the add button: the
+    // list is always shown, so a project is never hidden behind a disclosure.
+    let mut projects = SidebarSection::new("Projects").key("nav-projects").action(
+        IconButton::new(&icons::PLUS)
+            .variant(IconButtonVariant::Ghost)
+            .control_size(ControlSize::Small)
+            .label("Add a project folder")
+            .on_press_tx(|s: &mut CoderuneApp, tx: &mut rune::Tx| s.choose_project_folder(tx))
+            .build(k)
+            .key("sidebar-new-project"),
+    );
     for project in s.workspace.iter().flat_map(|workspace| &workspace.projects) {
         projects = projects.row(project_row(s, project, k));
         if s.project_expanded(&project.id) {
@@ -336,6 +330,7 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
             projects = projects.row(
                 SidebarRow::new("New chat")
                     .icon(&icons::PLUS)
+                    .height(NAV_ROW_HEIGHT)
                     .depth(1)
                     .on_select(move |s: &mut CoderuneApp, tx: &mut rune::Tx| {
                         s.new_chat(&project_id);
@@ -347,15 +342,6 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
         }
     }
     nav = nav.section(projects);
-
-    let tools = SidebarSection::new("Workspace")
-        .key("workspace-tools")
-        .rows(
-            [View::Documents, View::Subagents, View::Capture]
-                .into_iter()
-                .map(|view| nav_item(s, view, k)),
-        );
-    nav = nav.section(tools);
 
     let settings = ui::nav_item(
         "nav-data-footer",
@@ -449,6 +435,7 @@ fn progress_bar(done: u8, total: u8) -> El {
 fn nav_item(s: &CoderuneApp, view: View, k: &Kit) -> El {
     SidebarRow::new(view.label())
         .icon(view.icon())
+        .height(NAV_ROW_HEIGHT)
         .selected(s.view == view && s.active_chat().is_none())
         .on_select(move |s: &mut CoderuneApp, _: &mut rune::Tx| s.navigate(view))
         .build(k)

@@ -20,6 +20,7 @@ pub(crate) fn subagents(_s: &CoderuneApp) -> El {
             [col()
                 .w_full()
                 .gap(4.0)
+                .py(ui::ROW_PAD)
                 .child(
                     text("No subagents yet")
                         .font(theme::LABEL)

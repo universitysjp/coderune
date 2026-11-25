@@ -24,8 +24,6 @@ pub(crate) struct Preferences {
     /// The family behind ordinary text, and the one behind code and paths.
     pub(crate) ui_font: Option<String>,
     pub(crate) mono_font: Option<String>,
-    /// Whether the sidebar's Projects section shows its rows.
-    pub(crate) projects_collapsed: bool,
     /// Projects whose chats are listed under them.
     pub(crate) expanded_projects: Vec<String>,
     pub(crate) agent_dock: AgentDock,

@@ -60,6 +60,7 @@ fn main() {
             ("profile", app::scene_profile),
             ("profile-details", app::scene_profile_details),
             ("projects", app::scene_projects),
+            ("new-project", app::scene_new_project),
             ("documents", app::scene_documents),
             ("agents", app::scene_subagents),
             ("subagents", app::scene_subagents),

@@ -236,6 +236,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             [col()
                 .w_full()
                 .gap(12.0)
+                .py(ui::ROW_PAD)
                 .child(ui::subtle(
                     "Extraction is local. The original file is not copied into application storage.",
                 ))
@@ -248,6 +249,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             [col()
                 .w_full()
                 .gap(12.0)
+                .py(ui::ROW_PAD)
                 .child(ui::subtle(
                     "Approved text retained locally. Select one to prepare a draft.",
                 ))
@@ -260,6 +262,7 @@ pub(crate) fn documents(s: &CoderuneApp, k: &Kit) -> El {
             [col()
                 .w_full()
                 .gap(12.0)
+                .py(ui::ROW_PAD)
                 .child(ui::subtle(
                     "Coderune shares only the exact text you preview. Sign-in, providers, and models stay with the agent.",
                 ))
