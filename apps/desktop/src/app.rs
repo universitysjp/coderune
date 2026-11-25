@@ -1626,6 +1626,7 @@ impl CoderuneApp {
                 self.confirm_delete_project = None;
                 self.confirm_delete_capture = None;
                 self.project_form = ProjectForm::empty(None);
+                self.project_dialog = false;
                 self.document_form = DocumentForm::empty();
                 self.refresh_profile_form();
                 self.refresh_captures();

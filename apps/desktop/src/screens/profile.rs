@@ -48,6 +48,15 @@ pub(crate) fn profile(s: &CoderuneApp, k: &Kit) -> El {
     }
 }
 
+/// The first save confirms onboarding; later saves create a new version.
+fn save_label(s: &CoderuneApp) -> &'static str {
+    if s.onboarding_required() {
+        "Confirm baseline"
+    } else {
+        "Save new version"
+    }
+}
+
 fn baseline(s: &CoderuneApp, k: &Kit) -> El {
     let mut body = col().w_full().gap(ui::SECTION_GAP);
     if let Some(profile) = s
@@ -157,7 +166,7 @@ fn baseline(s: &CoderuneApp, k: &Kit) -> El {
                 s.profile_form.new_to_coding,
                 |s: &mut CoderuneApp| s.profile_form.new_to_coding = !s.profile_form.new_to_coding,
             ))
-            .child(primary("Save new version", |s| s.save_profile(), k)),
+            .child(primary(save_label(s), |s| s.save_profile(), k)),
     ];
     if s.profile_form.details_count() > 0 {
         form_children.push(ui::tiny(&format!(

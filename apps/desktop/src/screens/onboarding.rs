@@ -101,14 +101,10 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
         .px(20.0)
         .py(14.0)
         .child(ghost("Save draft", |s| s.save_draft(), k).key("onboarding-save-draft"))
-        .child(
-            ghost("Later in Profile", |s| s.dismiss_onboarding(), k)
-                .key("onboarding-later"),
-        )
+        .child(ghost("Later in Profile", |s| s.dismiss_onboarding(), k).key("onboarding-later"))
         .child(el().grow(1.0))
         .child(
-            primary("Confirm baseline", |s| s.confirm_onboarding(), k)
-                .key("onboarding-confirm"),
+            primary("Confirm baseline", |s| s.confirm_onboarding(), k).key("onboarding-confirm"),
         );
 
     let panel = col()
@@ -127,7 +123,7 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
         .label("Developer baseline")
         .w_full()
         .max_w(560.0)
-        .h(520.0)
+        .h(560.0)
         .child(
             col()
                 .w_full()
@@ -155,6 +151,9 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
             .fill(k.c.scrim)
             .a11y_hidden()
             .token_motion(k.motion.overlay),
-        layer("onboarding-layer").padding(16.0).center().child(dialog),
+        layer("onboarding-layer")
+            .padding(16.0)
+            .center()
+            .child(dialog),
     ]);
 }

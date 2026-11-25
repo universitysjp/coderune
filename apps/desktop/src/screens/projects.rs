@@ -76,12 +76,11 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
         .as_deref()
         .map(|path| path.display().to_string())
         .unwrap_or_default();
-    let mut copy = col().grow(1.0).min_w(0.0).gap(2.0).child(
-        text(folder_name)
-            .font(LABEL)
-            .color(theme::ink())
-            .truncate(),
-    );
+    let mut copy = col()
+        .grow(1.0)
+        .min_w(0.0)
+        .gap(2.0)
+        .child(text(folder_name).font(LABEL).color(theme::ink()).truncate());
     if !folder_detail.is_empty() {
         copy = copy.child(
             text(folder_detail)
@@ -99,7 +98,11 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
                 .w_full()
                 .gap(10.0)
                 .items_center()
-                .child(icon(&icons::FOLDER, theme::ICON).color(theme::muted()).a11y_hidden())
+                .child(
+                    icon(&icons::FOLDER, theme::ICON)
+                        .color(theme::muted())
+                        .a11y_hidden(),
+                )
                 .child(copy),
         )
         .child(ui::field(
@@ -153,12 +156,10 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
             .items_center()
             .child(rune::el().grow(1.0))
             .child(ghost("Not now", |s| s.close_project_dialog(), k).key("project-dialog-later"))
-            .child(primary(
-                "Create project",
-                |s| s.create_project_from_dialog(),
-                k,
-            )
-            .key("project-dialog-create")),
+            .child(
+                primary("Create project", |s| s.create_project_from_dialog(), k)
+                    .key("project-dialog-create"),
+            ),
     );
     Dialog::new("new-project", "New project")
         .open(true)
@@ -230,13 +231,10 @@ fn project_details(s: &CoderuneApp, project: Option<&Project>, k: &Kit) -> El {
         .as_deref()
         .map(|path| path.display().to_string())
         .unwrap_or_else(|| "Pick the folder Coderune should read context from.".to_string());
-    let mut folder_actions = row()
-        .flex_wrap()
-        .gap(8.0)
-        .child(
-            secondary_tx("Choose folder", |s, tx| s.change_project_folder(tx), k)
-                .key("project-choose-folder"),
-        );
+    let mut folder_actions = row().flex_wrap().gap(8.0).child(
+        secondary_tx("Choose folder", |s, tx| s.change_project_folder(tx), k)
+            .key("project-choose-folder"),
+    );
     if let Some(project) = project {
         let root = PathBuf::from(&project.root_path);
         let editor_folder = root.clone();
