@@ -50,4 +50,7 @@
   --input: var(--palette-border);
   --ring: var(--palette-ink);
   --selection: oklch(0 0 0 / 0.08);
+  /* Code and example wells stay light: the palette's grey rather than ink. */
+  --code: var(--palette-neutral-100);
+  --code-foreground: var(--palette-ink);
 }

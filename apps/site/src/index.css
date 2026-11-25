@@ -297,9 +297,10 @@
     margin: 18px 0 0;
     padding: 14px 16px;
     overflow-x: auto;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: var(--foreground);
-    color: var(--background);
+    background: var(--code);
+    color: var(--code-foreground);
     font-family: var(--font-family-mono);
     font-size: var(--font-size-menu);
     line-height: 1.65;
@@ -373,12 +374,12 @@
 
   .guide-link-card:hover,
   .guide-link-card:focus-visible {
-    background: var(--foreground);
+    background: var(--muted);
   }
 
   .guide-link-card:hover h3,
   .guide-link-card:focus-visible h3 {
-    color: var(--background);
+    color: var(--foreground);
   }
 
   .site-footer {
