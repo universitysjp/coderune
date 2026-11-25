@@ -9,7 +9,7 @@ change lands in one place.
 | Path | Responsibility |
 | --- | --- |
 | `src/app.rs` | `CoderuneApp` state, `init`, and app-wide navigation. |
-| `src/app/actions/` | `impl CoderuneApp` blocks for chats, capture, documents, profile, projects, and settings. |
+| `src/app/actions/` | `impl CoderuneApp` blocks for chats, capture, documents, profile, projects, settings, and local storage. |
 | `src/app/root.rs` | Root view, overlays, keyboard shortcuts, and the once-per-frame poll. |
 | `src/app/scenes.rs` | Headless fixture scenes used by `--scene` and `verify:ui`. |
 | `src/forms/` | Editable forms and the line-oriented codecs that turn them into domain drafts. |
