@@ -1,0 +1,212 @@
+//! Page frame, raised cards, settings rows, and empty states.
+
+use rune::{col, icon, row, text, El, Icon};
+use rune_kit::Kit;
+
+use crate::theme::{self, BODY, BODY_SM, HEADING_LG, HEADING_SM, HEADING_XS, LABEL, LABEL_SM};
+
+use super::controls::WhenExt;
+use super::text::subtle;
+
+/// A single continuous frame that keeps child backgrounds inside its border.
+pub fn surface_frame(k: &Kit, fill: rune::Color, radius: f32) -> El {
+    col()
+        .radius(radius)
+        .continuous_corners()
+        .fill(fill)
+        .border(1.0, k.c.border_weak)
+        .padding(1.0)
+        .clip_rounded(radius)
+}
+
+/// A row's inset inside its card, and the gap between sections.
+pub const ROW_PAD: f32 = 14.0;
+pub const ROW_H: f32 = 44.0;
+pub const ROW_H_DESCRIBED: f32 = 56.0;
+pub const SECTION_GAP: f32 = 20.0;
+pub const SECTION_LABEL_GAP: f32 = 6.0;
+
+/// The page column every workspace destination stacks its sections in.
+pub fn page(key: &str) -> El {
+    col().key(key).w_full().gap(SECTION_GAP)
+}
+
+/// A labelled group of rows on one raised card.
+pub fn section(k: &Kit, key: &str, title: &str, rows: impl IntoIterator<Item = El>) -> El {
+    col()
+        .key(key)
+        .w_full()
+        .gap(SECTION_LABEL_GAP)
+        .child(text(title).font(LABEL_SM).color(theme::muted()))
+        .child(rows_card(k, &format!("{key}-card"), rows))
+}
+
+/// A [`section`] whose label line carries a control, such as an action.
+pub fn section_with(
+    k: &Kit,
+    key: &str,
+    title: &str,
+    accessory: El,
+    rows: impl IntoIterator<Item = El>,
+) -> El {
+    col()
+        .key(key)
+        .w_full()
+        .gap(SECTION_LABEL_GAP)
+        .child(
+            row()
+                .w_full()
+                .items_center()
+                .gap(12.0)
+                .child(text(title).font(LABEL_SM).color(theme::muted()).grow(1.0))
+                .child(accessory),
+        )
+        .child(rows_card(k, &format!("{key}-card"), rows))
+}
+
+/// Rows on one raised card, a hairline between each pair.
+pub fn rows_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
+    let children = rows.into_iter().enumerate().flat_map(|(index, item)| {
+        let separator = (index > 0).then(|| {
+            rune::el()
+                .h(1.0)
+                .mx(ROW_PAD)
+                .fill(k.c.border_muted)
+                .a11y_hidden()
+        });
+        separator
+            .into_iter()
+            .chain(std::iter::once(item.px(ROW_PAD)))
+    });
+    let mut surface = col()
+        .key(key)
+        .w_full()
+        .radius(k.radius.lg)
+        .continuous_corners()
+        .fill(theme::raised())
+        .clip_rounded(k.radius.lg)
+        .children(children);
+    for shadow in &k.elevation.raised {
+        surface = surface.box_shadow(*shadow);
+    }
+    surface
+}
+
+/// Related rows in one raised card with inset dividers.
+pub fn settings_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
+    rows_card(k, key, rows)
+}
+
+/// A title, an optional one-line description, and the control on the right.
+pub fn setting_row(title: &str, detail: Option<String>, action: El) -> El {
+    let described = detail.is_some();
+    let mut copy = col()
+        .grow(1.0)
+        .min_w(0.0)
+        .gap(2.0)
+        .child(text(title).font(LABEL).color(theme::ink()).wrap());
+    if let Some(detail) = detail {
+        copy = copy.child(text(detail).font(BODY_SM).color(theme::muted()).wrap());
+    }
+    row()
+        .w_full()
+        .min_h(if described { ROW_H_DESCRIBED } else { ROW_H })
+        .items_center()
+        .gap(16.0)
+        .child(copy)
+        .child(action)
+}
+
+pub fn page_header(title: &str, description: &str, actions: Vec<El>) -> El {
+    let heading = col()
+        .grow(1.0)
+        .min_w(280.0)
+        .shrink()
+        .gap(6.0)
+        .max_w(theme::PAGE_HEADER_MAX)
+        .child(text(title).font(HEADING_LG).color(theme::ink()))
+        .child(text(description).font(BODY).color(theme::muted()).wrap());
+    row()
+        .w_full()
+        .flex_wrap()
+        .gap(12.0)
+        .items_start()
+        .justify_between()
+        .child(heading)
+        .when(!actions.is_empty(), |this| {
+            this.child(row().flex_wrap().gap(8.0).children(actions))
+        })
+}
+
+pub fn card(k: &Kit, title: Option<&str>, description: Option<&str>, children: Vec<El>) -> El {
+    card_leading(k, None, title, description, children)
+}
+
+/// A card whose header leads with a visual, such as an agent's avatar.
+pub fn card_leading(
+    k: &Kit,
+    leading: Option<El>,
+    title: Option<&str>,
+    description: Option<&str>,
+    children: Vec<El>,
+) -> El {
+    let mut root = col()
+        .w_full()
+        .fill(theme::raised())
+        .radius(k.radius.lg)
+        .continuous_corners()
+        .padding(20.0)
+        .gap(16.0)
+        .shrink()
+        .clip_rounded(k.radius.lg);
+    for shadow in &k.elevation.raised {
+        root = root.box_shadow(*shadow);
+    }
+    if let Some(title) = title {
+        let mut heading = col()
+            .grow(1.0)
+            .min_w(0.0)
+            .gap(4.0)
+            .child(text(title).font(HEADING_XS).color(theme::ink()).wrap());
+        if let Some(description) = description {
+            heading = heading.child(text(description).font(BODY_SM).color(theme::muted()).wrap());
+        }
+        let mut header = row().w_full().gap(12.0).items_center();
+        if let Some(leading) = leading {
+            header = header.child(leading);
+        }
+        root = root.child(header.child(heading));
+    }
+    root.child(col().w_full().gap(16.0).items_start().children(children))
+}
+
+/// A centered placeholder for a page or card with nothing in it yet.
+///
+/// The optional glyph sits in a muted tile above the title; the optional
+/// action closes the block, so an empty state can start the first item.
+pub fn empty_state(
+    glyph: Option<&'static Icon>,
+    title: &str,
+    description: &str,
+    action: Option<El>,
+) -> El {
+    let mut body = col().w_full().items_center().py(32.0).gap(12.0);
+    if let Some(glyph) = glyph {
+        body = body.child(
+            row()
+                .size(36.0, 36.0)
+                .center()
+                .radius(theme::kit().radius.md)
+                .fill(theme::code())
+                .a11y_hidden()
+                .child(icon(glyph, theme::ICON).color(theme::muted())),
+        );
+    }
+    body = body
+        .child(text(title).font(HEADING_SM).color(theme::ink()))
+        .child(subtle(description));
+    if let Some(action) = action {
+        body = body.child(action);
+    }
+    body
+}
