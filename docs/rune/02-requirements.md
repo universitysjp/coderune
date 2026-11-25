@@ -66,17 +66,19 @@ Out of scope for this increment:
 
 ## Screens and actions
 
-- **Onboarding** — three short steps. Step one asks for a display name/pseudonym
-  and experience stage. Step two asks for an initial skills statement (or an
-  explicit new-to-coding answer) and at least one learning goal. Step three
-  reviews the baseline and confirms it. Progress is saved as a draft between
-  steps; optional profile detail is not part of onboarding.
+- **Onboarding** — one dialog over the workspace. It asks for a display
+  name/pseudonym, an experience stage, an initial skills statement (or an
+  explicit new-to-coding answer), and at least one learning goal. It confirms
+  the baseline or saves a draft; Later in Profile moves the same answers into the
+  Profile panel. Optional profile detail is not part of onboarding.
 - **Home** — baseline, project count, capture count, active project, open folder,
   launch editor, and a link into profile completion.
 - **Profile** — inspect baseline, edit required fields, and complete optional
   self-reported skills, education, employment, project experience,
   certifications, links, and learning preferences.
-- **Projects** — list/select/create/edit/delete, scope and limits, open folder.
+- **Projects** — pick a folder with the system picker, answer the quick
+  questions, then edit name, folder, goals, scope, and limits in the panel;
+  list/select/delete, open folder.
 - **Documents** — import path, extract PDF/DOCX/Markdown/text, review, save,
   select, prepare agent sharing preview.
 - **Subagents** — workspace destination for Coderune specialists.

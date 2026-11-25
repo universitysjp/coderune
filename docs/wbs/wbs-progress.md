@@ -20,7 +20,7 @@ Legend: `Not started`, `In progress`, `Blocked`, `Done`.
 | 2.4 | Establish domain glossary and ADR process | Pruthivi Thejan | Done | `GLOSSARY.md` and `docs/agents/domain.md` define vocabulary and the ADR process. |
 | 2.5 | Define core, collectors, storage, agents, and Rune app responsibilities | Pruthivi Thejan | Done | Responsibilities and dependency direction are documented and implemented. |
 | 3.1 | Define developer profile and initial baseline domain models | Pruthivi Thejan | Done | `ProfileDraft`, `DeveloperProfile`, versions, and required-field rules in `crates/domain`. |
-| 3.2 | Implement developer profile entry and validation | Pruthivi Thejan | Done | Three-step onboarding with resumable drafts and required-field checks. |
+| 3.2 | Implement developer profile entry and validation | Pruthivi Thejan | Done | Onboarding dialog with resumable drafts and required-field checks. |
 | 3.3 | Define self-reported skill scale | Pruthivi Thejan | Done | Beginner/intermediate/advanced or unrated; self-report remains distinct from mastery. |
 | 3.4 | Define project context and source-provenance domain models | Pruthivi Thejan | Done | `Project`, `ProjectDraft`, `FieldSource`, and document provenance in `crates/domain`. |
 | 3.5 | Implement manual project goals, business knowledge, and constraints entry | Pruthivi Thejan | In progress | Goals, scope, and limits are editable. Purpose, rules, constraints, decisions, and knowledge round-trip but have no dedicated editors yet. |
