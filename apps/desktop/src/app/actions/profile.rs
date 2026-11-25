@@ -1,6 +1,9 @@
 //! The developer baseline form, its draft, and onboarding confirmation.
 
-use crate::app::*;
+use coderune_domain::{AppError, ProfileDraft};
+
+use crate::app::{CoderuneApp, ProfileSection, ProfileTab, View};
+use crate::forms::ProfileForm;
 
 impl CoderuneApp {
     /// Whether the developer baseline is still missing, so the onboarding dialog

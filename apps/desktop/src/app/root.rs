@@ -1,6 +1,13 @@
 //! The window's root view, keyboard shortcuts, and frame poll.
 
-use crate::app::*;
+use coderune_ui::theme::{self, BODY, HEADING};
+use rune::{col, text, Cx, El, Key, KeyEvent, Tx};
+use rune_kit::shell::is_sidebar_toggle;
+
+use crate::agent_detection::Check;
+use crate::app::{CoderuneApp, SettingsSection, View, VIEW_SHORTCUTS};
+use crate::screens;
+use crate::shell;
 
 /// Advances visible animations and applies completed background updates.
 pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {

@@ -1,6 +1,13 @@
 //! Chat tabs, their drafts, and the coding agent running in them.
 
-use crate::app::*;
+use coderune_domain::AppError;
+use rune::TextEdit;
+
+use crate::agent_detection::Check;
+use crate::app::{CoderuneApp, View};
+use crate::chat_terminal::Terminal;
+use crate::chats::{Author, Chat};
+use crate::preferences::AgentDock;
 
 impl CoderuneApp {
     pub(crate) fn active_chat(&self) -> Option<&Chat> {

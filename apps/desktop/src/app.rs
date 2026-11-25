@@ -7,32 +7,23 @@ pub(crate) mod scenes;
 pub(crate) use root::{on_key, poll, view};
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use coderune_agents::CliAgentId;
 use coderune_app::{PreviewSession, Workspace};
 use coderune_avatars::BotAvatarStage;
-use coderune_domain::{AgentAvailability, AppError, ContextCapture, ProfileDraft};
 #[cfg(test)]
-use coderune_domain::{
-    AgentId, Certification, EducationEntry, EmploymentEntry, ExperienceStage, LearningPreferences,
-    Link, ProjectDraft, ProjectExperience, SelfReportedSkill, SkillRating,
-};
-use rune::{col, text, Cx, El, FileDialogOptions, Key, KeyEvent, TextEdit, Tx};
-use rune_kit::shell::is_sidebar_toggle;
+use coderune_domain::{AgentId, ExperienceStage};
+use coderune_domain::{AppError, ContextCapture};
+use rune::TextEdit;
 
 use coderune_ui::icons;
-use coderune_ui::theme::{self, BODY, HEADING};
 
-use crate::agent_detection::{AgentDetection, Check};
+use crate::agent_detection::AgentDetection;
 use crate::chat_terminal::Terminal;
-use crate::chats::{Author, Chat, Chats};
-use crate::forms::{
-    edit, project_name, split_list, DocumentForm, ExtractedDocument, ProfileForm, ProjectForm,
-};
-use crate::preferences::{AgentDock, Preferences};
-use crate::screens;
-use crate::shell::{self, SidebarPane};
+use crate::chats::Chats;
+use crate::forms::{DocumentForm, ProfileForm, ProjectForm};
+use crate::preferences::Preferences;
+use crate::shell::SidebarPane;
 use crate::updates::Updates;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -356,7 +347,10 @@ impl CoderuneApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agent_detection::Check;
     use crate::app::scenes::{scene_home, scene_projects, seed_demo};
+    use crate::forms::edit;
+    use crate::preferences::AgentDock;
     use rune::{Env, Runtime};
 
     /// Tests that point the app at a temporary data folder must not overlap.

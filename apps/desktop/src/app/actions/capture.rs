@@ -1,6 +1,8 @@
 //! Capture previews, history, and readiness for the selected project.
 
-use crate::app::*;
+use coderune_domain::AppError;
+
+use crate::app::{CaptureDetail, CoderuneApp, ContextItem};
 
 impl CoderuneApp {
     pub(in crate::app) fn reset_capture_state(&mut self) {

@@ -1,6 +1,12 @@
 //! Project selection, editing, folder picking, and deletion.
 
-use crate::app::*;
+use std::path::Path;
+
+use coderune_domain::AppError;
+use rune::{FileDialogOptions, Tx};
+
+use crate::app::{CoderuneApp, View};
+use crate::forms::{edit, project_name, split_list, ProjectForm};
 
 impl CoderuneApp {
     pub(crate) fn project_expanded(&self, id: &str) -> bool {

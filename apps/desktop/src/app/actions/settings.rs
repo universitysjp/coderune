@@ -1,6 +1,16 @@
 //! Desktop preferences, fonts, agents, and local data actions.
 
-use crate::app::*;
+use std::path::{Path, PathBuf};
+
+use coderune_agents::CliAgentId;
+use coderune_app::Workspace;
+use coderune_domain::AppError;
+use rune::{FileDialogOptions, TextEdit, Tx};
+
+use crate::agent_detection::Check;
+use crate::app::{CoderuneApp, SettingsSection, View};
+use crate::forms::{DocumentForm, ProjectForm};
+use crate::preferences::Preferences;
 
 impl CoderuneApp {
     pub(crate) fn select_settings(&mut self, section: SettingsSection) {

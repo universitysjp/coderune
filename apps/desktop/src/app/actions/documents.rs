@@ -1,6 +1,11 @@
 //! Document import, and the sharing preview prepared for an agent.
 
-use crate::app::*;
+use std::path::PathBuf;
+
+use coderune_domain::{AgentAvailability, AppError};
+
+use crate::app::CoderuneApp;
+use crate::forms::ExtractedDocument;
 
 impl CoderuneApp {
     pub(crate) fn extract_document(&mut self) {
