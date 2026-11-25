@@ -3,6 +3,7 @@ mod app;
 mod chat_terminal;
 mod chats;
 mod fonts;
+mod forms;
 mod preferences;
 mod screens;
 mod shell;
