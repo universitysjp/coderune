@@ -2,6 +2,7 @@
 
 use crate::app::{CoderuneApp, SettingsSection, VIEW_SHORTCUTS};
 use crate::updates::Status;
+use crate::widgets::{destructive, primary, primary_tx, secondary};
 use coderune_ui::{components as ui, components::PushButtonExt, icons, theme};
 use rune::{col, el, row, text, El, ScrollSpec};
 use rune_kit::{
@@ -142,23 +143,23 @@ fn general(s: &CoderuneApp, k: &Kit, menus: &mut Vec<El>) -> El {
         Status::Checking => Some(ui::subtle("Checking for updates…")),
         Status::Current => Some(ui::subtle("Coderune is up to date.")),
         Status::NoRelease => Some(ui::subtle("No desktop release has been published yet.")),
-        Status::Available(update) => Some(
-            Button::new(format!("Download Coderune {}", update.version))
-                .variant(ButtonVariant::Contrast)
-                .on_press(|s: &mut CoderuneApp| s.updates.download())
-                .build_push(k),
-        ),
+        Status::Available(update) => Some(primary(
+            &format!("Download Coderune {}", update.version),
+            |s| s.updates.download(),
+            k,
+        )),
         Status::Downloading => Some(ui::subtle("Downloading and verifying the update…")),
         Status::Ready(install) => {
             let version = crate::update_install::version(install).to_string();
             Some(ui::setting_row(
                 "Update ready",
                 Some("Restarting installs the update and reopens Coderune.".to_string()),
-                Button::new(format!("Restart to update to {version}"))
-                    .variant(ButtonVariant::Contrast)
-                    .on_press(|s: &mut CoderuneApp| s.updates.restart())
-                    .build_push(k)
-                    .key("restart-update"),
+                primary(
+                    &format!("Restart to update to {version}"),
+                    |s| s.updates.restart(),
+                    k,
+                )
+                .key("restart-update"),
             ))
         }
         Status::Manual(path) => {
@@ -171,9 +172,11 @@ fn general(s: &CoderuneApp, k: &Kit, menus: &mut Vec<El>) -> El {
                 Some(
                     "Open the downloaded package to install it, then reopen Coderune.".to_string(),
                 ),
-                Button::new("Open download folder")
-                    .on_press(move |s: &mut CoderuneApp| s.open_settings_folder(&folder))
-                    .build_push(k),
+                secondary(
+                    "Open download folder",
+                    move |s| s.open_settings_folder(&folder),
+                    k,
+                ),
             ))
         }
         Status::Failed(message) => Some(ui::alert(None, message)),
@@ -278,11 +281,7 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
         })
         .build_push(k)
         .key("open-data-folder");
-    let export = Button::new("Export JSON")
-        .variant(ButtonVariant::Contrast)
-        .on_press_tx(|s: &mut CoderuneApp, tx: &mut rune::Tx| s.export_data(tx))
-        .build_push(k)
-        .key("export-data");
+    let export = primary_tx("Export JSON", |s, tx| s.export_data(tx), k).key("export-data");
     let delete = Button::new("Delete all data")
         .variant(ButtonVariant::Danger)
         .disabled(s.confirm_delete_all)
@@ -332,16 +331,11 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
                 row()
                     .gap(8.0)
                     .child(
-                        Button::new("Cancel")
-                            .on_press(|s: &mut CoderuneApp| s.confirm_delete_all = false)
-                            .build_push(k)
+                        secondary("Cancel", |s| s.confirm_delete_all = false, k)
                             .key("cancel-delete-data"),
                     )
                     .child(
-                        Button::new("Confirm delete all")
-                            .variant(ButtonVariant::Danger)
-                            .on_press(CoderuneApp::delete_all_data)
-                            .build_push(k)
+                        destructive("Confirm delete all", CoderuneApp::delete_all_data, k)
                             .key("confirm-delete-data"),
                     ),
             )

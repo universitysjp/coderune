@@ -8,12 +8,11 @@ use crate::preferences::AgentDock;
 use crate::widgets::*;
 use coderune_agents::CliAgentId;
 use coderune_ui::components as ui;
-use coderune_ui::components::PushButtonExt;
 use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, LABEL, LABEL_SM};
 use coderune_ui::WhenExt;
 use rune::{col, row, text, El, ScrollSpec};
-use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit, Progress};
+use rune_kit::{ControlSize, IconButton, IconButtonVariant, Kit, Progress};
 
 const PANEL_WIDTH: f32 = 320.0;
 const FLOAT_WIDTH: f32 = 316.0;
@@ -51,10 +50,7 @@ pub(crate) fn chat(s: &CoderuneApp, k: &Kit) -> El {
                 .truncate(),
         )
         .child(
-            Button::new("Project settings")
-                .variant(ButtonVariant::Ghost)
-                .on_press(CoderuneApp::show_chat_project)
-                .build_push(k)
+            ghost("Project settings", CoderuneApp::show_chat_project, k)
                 .key("chat-project-settings"),
         )
         .when(dock == AgentDock::Hidden, |header| {
@@ -148,12 +144,13 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, floating: bool) -> El {
             ),
         )
         .child(
-            Button::new("Send")
-                .variant(ButtonVariant::Contrast)
-                .disabled(!running || s.chat_draft.text.trim().is_empty())
-                .on_press(|s: &mut CoderuneApp| s.send_chat_message())
-                .build_push(k)
-                .key("send-message"),
+            primary_enabled(
+                "Send",
+                running && !s.chat_draft.text.trim().is_empty(),
+                |s| s.send_chat_message(),
+                k,
+            )
+            .key("send-message"),
         );
     col()
         .key("chat-transcript")
@@ -265,25 +262,15 @@ fn agent_panel(s: &CoderuneApp, k: &Kit, chat: &Chat, dock: AgentDock) -> El {
             .gap(6.0)
             .border_sides([1.0, 0.0, 0.0, 0.0], theme::row_line())
             .child(if running {
-                Button::new("Stop agent")
-                    .variant(ButtonVariant::Ghost)
-                    .on_press(CoderuneApp::stop_chat_agent)
-                    .build_push(k)
-                    .key("stop-chat-agent")
+                ghost("Stop agent", CoderuneApp::stop_chat_agent, k).key("stop-chat-agent")
             } else {
-                Button::new("Start agent")
-                    .variant(ButtonVariant::Contrast)
-                    .disabled(!available)
-                    .on_press(CoderuneApp::start_chat_agent)
-                    .build_push(k)
+                primary_enabled("Start agent", available, CoderuneApp::start_chat_agent, k)
                     .key("start-chat-agent")
             })
             .when(terminal.is_some() && !running, |footer| {
                 footer.child(
-                    Button::new("Choose agent")
-                        .variant(ButtonVariant::Ghost)
-                        .on_press(CoderuneApp::clear_chat_terminal)
-                        .build_push(k),
+                    ghost("Choose agent", CoderuneApp::clear_chat_terminal, k)
+                        .key("choose-chat-agent"),
                 )
             }),
     )

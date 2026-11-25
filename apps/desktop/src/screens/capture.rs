@@ -3,11 +3,10 @@
 use crate::app::CoderuneApp;
 use crate::widgets::*;
 use coderune_ui::components as ui;
-use coderune_ui::components::PushButtonExt;
 use coderune_ui::theme::{self, BODY_SM, CODE_SM, LABEL};
 use coderune_ui::WhenExt;
 use rune::{col, row, text, El, ScrollSpec};
-use rune_kit::{Badge, Button, ButtonVariant, Kit};
+use rune_kit::{Badge, Kit};
 
 pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
     let workspace = s.workspace.as_ref();
@@ -132,13 +131,12 @@ pub(crate) fn capture(s: &CoderuneApp, k: &Kit) -> El {
                     s.capture_reviewed,
                     |s: &mut CoderuneApp| s.capture_reviewed = !s.capture_reviewed,
                 ))
-                .child(
-                    Button::new("Save capture")
-                        .variant(ButtonVariant::Contrast)
-                        .disabled(!s.capture_reviewed)
-                        .on_press(|s: &mut CoderuneApp| s.save_capture())
-                        .build_push(k),
-                ),
+                .child(primary_enabled(
+                    "Save capture",
+                    s.capture_reviewed,
+                    |s| s.save_capture(),
+                    k,
+                )),
         );
         review_children.extend(status_alerts(s));
         body = body.child(ui::section(

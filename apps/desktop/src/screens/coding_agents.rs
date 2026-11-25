@@ -10,6 +10,7 @@ use rune_kit::{Button, Kit, Switch};
 
 use crate::agent_detection::Check;
 use crate::app::CoderuneApp;
+use crate::widgets::small_secondary_tx;
 
 pub(super) fn coding_agents(s: &CoderuneApp, k: &Kit) -> El {
     let detection = &s.agent_detection;
@@ -93,19 +94,21 @@ fn installed_agent(s: &CoderuneApp, agent: &CliAgentStatus, k: &Kit) -> El {
 
 fn missing_agent(agent: &CliAgentStatus, k: &Kit) -> El {
     let url = agent.install_url;
-    let install = Button::new("Install from website")
-        .on_press_tx(move |s: &mut CoderuneApp, tx| {
+    let install = small_secondary_tx(
+        "Install from website",
+        move |s, tx| {
             if let Err(error) = tx.open_url(url) {
                 s.settings_feedback = Some(Err(coderune_domain::AppError::new(
                     coderune_domain::ErrorCode::Validation,
                     format!("Could not open the installation link: {error}"),
                 )));
             }
-        })
-        .build_small_push(k)
-        .key(format!("install-{}", agent.command))
-        .role("link")
-        .label(format!("Install {} from website", agent.name));
+        },
+        k,
+    )
+    .key(format!("install-{}", agent.command))
+    .role("link")
+    .label(format!("Install {} from website", agent.name));
     agent_row(agent, None, install, k)
 }
 

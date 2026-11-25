@@ -15,6 +15,20 @@ pub(crate) fn primary(label: &str, press: impl Fn(&mut CoderuneApp) + 'static, k
         .build_push(k)
 }
 
+/// A primary button that starts disabled until its action is ready.
+pub(crate) fn primary_enabled(
+    label: &str,
+    enabled: bool,
+    press: impl Fn(&mut CoderuneApp) + 'static,
+    k: &Kit,
+) -> El {
+    Button::new(label)
+        .variant(ButtonVariant::Contrast)
+        .disabled(!enabled)
+        .on_press(press)
+        .build_push(k)
+}
+
 /// A primary button whose action needs the frame's transaction, such as one
 /// that opens a system dialog.
 pub(crate) fn primary_tx(
@@ -59,6 +73,18 @@ pub(crate) fn destructive(label: &str, press: impl Fn(&mut CoderuneApp) + 'stati
         .variant(ButtonVariant::Danger)
         .on_press(press)
         .build_push(k)
+}
+
+/// A neutral small button whose action needs the frame's transaction.
+pub(crate) fn small_secondary_tx(
+    label: &str,
+    press: impl Fn(&mut CoderuneApp, &mut rune::Tx) + 'static,
+    k: &Kit,
+) -> El {
+    Button::new(label)
+        .variant(ButtonVariant::Neutral)
+        .on_press_tx(press)
+        .build_small_push(k)
 }
 
 /// A quiet small button for an inline action.
