@@ -2,11 +2,10 @@
 
 use crate::app::CoderuneApp;
 use coderune_ui::components as ui;
-use coderune_ui::theme;
-use rune::{col, text, El};
+use rune::{col, El};
+use rune_kit::Kit;
 
-pub(crate) fn subagents(_s: &CoderuneApp) -> El {
-    let k = theme::kit();
+pub(crate) fn subagents(_s: &CoderuneApp, k: &Kit) -> El {
     ui::page("subagents-page")
         .child(ui::page_header(
             "Subagents",
@@ -14,20 +13,14 @@ pub(crate) fn subagents(_s: &CoderuneApp) -> El {
             vec![],
         ))
         .child(ui::section(
-            &k,
+            k,
             "subagents-list",
             "Defined subagents",
-            [col()
-                .w_full()
-                .gap(4.0)
-                .py(ui::ROW_PAD)
-                .child(
-                    text("No subagents yet")
-                        .font(theme::LABEL)
-                        .color(theme::ink()),
-                )
-                .child(ui::subtle(
-                    "A defined subagent pairs a bot avatar with a purpose and a default model assignment. Define one to reuse it across projects.",
-                ))],
+            [col().w_full().py(ui::ROW_PAD).child(ui::empty_state(
+                None,
+                "No subagents yet",
+                "A defined subagent pairs a bot avatar with a purpose and a default model assignment. Define one to reuse it across projects.",
+                None,
+            ))],
         ))
 }

@@ -107,9 +107,9 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
         View::Profile => screens::profile(s, k),
         View::Projects => screens::projects(s, k),
         View::Documents => screens::documents(s, k),
-        View::Subagents => screens::subagents(s),
+        View::Subagents => screens::subagents(s, k),
         View::Capture => screens::capture(s, k),
-        View::Avatars => screens::avatar_gallery(s),
+        View::Avatars => screens::avatar_gallery(s, k),
     };
     let content = ui::surface_frame(k, theme::canvas(), k.radius.lg)
         .key("workspace-panel")

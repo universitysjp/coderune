@@ -8,6 +8,6 @@ pub mod icons;
 pub mod theme;
 
 pub use components::{
-    alert, badge, card, code_well, code_well_tall, field, mono_line, nav_item, page_header,
-    section_title, subtle, tiny, WhenExt,
+    alert, badge, card, code_well, code_well_tall, empty_state, field, mono_line, nav_item,
+    page_header, section_title, subtle, tiny, WhenExt,
 };

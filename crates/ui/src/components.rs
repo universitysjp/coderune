@@ -177,18 +177,18 @@ pub fn page_header(title: &str, description: &str, actions: Vec<El>) -> El {
         })
 }
 
-pub fn card(title: Option<&str>, description: Option<&str>, children: Vec<El>) -> El {
-    card_leading(None, title, description, children)
+pub fn card(k: &Kit, title: Option<&str>, description: Option<&str>, children: Vec<El>) -> El {
+    card_leading(k, None, title, description, children)
 }
 
 /// A card whose header leads with a visual, such as an agent's avatar.
 pub fn card_leading(
+    k: &Kit,
     leading: Option<El>,
     title: Option<&str>,
     description: Option<&str>,
     children: Vec<El>,
 ) -> El {
-    let k = theme::kit();
     let mut root = col()
         .w_full()
         .fill(theme::raised())
@@ -242,6 +242,37 @@ pub fn section_title(title: &str, description: &str) -> El {
         .gap(4.0)
         .child(text(title).font(HEADING_SM).color(theme::ink()))
         .child(text(description).font(BODY_SM).color(theme::muted()).wrap())
+}
+
+/// A centered placeholder for a page or card with nothing in it yet.
+///
+/// The optional glyph sits in a muted tile above the title; the optional
+/// action closes the block, so an empty state can start the first item.
+pub fn empty_state(
+    glyph: Option<&'static Icon>,
+    title: &str,
+    description: &str,
+    action: Option<El>,
+) -> El {
+    let mut body = col().w_full().items_center().py(32.0).gap(12.0);
+    if let Some(glyph) = glyph {
+        body = body.child(
+            row()
+                .size(36.0, 36.0)
+                .center()
+                .radius(theme::kit().radius.md)
+                .fill(theme::code())
+                .a11y_hidden()
+                .child(icon(glyph, theme::ICON).color(theme::muted())),
+        );
+    }
+    body = body
+        .child(text(title).font(HEADING_SM).color(theme::ink()))
+        .child(subtle(description));
+    if let Some(action) = action {
+        body = body.child(action);
+    }
+    body
 }
 
 pub fn field(label: &str, hint: Option<&str>, control: El) -> El {

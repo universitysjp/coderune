@@ -7,6 +7,7 @@ use coderune_avatars::{
 use coderune_ui::components as ui;
 use coderune_ui::theme;
 use rune::{col, row, text, El};
+use rune_kit::Kit;
 
 /// The sim id for one avatar in the gallery.
 pub(crate) fn gallery_id(kind: BotAvatarType, state: BotAvatarState) -> String {
@@ -57,7 +58,7 @@ fn caption(label: &str) -> El {
     text(label).font(theme::LABEL_SM).color(theme::faint())
 }
 
-pub(crate) fn avatar_gallery(s: &CoderuneApp) -> El {
+pub(crate) fn avatar_gallery(s: &CoderuneApp, k: &Kit) -> El {
     let mut rows = Vec::new();
     for kind in BotAvatarType::ALL {
         rows.push(
@@ -120,8 +121,9 @@ pub(crate) fn avatar_gallery(s: &CoderuneApp) -> El {
             "Compare bot avatar materials and animation states.",
             vec![],
         ))
-        .child(ui::card(Some("Shading"), None, shading_rows))
+        .child(ui::card(k, Some("Shading"), None, shading_rows))
         .child(ui::card(
+            k,
             Some("Bodies and states"),
             Some("Idle, working and sleeping, at 64 and at 28 points."),
             rows,
