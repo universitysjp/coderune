@@ -149,18 +149,27 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
     if let Some(error) = &s.error {
         body = body.child(ui::alert(Some(error.code.as_str()), &error.message));
     }
-    body = body.child(
-        row()
-            .w_full()
-            .gap(8.0)
-            .items_center()
-            .child(rune::el().grow(1.0))
-            .child(ghost("Not now", |s| s.close_project_dialog(), k).key("project-dialog-later"))
-            .child(
-                primary("Create project", |s| s.create_project_from_dialog(), k)
-                    .key("project-dialog-create"),
-            ),
-    );
+    // The capture options can be tall, so they scroll inside the dialog rather
+    // than pushing its actions off the window.
+    let body = col()
+        .w_full()
+        .max_h(460.0)
+        .scroll(rune::ScrollSpec {
+            stick_bottom: false,
+        })
+        .child(body);
+    let actions = row()
+        .w_full()
+        .gap(8.0)
+        .items_center()
+        .px(16.0)
+        .pb(16.0)
+        .child(rune::el().grow(1.0))
+        .child(ghost("Not now", |s| s.close_project_dialog(), k).key("project-dialog-later"))
+        .child(
+            primary("Create project", |s| s.create_project_from_dialog(), k)
+                .key("project-dialog-create"),
+        );
     Dialog::new("new-project", "New project")
         .open(true)
         .description("Coderune reads this folder only when you ask it to capture context. The rest can wait.")
@@ -168,6 +177,7 @@ pub(crate) fn dialog(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) {
         .fit()
         .on_close(CoderuneApp::close_project_dialog)
         .child(body)
+        .child(actions)
         .build(k, overlays);
 }
 
