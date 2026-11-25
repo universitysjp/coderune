@@ -122,7 +122,7 @@ Coderune researches local shared context and assumption verification for AI codi
 
 | Path | What it is |
 | --- | --- |
-| `apps/desktop` | Native Rust desktop app built with [Rune](https://github.com/anomalyco/rune) (`coderune-desktop`, binary `coderune`). `src/app.rs` holds state and actions, `src/screens/` has one view module per screen, `src/widgets.rs` has shared controls. |
+| `apps/desktop` | Native Rust desktop app built with [Rune](https://github.com/anomalyco/rune) (`coderune-desktop`, binary `coderune`). `src/app.rs` holds state and boot, `src/app/actions/` adds one `impl` per workspace feature, `src/app/root.rs` holds the root view, keys, and poll, `src/forms/` owns editable forms, `src/screens/` has one view module per screen, and `src/widgets.rs` has app-specific builders. |
 | `apps/site` | Website: React 19, Vite+, Tailwind v4, and ui-sdk. `src/routes` holds the five pages, `src/components` the site's own frame and sections, and `src/app.tsx` picks a page from the pathname. |
 | `crates/ui` | Rune design system for the desktop: tokens, icons, cards, fields, alerts. |
 | `crates/avatars` | Animated bot avatars for agents, ported from `bot-avatars` onto Rune's vector canvas. `src/engine.rs` is the rig, `src/render.rs` draws a pose as `rune::Shape`. |
@@ -134,6 +134,7 @@ Coderune researches local shared context and assumption verification for AI codi
 Architecture rules:
 
 - Screens never own data, and service crates never import the UI. Keep the desktop views thin over `coderune-app`.
+- Put state transitions in `src/app/actions`, root assembly in `src/app/root.rs`, form-to-draft conversion in `src/forms`, and drawing in `src/screens`; a screen calls app methods instead of changing fields.
 - Keep desktop UI logic in `crates/ui` and `apps/desktop`. The website keeps its own React components in `apps/site` and reads `packages/tokens`; do not add a shared React UI package.
 - Local-only directories are git-ignored: `.rune/` (pinned Rune checkout), `.hex/`, `target/`, `.design-system/`, `.ui-review/`, `.playwright-cli/`, `.turbo/`. Never commit them and never edit the vendored crates under `.rune/vendor/`.
 

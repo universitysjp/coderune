@@ -5,7 +5,8 @@ light palette in `packages/tokens`.
 
 ## Sources of truth
 
-- Desktop (Rust/Rune): `crates/ui/src/theme.rs` and `crates/ui/src/components.rs`.
+- Desktop (Rust/Rune): `crates/ui/src/theme.rs` and `crates/ui/src/components/`
+  (`layout`, `text`, and `controls`).
 - Website (React): `packages/tokens/src/tokens.css` and `apps/site/src/index.css`.
 - Fonts: Geist and Paper Mono in `packages/tokens/fonts`.
 - Layout, spacing, and type roles: the constants in `crates/ui/src/theme.rs`.
@@ -50,46 +51,52 @@ Rules:
 
 Geist for UI and prose. Paper Mono for code, paths, IDs, hashes, and JSON.
 
-| Role | Size / line | Use |
+| Constant | Size / line | Use |
 | --- | --- | --- |
-| Display | 40 / 44 | Reserved |
-| Heading lg | 32 / 36 | Page title |
-| Heading | 24 / 28 | Section titles |
-| Heading sm | 20 / 24 | Subsection |
-| Heading xs | 16 / 20 | Card title |
-| Body lg | 16 / 22 | Lede |
-| Body | 14 / 20 | Default prose, page description |
-| Body sm | 13 / 18 | Card description, hints, alert body |
-| Label | 14 / 16 | Controls, tabs, menu items |
-| Label sm | 12 / 16 | Badges and small tags |
-| Code | 13 / 20 | Code and JSON |
-| Code sm | 12 / 16 | Paths, IDs, hashes |
+| `HEADING_LG` | 20 / 26 | Page title |
+| `HEADING` | 17 / 22 | Dialog or welcome title |
+| `HEADING_SM` | 15 / 20 | Section title |
+| `HEADING_XS` | 13.5 / 18 | Card title |
+| `BODY` | 13 / 19 | Default prose, page description |
+| `BODY_SM` | 12 / 16 | Card description, hints, alert body |
+| `LABEL` | 13 / 16 | Controls, tabs, menu items |
+| `LABEL_SM` | 11 / 14 | Badges and small tags |
+| `CODE` | 12 / 18 | Code and JSON |
+| `CODE_SM` | 11 / 15 | Paths, IDs, hashes |
 
-Desktop text uses weight 400. Buttons and shortcut keycaps use Geist.
+Hierarchy comes from weight and colour more than from size. Desktop text uses
+weight 400. Buttons and shortcut keycaps use Geist.
 
 ## Space, shape, layout
 
 - Spacing: 0, 2, 4, 8, 12, 16, 20, 24, 32, 40.
-- Radius: 4 (inner), 6 (control/card inner), 10 (frame).
+- Radius: 4 (inner), 6 (control), 10 (frame and card).
 - Hairline: 1px; focus: 2px.
-- The sidebar starts at 236 points and collapses below 1080 points of window
-  width. The titlebar is 48 points, the frame inset is 8, and the page gutter
-  is 32. Content is capped at 1120 points and tall code wells at 176.
+- The sidebar starts at 264 points and collapses below 1080 points of window
+  width. The titlebar is 44 points, the frame inset is 8, and the page gutter
+  is 28. Content is capped at 1080 points and tall code wells at 176.
 - Every workspace destination builds its body from `ui::page` and `ui::section`:
-  a muted label, then one raised card of rows with 16-point insets and hairline
+  a muted label, then one raised card of rows with 14-point insets and hairline
   dividers. Settings, Profile, Projects, Documents, Subagents, and Capture share
   that rhythm; a page never invents its own card padding.
 - Cards sit on the page canvas in the raised surface with the kit's raised
   elevation, so a section reads as one object in both appearances.
-- Controls: 24/28/32/44 high; rows 48 plain and 60 described; icon 20.
+- Controls: 24/28/32/44 high; rows 44 plain and 56 described; icon 20.
 
 ## Desktop components
 
 `crates/ui` owns page headers, cards, fields, alerts, badges, navigation rows,
-and code wells. `apps/desktop/src/widgets.rs` owns app-specific builders
-(buttons, text inputs, choice chips). Buttons, text fields, menus, the
-workspace's `Sidebar`, `WindowTitlebar` and `TabStrip`, and the onboarding
+empty states, and code wells, split into `layout`, `text`, and `controls`
+modules. `apps/desktop/src/widgets.rs` owns app-specific builders (button
+tones, text inputs, choice chips, status alerts). Buttons, text fields, menus,
+the workspace's `Sidebar`, `WindowTitlebar` and `TabStrip`, and the onboarding
 `Page` come from `rune-kit`.
+
+Reach for the smallest layer that fits:
+
+1. `rune-kit` when the control needs editing, focus, accessibility, or motion.
+2. `coderune_ui` when the piece is part of the desktop design language.
+3. `widgets` when the piece knows about `CoderuneApp` state.
 
 Text buttons are 28 points high at standard size and 24 points high at compact
 size. Shortcut keycaps use a recessed tray and separate key faces in
