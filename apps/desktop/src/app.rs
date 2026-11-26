@@ -466,8 +466,12 @@ mod tests {
 
         let [prompt_x, ..] = app.presented("chat-message-0").unwrap().0;
         let [reply_x, ..] = app.presented("chat-message-1").unwrap().0;
-        assert!(prompt_x > reply_x, "the developer prompt should sit right");
+        assert!(
+            prompt_x > reply_x,
+            "the developer prompt should sit right: prompt {prompt_x}, reply {reply_x}"
+        );
         assert!(app.find("chat-message-1-markdown").is_some());
+        assert!(app.find("chat-message-1-copy-0").is_some());
     }
 
     #[test]

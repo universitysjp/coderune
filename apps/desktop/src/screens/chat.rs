@@ -12,7 +12,7 @@ use crate::agent_detection::Check;
 use crate::app::actions::chats::{CatalogStatus, ChatMenu, ChatTurn};
 use crate::app::{CoderuneApp, SettingsSection};
 use crate::chats::{Author, Chat};
-use crate::widgets::{error_alert, ghost, primary_enabled};
+use crate::widgets::{error_alert, ghost, primary_enabled, small_secondary_tx};
 
 use super::coding_agents::compact_logo;
 
@@ -114,21 +114,7 @@ fn message_row(author: Author, value: &str, k: &Kit, key: &str, streaming: bool)
     let body = if value.trim().is_empty() {
         text("…").font(BODY).color(theme::muted())
     } else {
-        Markdown::new(value)
-            .selectable(true)
-            .streaming(streaming)
-            .scroll_wide(true)
-            .on_link_tx(|s: &mut CoderuneApp, url, tx| {
-                if let Err(error) = tx.open_url(url) {
-                    s.error = Some(AppError::new(
-                        ErrorCode::Validation,
-                        format!("Could not open the link: {error}"),
-                    ));
-                }
-            })
-            .build(k)
-            .key(format!("{key}-markdown"))
-            .max_w(BUBBLE_MAX - BUBBLE_PAD * 2.0)
+        markdown(value, key, streaming)
     };
     let bubble = col()
         .key(key)
@@ -162,6 +148,45 @@ fn message_row(author: Author, value: &str, k: &Kit, key: &str, streaming: bool)
         message.items_start()
     };
     message.child(meta).child(bubble)
+}
+
+fn markdown(value: &str, key: &str, streaming: bool) -> El {
+    let code_key = key.to_owned();
+    Markdown::new(value)
+        .selectable(true)
+        .streaming(streaming)
+        .scroll_wide(true)
+        .on_link_tx(|s: &mut CoderuneApp, url, tx| {
+            if let Err(error) = tx.open_url(url) {
+                s.error = Some(AppError::new(
+                    ErrorCode::Validation,
+                    format!("Could not open the link: {error}"),
+                ));
+            }
+        })
+        .code_frame(move |card, frame| {
+            if frame.open {
+                return card;
+            }
+            let source = frame.source.to_owned();
+            col()
+                .key(format!("{code_key}-code-{}", frame.index))
+                .w_full()
+                .child(card)
+                .child(
+                    row().pin(None, Some(4.0), Some(4.0), None).child(
+                        small_secondary_tx(
+                            "Copy code",
+                            move |_: &mut CoderuneApp, tx: &mut Tx| tx.copy(source.clone()),
+                            theme::kit(),
+                        )
+                        .key(format!("{code_key}-copy-{}", frame.index)),
+                    ),
+                )
+        })
+        .build(theme::kit())
+        .key(format!("{key}-markdown"))
+        .max_w(BUBBLE_MAX - BUBBLE_PAD * 2.0)
 }
 
 fn working_line(turn: &ChatTurn, k: &Kit) -> El {
