@@ -224,6 +224,8 @@ pub struct CoderuneApp {
     pub(crate) chat_draft: TextEdit,
     chat_drafts: HashMap<String, TextEdit>,
     pub(crate) chat_turns: HashMap<String, ChatTurn>,
+    /// How many of each chat's newest messages the transcript shows.
+    pub(crate) chat_visible: HashMap<String, usize>,
     pub(crate) chat_feedback: HashMap<String, String>,
     pub(crate) chat_catalog: ChatCatalog,
     pub(crate) chat_menu: Option<ChatMenu>,
@@ -327,6 +329,7 @@ impl CoderuneApp {
             chat_draft: TextEdit::default(),
             chat_drafts: HashMap::new(),
             chat_turns: HashMap::new(),
+            chat_visible: HashMap::new(),
             chat_feedback: HashMap::new(),
             chat_catalog: ChatCatalog::default(),
             chat_menu: None,
@@ -472,6 +475,42 @@ mod tests {
         );
         assert!(app.find("chat-message-1-markdown").is_some());
         assert!(app.find("chat-message-1-copy-0").is_some());
+    }
+
+    #[test]
+    fn long_chats_open_at_the_latest_messages() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        scene_chat(&mut state);
+        let chat = state.active_chat().unwrap().id.clone();
+        for index in 0..88 {
+            state.chats.add_message(
+                &chat,
+                crate::chats::Author::Coderune,
+                &format!("Earlier message {index}"),
+            );
+        }
+        let mut app = Runtime::new(
+            state,
+            view,
+            (1280.0, 860.0),
+            Env {
+                system_dark: false,
+                scale: 1.0,
+            },
+        );
+        app.frame(0.0);
+
+        assert!(app.find("chat-message-0").is_none());
+        assert!(app.find("chat-message-89").is_some());
+        assert!(app.find("load-earlier-messages").is_some());
+
+        app.update(|state, _| state.load_earlier_messages());
+        app.update(|state, _| state.load_earlier_messages());
+        app.frame(1.0 / 60.0);
+        assert!(app.find("chat-message-0").is_some());
     }
 
     #[test]

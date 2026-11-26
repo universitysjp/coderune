@@ -75,8 +75,27 @@ impl CoderuneApp {
         };
     }
 
+    const CHAT_PAGE: usize = 40;
+
     pub(crate) fn active_chat(&self) -> Option<&Chat> {
         self.chats.active_chat()
+    }
+
+    /// The first message the transcript shows: a long chat opens at its end.
+    pub(crate) fn visible_message_start(&self, chat: &Chat) -> usize {
+        let visible = self
+            .chat_visible
+            .get(&chat.id)
+            .copied()
+            .unwrap_or(Self::CHAT_PAGE);
+        chat.messages.len().saturating_sub(visible)
+    }
+
+    pub(crate) fn load_earlier_messages(&mut self) {
+        if let Some(id) = self.chats.active.clone() {
+            let visible = self.chat_visible.entry(id).or_insert(Self::CHAT_PAGE);
+            *visible = visible.saturating_add(Self::CHAT_PAGE);
+        }
     }
 
     pub(crate) fn show_chat_project(&mut self) {
@@ -148,6 +167,7 @@ impl CoderuneApp {
         self.chat_turns.remove(id);
         self.chat_feedback.remove(id);
         self.chat_drafts.remove(id);
+        self.chat_visible.remove(id);
         if self.chats.archive_chat(id) {
             if active {
                 self.restore_chat_draft();
@@ -173,6 +193,7 @@ impl CoderuneApp {
         self.chat_turns.remove(id);
         self.chat_feedback.remove(id);
         self.chat_drafts.remove(id);
+        self.chat_visible.remove(id);
         if self.chats.delete_chat(id) {
             if active {
                 self.restore_chat_draft();
@@ -190,6 +211,7 @@ impl CoderuneApp {
             self.chat_turns.remove(&chat.id);
             self.chat_drafts.remove(&chat.id);
             self.chat_feedback.remove(&chat.id);
+            self.chat_visible.remove(&chat.id);
         }
         self.chats.delete_for_project(project_id);
         if active {

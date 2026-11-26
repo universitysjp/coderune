@@ -25,7 +25,9 @@ shows its title, agent, project, age, and message count. Its archive button puts
 the chat on **Settings → Archived**, where it can be restored or deleted.
 Prompts sit on the right and replies on the left. Replies render Markdown, including lists, code
 blocks, tables, and diagrams; links open in the browser, the text is selectable,
-and each code block offers **Copy code**. A turn can continue when its tab is closed. Use **Stop** in the
+and each code block offers **Copy code**. A long chat opens at its newest
+messages; **Load earlier messages** pages the transcript back without moving the
+view. A turn can continue when its tab is closed. Use **Stop** in the
 composer to cancel it. Coderune saves prompts, replies, and model choices locally
 and reuses the provider session for later turns. Selecting a different agent starts
 a session with that agent and keeps the existing transcript visible.

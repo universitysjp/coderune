@@ -66,7 +66,20 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
     if chat.messages.is_empty() {
         messages = messages.child(empty_chat(s, k, chat));
     }
-    for (index, message) in chat.messages.iter().enumerate() {
+    let start = s.visible_message_start(chat);
+    if start > 0 {
+        messages = messages.child(
+            row().w_full().justify_center().child(
+                small_secondary_tx(
+                    &format!("Load earlier messages ({start})"),
+                    |s: &mut CoderuneApp, _| s.load_earlier_messages(),
+                    k,
+                )
+                .key("load-earlier-messages"),
+            ),
+        );
+    }
+    for (index, message) in chat.messages.iter().enumerate().skip(start) {
         messages = messages.child(message_row(
             message.author,
             &message.text,
@@ -98,6 +111,7 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
         .grow(1.0)
         .min_h(0.0)
         .scroll(ScrollSpec { stick_bottom: true })
+        .scroll_anchor()
         .scroll_edge_fade(12.0)
         .px(20.0)
         .py(20.0)

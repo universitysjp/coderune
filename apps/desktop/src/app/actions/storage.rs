@@ -61,6 +61,7 @@ impl CoderuneApp {
         match workspace.delete_all_data() {
             Ok(()) => {
                 self.chat_turns.clear();
+                self.chat_visible.clear();
                 self.chat_feedback.clear();
                 self.chat_catalog = Default::default();
                 self.close_chat_menu();
