@@ -4,7 +4,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
-use coderune_agents::CliAgentId;
+use coderune_agents::{chat::ChatOptions, CliAgentId};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -13,6 +13,7 @@ use sha2::{Digest, Sha256};
 pub(crate) enum Author {
     Developer,
     Coderune,
+    Agent(CliAgentId),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,6 +32,10 @@ pub(crate) struct Chat {
     pub title: String,
     #[serde(default)]
     pub agent: Option<CliAgentId>,
+    #[serde(default)]
+    pub options: ChatOptions,
+    #[serde(default)]
+    pub provider_session: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     #[serde(default)]
@@ -45,6 +50,8 @@ impl Chat {
             project_id: project_id.to_string(),
             title: "New chat".to_string(),
             agent: None,
+            options: ChatOptions::default(),
+            provider_session: None,
             created_at: at.clone(),
             updated_at: at,
             messages: Vec::new(),
@@ -232,7 +239,9 @@ impl Chats {
         let Some(chat) = self.chat_mut(id) else {
             return false;
         };
-        chat.retitle(text);
+        if author == Author::Developer {
+            chat.retitle(text);
+        }
         chat.updated_at = coderune_domain::now_iso();
         chat.messages.push(Message {
             author,
@@ -242,13 +251,49 @@ impl Chats {
         true
     }
 
+    /// Save the prompt before the provider sees it. Leave the draft retryable
+    /// if another window changed local storage or the disk write failed.
+    pub(crate) fn record_prompt(&mut self, id: &str, text: &str) -> io::Result<()> {
+        let Some(chat) = self.chat(id) else {
+            return Err(io::Error::new(ErrorKind::NotFound, "Chat was removed"));
+        };
+        let title = chat.title.clone();
+        let updated_at = chat.updated_at.clone();
+        self.add_message(id, Author::Developer, text);
+        if let Err(error) = self.save() {
+            if let Some(chat) = self.chat_mut(id) {
+                chat.messages.pop();
+                chat.title = title;
+                chat.updated_at = updated_at;
+            }
+            return Err(error);
+        }
+        Ok(())
+    }
+
     pub(crate) fn set_agent(&mut self, id: &str, agent: Option<CliAgentId>) -> bool {
         let Some(chat) = self.chat_mut(id) else {
             return false;
         };
-        chat.agent = agent;
+        if chat.agent != agent {
+            chat.agent = agent;
+            chat.options = ChatOptions::default();
+            chat.provider_session = None;
+        }
         chat.updated_at = coderune_domain::now_iso();
         true
+    }
+
+    pub(crate) fn set_options(&mut self, id: &str, options: ChatOptions) {
+        if let Some(chat) = self.chat_mut(id) {
+            chat.options = options;
+        }
+    }
+
+    pub(crate) fn set_provider_session(&mut self, id: &str, session: String) {
+        if let Some(chat) = self.chat_mut(id) {
+            chat.provider_session = Some(session);
+        }
     }
 }
 

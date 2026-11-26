@@ -60,7 +60,10 @@ impl CoderuneApp {
         };
         match workspace.delete_all_data() {
             Ok(()) => {
-                self.chat_terminals.clear();
+                self.chat_turns.clear();
+                self.chat_feedback.clear();
+                self.chat_catalog = Default::default();
+                self.close_chat_menu();
                 self.chat_drafts.clear();
                 self.chat_draft = TextEdit::default();
                 let clear_chats = self.chats.clear();
@@ -81,7 +84,10 @@ impl CoderuneApp {
                 self.refresh_profile_form();
                 self.refresh_captures();
                 if let Err(error) = clear_chats {
-                    self.chat_agent_error("Could not remove saved chats", error);
+                    self.error = Some(AppError::new(
+                        coderune_domain::ErrorCode::UnreadablePath,
+                        format!("Could not remove saved chats: {error}"),
+                    ));
                 }
             }
             Err(error) => self.settings_feedback = Some(Err(error)),

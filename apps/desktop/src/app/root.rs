@@ -18,10 +18,7 @@ pub fn poll(s: &mut CoderuneApp, t: f64, tx: &mut Tx) -> bool {
     }
     let update_changed = s.updates.poll(tx);
     let detection_changed = s.agent_detection.poll(tx);
-    let mut chat_changed = false;
-    for terminal in s.chat_terminals.values_mut() {
-        chat_changed |= terminal.poll(tx);
-    }
+    let chat_changed = s.poll_chats(tx);
     if detection_changed && matches!(s.agent_detection.check, Check::Finished) {
         if let Some(workspace) = s.workspace.as_mut() {
             workspace.agents = coderune_agents::draft_statuses(&s.agent_detection.results);
@@ -49,13 +46,13 @@ pub fn view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
 fn themed_view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
     let k = theme::kit();
     let inset = cx.titlebar_inset();
+    let mut overlays = Vec::new();
     let body = if let Some(message) = &s.fatal {
         fatal(message, inset)
     } else {
-        shell::workspace(s, k, cx)
+        shell::workspace(s, k, cx, &mut overlays)
     };
     let base = col().w_full().h_full().fill(theme::bg()).child(body);
-    let mut overlays = Vec::new();
     if let Some(section) = s.settings {
         screens::settings::dialog(s, section, k, &mut overlays);
     }
@@ -96,8 +93,8 @@ fn fatal(message: &str, inset: f32) -> El {
 pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, tx: &mut rune::Tx) -> bool {
     match event.key {
         Key::Command('q') => {
-            s.chat_terminals.clear();
-            std::process::exit(0);
+            tx.quit();
+            return true;
         }
         Key::Command(',' | '7') if s.workspace.is_some() => {
             if s.settings.is_none() {
@@ -108,6 +105,14 @@ pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, tx: &mut rune::Tx) -> bool 
         }
         _ if s.settings.is_some() => return false,
         _ => {}
+    }
+    let terminal_shortcut = event.is_command('j')
+        || (event.mods.ctrl
+            && matches!(&event.key, Key::Text(key) if key.eq_ignore_ascii_case("j")));
+    if terminal_shortcut && !event.mods.alt && !event.mods.shift && s.workspace.is_some() {
+        s.open_terminal();
+        tx.instant();
+        return true;
     }
     if is_sidebar_toggle(event) {
         s.sidebar.toggle();

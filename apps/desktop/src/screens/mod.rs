@@ -3,7 +3,7 @@
 pub(crate) mod avatars;
 pub(crate) mod capture;
 pub(crate) mod chat;
-mod coding_agents;
+pub(crate) mod coding_agents;
 pub(crate) mod documents;
 pub(crate) mod home;
 pub(crate) mod onboarding;

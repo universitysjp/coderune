@@ -4,7 +4,7 @@ Home offers a new chat for the current project or a first-project action.
 The sidebar lists projects and their context readiness. Select a project to
 open its settings, or use its disclosure to show chats. Each open chat gets
 a closable titlebar tab. The Workspace tab returns to the previous page
-and project selection.
+and project selection. The gear at the right end of the sidebar profile row opens Settings.
 
 Project settings show readiness for the folder, goals, collection scope, and
 first capture. Create a project with its name, folder, and goals. Set paths
@@ -13,20 +13,28 @@ the default collection scope.
 
 ## Run a coding agent
 
-Choose an enabled agent and select **Start agent**. The agent starts in
-that project's folder with its own sign-in, permissions, models, and settings.
-The panel can dock left or right inside the chat or float above the composer.
-Type into the terminal for interactive prompts, or use the composer to send
-a line. F6 returns focus from the terminal to the panel controls.
+Choose an installed, enabled coding agent in the composer. Native project chat
+supports Codex, Claude Code, OpenCode, and Antigravity CLI. Choose a model and,
+when the agent offers it, a reasoning effort. Click **Send** or press
+**Command+Enter** on macOS or **Ctrl+Enter** elsewhere. The agent uses the
+project folder and its own sign-in and permissions. When a supported action
+requires approval, the composer shows the action and asks for a one-time decision.
 
-Each open tab keeps its own running process and draft input. Closing the tab
-stops the process. Coderune saves the chat, its chosen agent, and composer
-messages locally. Starting the agent again creates a fresh process. The agent
-owns its session history, and Coderune keeps terminal output in memory while
-the terminal stays open.
+The agent logo identifies each conversation in the sidebar. Replies stream into
+the transcript. A turn can continue when its tab is closed. Use **Stop** in the
+composer to cancel it. Coderune saves prompts, replies, and model choices locally
+and reuses the provider session for later turns. Selecting a different agent starts
+a session with that agent and keeps the existing transcript visible.
+
+**Command+J** on macOS or **Ctrl+J** elsewhere opens a separate terminal in the
+active project folder. Coderune uses the system launcher or the executable
+specified by `TERMINAL`.
+
+Open **Settings → Agents** to see installed coding agents, their installed
+versions when detectable, and available updates where Coderune can verify them.
 
 ## Verify
 
-Use `bun run test:desktop` for workspace navigation, chat persistence, and
-terminal input tests. Use `bun run verify:ui` to render Home, Project settings,
-and the docked and floating chat scenes.
+Use `bun run test:desktop` for workspace navigation and chat persistence.
+Use `cargo test -p coderune-agents --locked` for the provider protocol checks
+and `bun run verify:ui` for dark, light, and narrow chat renders.

@@ -194,11 +194,7 @@ impl CoderuneApp {
         };
         match workspace.delete_project(&id) {
             Ok(()) => {
-                for chat in self.chats.chats_for(&id) {
-                    self.chat_terminals.remove(&chat.id);
-                    self.chat_drafts.remove(&chat.id);
-                }
-                self.chats.delete_for_project(&id);
+                self.remove_project_chats(&id);
                 self.projects_with_captures.remove(&id);
                 self.new_project_form();
                 self.save_chats();

@@ -1,12 +1,12 @@
 mod agent_detection;
 mod app;
-mod chat_terminal;
 mod chats;
 mod fonts;
 mod forms;
 mod preferences;
 mod screens;
 mod shell;
+mod terminal;
 mod update_install;
 mod updates;
 mod widgets;
@@ -47,6 +47,7 @@ fn main() {
     }
     #[cfg(target_os = "windows")]
     let _ = rune::set_app_icon(include_bytes!("../assets/icon-1024.png").as_slice());
+    rune::orderly_exit();
     rune::run(AppSpec {
         min_size: Some((960.0, 640.0)),
         fonts: &[
@@ -75,7 +76,7 @@ fn main() {
             ("settings-agents", app::scenes::scene_settings_agents),
             ("home-dark", app::scenes::scene_home_dark),
             ("chat", app::scenes::scene_chat),
-            ("chat-floating", app::scenes::scene_chat_floating),
+            ("chat-dark", app::scenes::scene_chat_dark),
             ("settings-fonts", app::scenes::scene_settings_fonts),
             ("settings-dark", app::scenes::scene_settings_dark),
             (

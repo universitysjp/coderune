@@ -16,7 +16,8 @@ change lands in one place.
 | `src/screens/` | One view module per destination. Screens read state and call app methods. |
 | `src/shell.rs` | Window chrome, sidebar, title bar tabs, and workspace layout. |
 | `src/widgets.rs` | App-aware builders: buttons, text fields, choice chips, status alerts. |
-| `src/chats.rs`, `src/chat_terminal.rs` | Chat persistence and PTY-backed coding-agent sessions. |
+| `src/chats.rs`, `src/terminal.rs` | Local chat persistence and the separate desktop terminal launcher. |
+| `crates/agents/src/chat` | Structured provider protocols for project chat. |
 | `src/preferences.rs`, `src/agent_detection.rs`, `src/updates.rs`, `src/update_install.rs` | Desktop-local services. |
 
 ## Rules

@@ -5,13 +5,16 @@
 
 use std::path::PathBuf;
 
+use coderune_agents::{
+    chat::{Effort, Model},
+    CliAgentId, CliAgentStatus,
+};
 use coderune_domain::ExperienceStage;
 
 use crate::agent_detection::Check;
 use crate::app::{CoderuneApp, ProfileSection, ProfileTab, SettingsSection, View};
 use crate::chats::{Author, Chats};
 use crate::forms::{edit, ProjectForm};
-use crate::preferences::AgentDock;
 
 /// Seed a developer baseline and one project so headless scenes can show the workspace.
 pub fn seed_demo(s: &mut CoderuneApp) {
@@ -108,19 +111,42 @@ pub fn scene_chat(s: &mut CoderuneApp) {
     if let Some(project) = project {
         s.chats = Chats::default();
         let chat = s.chats.new_chat(&project);
-        s.agent_detection.results = coderune_agents::detect_cli_agents();
+        let agent = CliAgentId::Codex;
+        s.preferences.set_project_expanded(&project, true);
+        s.agent_detection.results = vec![CliAgentStatus {
+            id: agent,
+            name: agent.label(),
+            command: "codex",
+            install_url: "",
+            executable: Some(PathBuf::from("fixtures/codex")),
+        }];
         s.agent_detection.check = Check::Finished;
+        s.chats.set_agent(&chat, Some(agent));
+        s.seed_chat_catalog(vec![Model {
+            id: "example-model".into(),
+            label: "Example model".into(),
+            efforts: vec![Effort {
+                id: "medium".into(),
+                label: "Medium".into(),
+            }],
+            is_default: true,
+        }]);
         s.chats.add_message(
             &chat,
             Author::Developer,
             "Which parts of this project should the agent read first?",
         );
+        s.chats.add_message(
+            &chat,
+            Author::Agent(agent),
+            "Start with the project goals and repository guide. Then read the app entry point and the tests for the area you plan to change.",
+        );
     }
 }
 
-pub fn scene_chat_floating(s: &mut CoderuneApp) {
+pub fn scene_chat_dark(s: &mut CoderuneApp) {
     scene_chat(s);
-    s.preferences.agent_dock = AgentDock::Floating;
+    s.preferences.dark_mode = true;
 }
 
 pub fn scene_settings_fonts(s: &mut CoderuneApp) {

@@ -99,7 +99,12 @@ impl SidebarPane {
 const TAB_STRIP_KEY: &str = "workspace-tabs";
 const WORKSPACE_KEY: &str = "workspace";
 
-pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> El {
+pub(crate) fn workspace(
+    s: &CoderuneApp,
+    k: &Kit,
+    cx: &mut Cx<CoderuneApp>,
+    overlays: &mut Vec<El>,
+) -> El {
     let active = s.view;
     let chat = s.active_chat();
     let page = match active {
@@ -127,7 +132,7 @@ pub(crate) fn workspace(s: &CoderuneApp, k: &Kit, cx: &mut Cx<CoderuneApp>) -> E
                 .key(format!("t-chat-{}", chat.id))
                 .w_full()
                 .h_full()
-                .child(screens::chat(s, k))
+                .child(screens::chat(s, k, overlays))
         } else {
             col()
                 .key(active.id())
@@ -343,14 +348,21 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
     }
     nav = nav.section(projects);
 
-    let settings = ui::nav_item(
-        "nav-data-footer",
-        "Settings",
-        &icons::GEAR,
-        s.settings.is_some(),
-        |s: &mut CoderuneApp| s.select_settings(SettingsSection::General),
-    );
-    nav.footer(settings).footer(profile_item(s)).build(k)
+    let settings = IconButton::new(&icons::GEAR)
+        .variant(IconButtonVariant::Ghost)
+        .label("Settings")
+        .on_press(|s: &mut CoderuneApp| s.select_settings(SettingsSection::General))
+        .build(k)
+        .key("nav-data-footer");
+    nav.footer(
+        row()
+            .w_full()
+            .items_center()
+            .gap(4.0)
+            .child(profile_item(s))
+            .child(settings),
+    )
+    .build(k)
 }
 
 fn project_row(s: &CoderuneApp, project: &coderune_domain::Project, k: &Kit) -> El {
@@ -399,8 +411,13 @@ fn chat_row(s: &CoderuneApp, chat: &crate::chats::Chat, k: &Kit) -> El {
     let id = chat.id.clone();
     let select = id.clone();
     let close = id.clone();
-    SidebarRow::new(&chat.title)
-        .icon(&icons::MESSAGE)
+    let entry = SidebarRow::new(&chat.title);
+    let entry = if let Some(agent) = chat.agent {
+        entry.avatar(screens::coding_agents::compact_logo(agent, k.dark))
+    } else {
+        entry.icon(&icons::MESSAGE)
+    };
+    entry
         .depth(1)
         .selected(s.chats.active.as_deref() == Some(id.as_str()))
         .on_select(move |s: &mut CoderuneApp, tx: &mut rune::Tx| {
@@ -452,7 +469,7 @@ fn profile_item(s: &CoderuneApp) -> El {
         || "Developer baseline".to_string(),
         |profile| format!("Baseline v{}", profile.version),
     );
-    let selected = s.view == View::Profile;
+    let selected = s.view == View::Profile && s.active_chat().is_none();
     row()
         .key(View::Profile.nav_key())
         .hit()
@@ -461,7 +478,8 @@ fn profile_item(s: &CoderuneApp) -> El {
         .role("button")
         .label(format!("Profile, {name}"))
         .h(40.0)
-        .w_full()
+        .grow(1.0)
+        .min_w(0.0)
         .items_center()
         .gap(10.0)
         .px(8.0)

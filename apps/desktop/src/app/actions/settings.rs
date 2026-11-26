@@ -10,6 +10,7 @@ use crate::preferences::Preferences;
 impl CoderuneApp {
     pub(crate) fn select_settings(&mut self, section: SettingsSection) {
         self.settings = Some(section);
+        self.close_chat_menu();
         self.settings_feedback = None;
         self.font_menu = None;
         self.confirm_delete_all = false;
@@ -73,12 +74,8 @@ impl CoderuneApp {
 
     pub(crate) fn set_agent_enabled(&mut self, agent: CliAgentId, enabled: bool) {
         self.update_preferences(|preferences| preferences.set_agent_enabled(agent, enabled));
-        if !enabled {
-            self.chat_terminals.retain(|id, _| {
-                self.chats
-                    .chat(id)
-                    .is_some_and(|chat| chat.agent != Some(agent))
-            });
+        if !self.agent_enabled(agent) {
+            self.cancel_agent_turns(agent);
         }
         if self
             .document_form

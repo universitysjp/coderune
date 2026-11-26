@@ -4,7 +4,7 @@
 //! methods and never touch fields directly.
 
 mod capture;
-mod chats;
+pub(crate) mod chats;
 mod documents;
 mod profile;
 mod projects;

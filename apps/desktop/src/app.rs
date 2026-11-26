@@ -19,12 +19,12 @@ use rune::TextEdit;
 use coderune_ui::icons;
 
 use crate::agent_detection::AgentDetection;
-use crate::chat_terminal::Terminal;
 use crate::chats::Chats;
 use crate::forms::{DocumentForm, ProfileForm, ProjectForm};
 use crate::preferences::Preferences;
 use crate::shell::SidebarPane;
 use crate::updates::Updates;
+use actions::chats::{ChatCatalog, ChatMenu, ChatTurn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
@@ -219,7 +219,11 @@ pub struct CoderuneApp {
     pub(crate) chats: Chats,
     pub(crate) chat_draft: TextEdit,
     chat_drafts: HashMap<String, TextEdit>,
-    pub(crate) chat_terminals: HashMap<String, Terminal>,
+    pub(crate) chat_turns: HashMap<String, ChatTurn>,
+    pub(crate) chat_feedback: HashMap<String, String>,
+    pub(crate) chat_catalog: ChatCatalog,
+    pub(crate) chat_menu: Option<ChatMenu>,
+    pub(crate) chat_model_menu: rune_kit::ComboboxState,
     /// The family lists last handed to the text system.
     applied_fonts: Option<(String, String)>,
     pub error: Option<AppError>,
@@ -315,7 +319,11 @@ impl CoderuneApp {
             chats,
             chat_draft: TextEdit::default(),
             chat_drafts: HashMap::new(),
-            chat_terminals: HashMap::new(),
+            chat_turns: HashMap::new(),
+            chat_feedback: HashMap::new(),
+            chat_catalog: ChatCatalog::default(),
+            chat_menu: None,
+            chat_model_menu: rune_kit::ComboboxState::default(),
             applied_fonts: None,
             error: chat_error,
             notice: None,
@@ -344,13 +352,18 @@ impl CoderuneApp {
     }
 }
 
+impl Drop for CoderuneApp {
+    fn drop(&mut self) {
+        self.finish_chat_turns();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::agent_detection::Check;
     use crate::app::scenes::{scene_home, scene_projects, seed_demo};
     use crate::forms::edit;
-    use crate::preferences::AgentDock;
     use rune::{Env, Runtime};
 
     /// Tests that point the app at a temporary data folder must not overlap.
@@ -469,10 +482,11 @@ mod tests {
         assert!(workspace.find("brand").is_none());
 
         let position = |runtime: &Runtime<CoderuneApp>, key| runtime.presented(key).unwrap().0;
-        assert!(
-            position(&workspace, "nav-data-footer")[1]
-                < position(&workspace, "nav-profile-footer")[1]
-        );
+        let [profile_x, profile_y, profile_w, profile_h] =
+            position(&workspace, "nav-profile-footer");
+        let [settings_x, settings_y, _, settings_h] = position(&workspace, "nav-data-footer");
+        assert!(settings_x >= profile_x + profile_w);
+        assert!((settings_y + settings_h / 2.0 - profile_y - profile_h / 2.0).abs() < 1.0);
 
         let [x, y, w, _] = position(&workspace, "sidebar-resize");
         workspace.pointer_down(x + w / 2.0, y + 20.0);
@@ -525,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn chats_preserve_workspace_selection_and_the_floating_panel_leaves_send_visible() {
+    fn project_chat_has_native_controls_and_preserves_workspace_selection() {
         let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("CODERUNE_DATA_DIR", dir.path());
@@ -544,7 +558,6 @@ mod tests {
         state.new_chat(&second);
         let chat_id = state.active_chat().unwrap().id.clone();
         state.chat_draft = edit("Draft only for this chat");
-        state.set_agent_dock(AgentDock::Floating);
         let mut app = Runtime::new(
             state,
             view,
@@ -556,9 +569,9 @@ mod tests {
         );
         app.frame(0.0);
         app.frame(1.0 / 60.0);
-        let [_, panel_y, _, panel_height] = app.presented("agent-panel").unwrap().0;
-        let [_, send_y, _, _] = app.presented("send-message").unwrap().0;
-        assert!(panel_y + panel_height < send_y);
+        assert!(app.find("agent-panel").is_none());
+        assert!(app.find("chat-agent-trigger").is_some());
+        assert!(app.find("send-message").is_some());
         assert!(app.find(&format!("t-{chat_id}")).is_some());
 
         app.update(|state, _| state.show_workspace());
@@ -583,6 +596,184 @@ mod tests {
         assert!(app.state.chats.chat(&chat_id).is_some());
         assert!(!app.state.chats.open.contains(&chat_id));
         assert!(CoderuneApp::init().chats.chat(&chat_id).is_some());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_chat_saves_agent_replies_and_resumes_after_reopening() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::time::{Duration, Instant};
+
+        use coderune_agents::{CliAgentId, CliAgentStatus};
+
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let executable = dir.path().join("codex-fixture");
+        std::fs::write(
+            &executable,
+            r#"#!/bin/sh
+set -eu
+IFS= read -r initialize
+printf '%s\n' '{"id":1,"result":{}}'
+IFS= read -r initialized
+IFS= read -r request
+case "$request" in
+  *'"method":"model/list"'*)
+    printf '%s\n' '{"id":2,"result":{"data":[{"model":"example","displayName":"Example","isDefault":true,"supportedReasoningEfforts":[{"reasoningEffort":"high"}]}]}}'
+    exit 0
+    ;;
+  *'"method":"thread/start"'*) reply='First reply' ;;
+  *'"method":"thread/resume"'*'"threadId":"saved-thread"'*) reply='Continued reply' ;;
+  *) exit 1 ;;
+esac
+printf '%s\n' '{"id":2,"result":{"thread":{"id":"saved-thread"}}}'
+IFS= read -r turn
+case "$turn" in *'"effort":"high"'*'"model":"example"'*) ;; *) exit 1 ;; esac
+printf '%s\n' '{"id":3,"result":{"turn":{"id":"turn"}}}'
+printf '{"method":"item/agentMessage/delta","params":{"threadId":"saved-thread","turnId":"turn","itemId":"reply","delta":"%s"}}\n' "$reply"
+printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","turn":{"id":"turn","status":"completed"}}}'
+"#,
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let configure = |state: &mut CoderuneApp| {
+            state.agent_detection.check = Check::Finished;
+            state.agent_detection.results = vec![CliAgentStatus {
+                id: CliAgentId::Codex,
+                name: "Codex",
+                command: "codex",
+                install_url: "",
+                executable: Some(executable.clone()),
+            }];
+        };
+        let wait_for_reply = |state: &mut CoderuneApp| {
+            assert!(state.chat_draft.text.is_empty());
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while !state.chat_turns.is_empty() {
+                assert!(Instant::now() < deadline, "Agent turn did not finish");
+                poll(state, 0.0, &mut rune::Tx::default());
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            assert!(state.chat_feedback.is_empty(), "{:?}", state.chat_feedback);
+        };
+
+        let mut state = CoderuneApp::init();
+        seed_demo(&mut state);
+        configure(&mut state);
+        let project = state.project_form.editing.clone().unwrap();
+        state.new_chat(&project);
+        state.set_chat_agent(CliAgentId::Codex);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !matches!(
+            state.chat_catalog.status,
+            actions::chats::CatalogStatus::Ready(_)
+        ) {
+            assert!(Instant::now() < deadline, "Model catalog did not load");
+            poll(&mut state, 0.0, &mut rune::Tx::default());
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let mut app = Runtime::new(
+            state,
+            view,
+            (960.0, 640.0),
+            Env {
+                system_dark: false,
+                scale: 1.0,
+            },
+        );
+        app.frame(0.0);
+        let click = |app: &mut Runtime<CoderuneApp>, key| {
+            let [x, y, w, h] = app
+                .presented(key)
+                .unwrap_or_else(|| panic!("Missing {key}"))
+                .0;
+            app.pointer_down(x + w / 2.0, y + h / 2.0);
+            app.pointer_up(x + w / 2.0, y + h / 2.0);
+            for _ in 0..24 {
+                app.frame(1.0 / 60.0);
+            }
+        };
+        click(&mut app, "chat-model-trigger");
+        click(&mut app, "chat-model-picker-option-model:example");
+        click(&mut app, "chat-effort-trigger");
+        click(&mut app, "option1");
+        app.update(|state, _| state.chat_draft = edit("First prompt"));
+        app.frame(1.0 / 60.0);
+        click(&mut app, "send-message");
+        wait_for_reply(&mut app.state);
+        drop(app);
+
+        let mut reopened = CoderuneApp::init();
+        configure(&mut reopened);
+        assert_eq!(
+            reopened.active_chat().unwrap().messages[1].text,
+            "First reply"
+        );
+        reopened.chat_draft = edit("Second prompt");
+        reopened.send_chat_message();
+        wait_for_reply(&mut reopened);
+        let chat = reopened.active_chat().unwrap();
+        let reply = chat.messages.last().unwrap();
+        assert_eq!(reply.author, crate::chats::Author::Agent(CliAgentId::Codex));
+        assert_eq!(reply.text, "Continued reply");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminal_shortcut_opens_the_active_chats_project_folder() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::time::{Duration, Instant};
+
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        seed_demo(&mut state);
+        let folder = tempfile::tempdir().unwrap();
+        state.project_form = ProjectForm::empty(Some(folder.path().to_path_buf()));
+        state.project_form.name = edit("Terminal project");
+        state.project_form.goals = edit("Verify the launch folder");
+        state.save_project();
+        let project = state.project_form.editing.clone().unwrap();
+        state.agent_detection.check = Check::Finished;
+        state.new_chat(&project);
+
+        let terminal = dir.path().join("terminal-fixture");
+        std::fs::write(&terminal, "#!/bin/sh\npwd -P > \"$0.cwd\"\n").unwrap();
+        std::fs::set_permissions(&terminal, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let original = std::env::var_os("TERMINAL");
+        std::env::set_var("TERMINAL", &terminal);
+        let handled = on_key(
+            &mut state,
+            &rune::KeyEvent {
+                key: rune::Key::Command('j'),
+                mods: rune::Mods::default(),
+            },
+            &mut rune::Tx::default(),
+        );
+        if let Some(original) = original {
+            std::env::set_var("TERMINAL", original);
+        } else {
+            std::env::remove_var("TERMINAL");
+        }
+        assert!(handled);
+
+        let result = terminal.with_extension("cwd");
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            if let Ok(path) = std::fs::read_to_string(&result) {
+                if !path.trim().is_empty() {
+                    assert_eq!(
+                        std::path::Path::new(path.trim()),
+                        folder.path().canonicalize().unwrap()
+                    );
+                    break;
+                }
+            }
+            assert!(Instant::now() < deadline, "The terminal did not open");
+            std::thread::sleep(Duration::from_millis(5));
+        }
     }
 
     #[test]

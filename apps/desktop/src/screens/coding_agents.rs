@@ -132,10 +132,23 @@ fn agent_row(agent: &CliAgentStatus, status: Option<&str>, action: El, k: &Kit) 
         .child(action)
 }
 
-pub(super) fn logo(agent: CliAgentId, dark: bool) -> El {
+pub(crate) fn logo(agent: CliAgentId, dark: bool) -> El {
+    row()
+        .size(32.0, 32.0)
+        .radius(7.0)
+        .border(1.0, theme::row_line())
+        .center()
+        .a11y_hidden()
+        .child(agent_mark(agent, dark, 20.0))
+}
+
+pub(crate) fn compact_logo(agent: CliAgentId, dark: bool) -> El {
+    agent_mark(agent, dark, 16.0).a11y_hidden()
+}
+
+fn agent_mark(agent: CliAgentId, dark: bool, size: f32) -> El {
     use CliAgentId::*;
     static IMAGES: LazyLock<ImageCache> = LazyLock::new(|| ImageCache::new(Arc::new(|| {})));
-    const SIZE: f32 = 20.0;
     let svg: &'static [u8] = match (agent, dark) {
         (ClaudeCode, _) => include_bytes!("../../assets/agent-logos/claude-code.svg"),
         (Codex, false) => include_bytes!("../../assets/agent-logos/codex_light.svg"),
@@ -159,15 +172,7 @@ pub(super) fn logo(agent: CliAgentId, dark: bool) -> El {
         (Jcode, false) => include_bytes!("../../assets/agent-logos/jcode.svg"),
         (Jcode, true) => include_bytes!("../../assets/agent-logos/jcode-dark.svg"),
     };
-    let image = IMAGES.svg(svg, SIZE, 3.0);
-    row()
-        .size(32.0, 32.0)
-        .radius(7.0)
-        .border(1.0, theme::row_line())
-        .center()
-        .a11y_hidden()
-        .child(
-            el().size(SIZE, SIZE)
-                .pixels_fit(image.pixels(), SurfaceFit::Fit),
-        )
+    let image = IMAGES.svg(svg, size, 3.0);
+    el().size(size, size)
+        .pixels_fit(image.pixels(), SurfaceFit::Fit)
 }

@@ -14,7 +14,9 @@ Shared vocabulary for Coderune's developer and project context, agent skills, ve
 
 **Agent connection**: A developer-configured connection to a coding agent and the models available through it. _Avoid_: Subscription, model provider
 
-**Project chat** is a local conversation associated with one project. It opens in a workspace tab and can run a selected coding agent in the project folder.
+**Project chat** is a local conversation with a coding agent in one project. Its transcript records developer prompts and attributed agent replies.
+
+**Provider session** is the conversation state that a coding agent keeps for a project chat and uses to continue a later turn.
 
 **Context readiness** is the completion of a project's folder, goals, collection scope, and first capture.
 

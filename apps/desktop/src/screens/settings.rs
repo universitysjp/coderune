@@ -382,6 +382,7 @@ fn shortcuts(k: &Kit) -> El {
             [
                 shortcut_row(k, "Open Settings", &[&[modifier, ","], &[modifier, "7"]]),
                 shortcut_row(k, "Toggle sidebar", &sidebar_keys),
+                shortcut_row(k, "Open terminal", &[&[modifier, "J"]]),
                 shortcut_row(k, "Close Settings", &[&["Esc"]]),
                 shortcut_row(k, "Quit Coderune", &[&[modifier, "Q"]]),
             ],

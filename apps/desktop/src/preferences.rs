@@ -7,16 +7,6 @@ use std::path::{Path, PathBuf};
 use coderune_agents::CliAgentId;
 use serde::{Deserialize, Serialize};
 
-/// Where a chat's agent panel sits inside the content area.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
-pub(crate) enum AgentDock {
-    #[default]
-    Right,
-    Left,
-    Floating,
-    Hidden,
-}
-
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
 pub(crate) struct Preferences {
@@ -26,7 +16,6 @@ pub(crate) struct Preferences {
     pub(crate) mono_font: Option<String>,
     /// Projects whose chats are listed under them.
     pub(crate) expanded_projects: Vec<String>,
-    pub(crate) agent_dock: AgentDock,
     disabled_agents: Vec<CliAgentId>,
 }
 
