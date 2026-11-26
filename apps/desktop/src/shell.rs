@@ -5,8 +5,8 @@ use coderune_ui::icons;
 use coderune_ui::theme::{self, LABEL, LABEL_SM};
 use rune::{col, el, row, text, Color, Cursor, Cx, Drag, El, Phase, ScrollSpec};
 use rune_kit::shell::{
-    PaneState, Sidebar, SidebarRow, SidebarSection, TabItem, TabOrientation, TabOverflow, TabStrip,
-    WindowTitlebar,
+    PaneState, RowStatus, Sidebar, SidebarRow, SidebarSection, TabItem, TabOrientation,
+    TabOverflow, TabStrip, WindowTitlebar,
 };
 use rune_kit::{ControlSize, HoverCard, IconButton, IconButtonVariant, Kit, Placement};
 
@@ -417,6 +417,11 @@ fn chat_row(s: &CoderuneApp, chat: &crate::chats::Chat, k: &Kit, overlays: &mut 
         entry.avatar(screens::coding_agents::compact_logo(agent, k.dark))
     } else {
         entry.icon(&icons::MESSAGE)
+    };
+    let entry = match s.chat_turns.get(&id) {
+        Some(turn) if turn.approval.is_some() => entry.status(RowStatus::Attention),
+        Some(_) => entry.status(RowStatus::Busy),
+        None => entry,
     };
     let entry = entry
         .depth(1)

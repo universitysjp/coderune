@@ -3,7 +3,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use coderune_agents::chat::{
     ChatEvent, ChatOptions, ChatProvider, ChatRun, Model, ModelCatalogRun,
@@ -25,9 +25,22 @@ pub(crate) enum ChatMenu {
 pub(crate) struct ChatTurn {
     run: ChatRun,
     agent: CliAgentId,
+    pub(crate) started: Instant,
     pub(crate) reply: String,
     pub(crate) approval: Option<String>,
     pub(crate) stopping: bool,
+}
+
+impl ChatTurn {
+    /// How long the turn has been running, as a compact label.
+    pub(crate) fn elapsed(&self) -> String {
+        let seconds = self.started.elapsed().as_secs();
+        match seconds {
+            0..=59 => format!("{seconds}s"),
+            60..=3599 => format!("{}m {}s", seconds / 60, seconds % 60),
+            _ => format!("{}h {}m", seconds / 3600, seconds % 3600 / 60),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -357,6 +370,7 @@ impl CoderuneApp {
                     ChatTurn {
                         run,
                         agent,
+                        started: Instant::now(),
                         reply: String::new(),
                         approval: None,
                         stopping: false,

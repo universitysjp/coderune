@@ -30,6 +30,9 @@ composer to cancel it. Coderune saves prompts, replies, and model choices locall
 and reuses the provider session for later turns. Selecting a different agent starts
 a session with that agent and keeps the existing transcript visible.
 
+While a turn runs, its reply shows **Working** with elapsed time and the sidebar
+marks the chat busy; an approval request marks it for attention.
+
 **Command+J** on macOS or **Ctrl+J** elsewhere opens a separate terminal in the
 active project folder. Coderune uses the system launcher or the executable
 specified by `TERMINAL`.

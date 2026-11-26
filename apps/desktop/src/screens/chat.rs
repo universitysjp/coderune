@@ -4,7 +4,9 @@ use coderune_domain::{AppError, ErrorCode};
 use coderune_ui::components as ui;
 use coderune_ui::theme::{self, BODY, BODY_SM, LABEL, LABEL_SM};
 use rune::{col, row, text, El, ScrollSpec, Tx};
-use rune_kit::{Combobox, ComboboxOption, Kit, Markdown, Placement, Progress, Select, TextArea};
+use rune_kit::{
+    Combobox, ComboboxOption, Kit, Markdown, Placement, Progress, Select, Spinner, TextArea,
+};
 
 use crate::agent_detection::Check;
 use crate::app::actions::chats::{CatalogStatus, ChatMenu, ChatTurn};
@@ -73,22 +75,19 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
             false,
         ));
     }
-    if let (Some(turn), Some(agent)) = (turn, chat.agent) {
-        messages = messages.child(message_row(
-            Author::Agent(agent),
-            if turn.reply.is_empty() {
-                if turn.stopping {
-                    "Stopping…"
-                } else {
-                    "Working…"
-                }
-            } else {
-                &turn.reply
-            },
-            k,
-            "chat-message-live",
-            !turn.reply.is_empty(),
-        ));
+    if let Some(turn) = turn {
+        if !turn.reply.is_empty() {
+            if let Some(agent) = chat.agent {
+                messages = messages.child(message_row(
+                    Author::Agent(agent),
+                    &turn.reply,
+                    k,
+                    "chat-message-live",
+                    true,
+                ));
+            }
+        }
+        messages = messages.child(working_line(turn, k));
     }
     if let Some(feedback) = s.chat_feedback.get(&chat.id) {
         messages = messages.child(ui::alert(None, feedback));
@@ -163,6 +162,25 @@ fn message_row(author: Author, value: &str, k: &Kit, key: &str, streaming: bool)
         message.items_start()
     };
     message.child(meta).child(bubble)
+}
+
+fn working_line(turn: &ChatTurn, k: &Kit) -> El {
+    row()
+        .key("chat-working")
+        .items_center()
+        .gap(7.0)
+        .h(24.0)
+        .child(Spinner::new().size(13.0).color(theme::muted()).build(k))
+        .child(
+            text(if turn.stopping {
+                "Stopping…"
+            } else {
+                "Working…"
+            })
+            .font(LABEL_SM)
+            .color(theme::muted()),
+        )
+        .child(text(turn.elapsed()).font(LABEL_SM).color(theme::faint()))
 }
 
 fn empty_chat(s: &CoderuneApp, k: &Kit, chat: &Chat) -> El {
