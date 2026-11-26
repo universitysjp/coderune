@@ -1,14 +1,14 @@
-//! External coding-agent detection and draft requests.
+//! External coding-agent detection, project chat, and draft requests.
 //!
-//! Coderune never owns sign-in, providers, models, or credentials. Agents are
-//! detected through the user's executable paths and invoked only for an
-//! explicitly confirmed draft job.
+//! Coding agents use their own sign-in and credentials. Coderune finds their
+//! executables on the user's search path and connects to their local protocols.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+pub mod chat;
 mod cli;
 use cli::SearchPath;
 pub use cli::{detect_cli_agents, detect_cli_agents_with_path, CliAgentId, CliAgentStatus};

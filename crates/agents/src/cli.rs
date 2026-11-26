@@ -27,6 +27,16 @@ pub enum CliAgentId {
 
 use CliAgentId::*;
 
+impl CliAgentId {
+    /// The user-facing name shared by discovery and saved conversations.
+    pub fn label(self) -> &'static str {
+        CLI_AGENTS
+            .iter()
+            .find(|(id, _, _, _)| *id == self)
+            .map_or("Coding agent", |(_, name, _, _)| name)
+    }
+}
+
 impl From<AgentId> for CliAgentId {
     fn from(id: AgentId) -> Self {
         match id {
