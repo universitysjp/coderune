@@ -2,6 +2,7 @@
 
 use std::sync::{Arc, LazyLock};
 
+use coderune_agents::chat::ChatProvider;
 use coderune_agents::{CliAgentId, CliAgentStatus};
 use coderune_ui::components::{self as ui, PushButtonExt};
 use coderune_ui::theme;
@@ -15,6 +16,7 @@ use crate::widgets::small_secondary_tx;
 pub(super) fn coding_agents(s: &CoderuneApp, k: &Kit) -> El {
     let detection = &s.agent_detection;
     let checking = matches!(detection.check, Check::Checking(_));
+    let checking_versions = detection.checking_versions();
     let installed = detection
         .results
         .iter()
@@ -31,7 +33,7 @@ pub(super) fn coding_agents(s: &CoderuneApp, k: &Kit) -> El {
             .child(heading("Installed agents"))
             .child(
                 Button::new("Check again")
-                    .disabled(checking)
+                    .disabled(checking || checking_versions)
                     .on_press(|s: &mut CoderuneApp| s.agent_detection.refresh())
                     .build_push(k)
                     .key("recheck-agents"),
@@ -39,6 +41,8 @@ pub(super) fn coding_agents(s: &CoderuneApp, k: &Kit) -> El {
     );
     if checking {
         body = body.child(ui::subtle("Checking for coding agents…"));
+    } else if checking_versions {
+        body = body.child(ui::subtle("Checking versions and updates…"));
     }
     if matches!(detection.check, Check::Failed) {
         body = body.child(ui::alert(
@@ -77,6 +81,15 @@ fn heading(label: &str) -> El {
 fn installed_agent(s: &CoderuneApp, agent: &CliAgentStatus, k: &Kit) -> El {
     let id = agent.id;
     let enabled = s.agent_enabled(id);
+    let status = if !enabled {
+        "Off"
+    } else if ChatProvider::for_agent(id).is_some() {
+        "Ready"
+    } else {
+        "CLI only"
+    };
+    let version = s.agent_detection.version(id);
+    let detail = version.map(|info| format!("Version {}", info.installed));
     let toggle = Switch::new(enabled)
         .label(format!("Use {}", agent.name))
         .hide_label()
@@ -84,35 +97,61 @@ fn installed_agent(s: &CoderuneApp, agent: &CliAgentStatus, k: &Kit) -> El {
         .build(theme::switch_kit(k.dark))
         .min_h(28.0)
         .key(format!("agent-switch-{}", agent.command));
+    let mut actions = row().items_center().gap(8.0);
+    if let Some(update) = version.and_then(|info| info.update.as_ref()) {
+        actions = actions.child(agent_link(
+            &format!("{} available", update.version),
+            format!("Update instructions for {} {}", agent.name, update.version),
+            format!("update-{}", agent.command),
+            update.instructions,
+            k,
+        ));
+    }
     agent_row(
         agent,
-        Some(if enabled { "Ready" } else { "Off" }),
-        toggle,
+        Some(status),
+        detail.as_deref(),
+        actions.child(toggle),
         k,
     )
 }
 
 fn missing_agent(agent: &CliAgentStatus, k: &Kit) -> El {
-    let url = agent.install_url;
-    let install = small_secondary_tx(
+    let install = agent_link(
         "Install from website",
+        format!("Install {} from website", agent.name),
+        format!("install-{}", agent.command),
+        agent.install_url,
+        k,
+    );
+    agent_row(agent, None, None, install, k)
+}
+
+fn agent_link(title: &str, label: String, key: String, url: &'static str, k: &Kit) -> El {
+    small_secondary_tx(
+        title,
         move |s, tx| {
             if let Err(error) = tx.open_url(url) {
                 s.settings_feedback = Some(Err(coderune_domain::AppError::new(
                     coderune_domain::ErrorCode::Validation,
-                    format!("Could not open the installation link: {error}"),
+                    format!("Could not open the agent website: {error}"),
                 )));
             }
         },
         k,
     )
-    .key(format!("install-{}", agent.command))
+    .key(key)
     .role("link")
-    .label(format!("Install {} from website", agent.name));
-    agent_row(agent, None, install, k)
+    .label(label)
 }
 
-fn agent_row(agent: &CliAgentStatus, status: Option<&str>, action: El, k: &Kit) -> El {
+fn agent_row(
+    agent: &CliAgentStatus,
+    status: Option<&str>,
+    detail: Option<&str>,
+    action: El,
+    k: &Kit,
+) -> El {
     let mut name = row().items_center().min_w(0.0).gap(8.0).child(
         text(agent.name)
             .font(theme::LABEL)
@@ -122,13 +161,17 @@ fn agent_row(agent: &CliAgentStatus, status: Option<&str>, action: El, k: &Kit) 
     if let Some(status) = status {
         name = name.child(ui::tiny(status));
     }
+    let mut description = col().grow(1.0).min_w(0.0).gap(2.0).child(name);
+    if let Some(detail) = detail {
+        description = description.child(ui::tiny(detail).truncate());
+    }
     row()
         .w_full()
         .h(48.0)
         .gap(12.0)
         .items_center()
         .child(logo(agent.id, k.dark))
-        .child(name.grow(1.0))
+        .child(description)
         .child(action)
 }
 
