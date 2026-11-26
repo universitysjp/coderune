@@ -261,7 +261,12 @@ fn download(update: &Update) -> UpdateResult<PathBuf> {
     drop(file);
     fs::rename(partial, folder.path().join(update.package))
         .map_err(|_| "Could not finish saving the update package.")?;
-    Ok(folder.keep())
+    Ok(keep_package(folder, update.package))
+}
+
+/// `TempDir::keep` returns the folder, but the installer needs the package file.
+fn keep_package(folder: tempfile::TempDir, package: &str) -> PathBuf {
+    folder.keep().join(package)
 }
 
 fn write_verified(body: impl Read, output: &mut impl Write, update: &Update) -> UpdateResult<()> {
@@ -338,6 +343,22 @@ mod tests {
             "Coderune-macos-arm64.zip",
         )
         .is_err());
+    }
+
+    #[test]
+    fn a_finished_download_points_at_the_package_file() {
+        let folder = tempfile::Builder::new()
+            .prefix("coderune-download-test-")
+            .tempdir()
+            .unwrap();
+        let package = "Coderune-macos-arm64.zip";
+        fs::write(folder.path().join(package), b"package").unwrap();
+
+        let path = keep_package(folder, package);
+
+        assert!(path.is_file());
+        assert_eq!(path.file_name().unwrap(), package);
+        let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 
     #[test]

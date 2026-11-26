@@ -250,6 +250,27 @@ mod platform {
         }
 
         #[test]
+        fn unpack_extracts_the_zipped_app_into_staging() {
+            let root = temporary("unpack");
+            let app = bundle(&root, BUNDLE_ID, "9.9.9");
+            let archive = root.join("Coderune-macos-arm64.zip");
+            assert!(Command::new("/usr/bin/ditto")
+                .args(["-c", "-k", "--sequesterRsrc", "--keepParent"])
+                .arg(&app)
+                .arg(&archive)
+                .status()
+                .unwrap()
+                .success());
+            let staging = root.join("staging");
+            fs::create_dir(&staging).unwrap();
+
+            unpack(&archive, &staging).unwrap();
+
+            assert!(staging.join("Coderune.app/Contents/Info.plist").is_file());
+            let _ = fs::remove_dir_all(root);
+        }
+
+        #[test]
         fn the_swap_exchanges_the_installed_and_staged_bundles() {
             let root = temporary("swap");
             let installed = root.join("Coderune.app");
