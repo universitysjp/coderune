@@ -139,7 +139,7 @@ pub fn scene_chat(s: &mut CoderuneApp) {
         s.chats.add_message(
             &chat,
             Author::Agent(agent),
-            "Start with the project goals and repository guide. Then read the app entry point and the tests for the area you plan to change.",
+            "## Start here\n\n- Read the project goals and `AGENTS.md`\n- Open the app entry point\n- Run the tests for the area you plan to change\n\n```rust\nfn main() {\n    println!(\"hello\");\n}\n```",
         );
     }
 }

@@ -20,8 +20,10 @@ when the agent offers it, a reasoning effort. Click **Send** or press
 project folder and its own sign-in and permissions. When a supported action
 requires approval, the composer shows the action and asks for a one-time decision.
 
-The agent logo identifies each conversation in the sidebar. Replies stream into
-the transcript. A turn can continue when its tab is closed. Use **Stop** in the
+The agent logo identifies each conversation in the sidebar. Prompts sit on the
+right and replies on the left. Replies render Markdown, including lists, code
+blocks, tables, and diagrams; links open in the browser and the text is
+selectable. A turn can continue when its tab is closed. Use **Stop** in the
 composer to cancel it. Coderune saves prompts, replies, and model choices locally
 and reuses the provider session for later turns. Selecting a different agent starts
 a session with that agent and keeps the existing transcript visible.

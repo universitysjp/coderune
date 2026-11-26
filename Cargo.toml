@@ -66,7 +66,10 @@ coderune-storage = { path = "crates/storage" }
 rune = { git = "https://github.com/anomalyco/rune", rev = "8fc71fbf21db41920409bf6fa20ffb41ddb2f99d", features = [
   "native-file-dialog",
 ] }
-rune-kit = { git = "https://github.com/anomalyco/rune", rev = "8fc71fbf21db41920409bf6fa20ffb41ddb2f99d" }
+rune-kit = { git = "https://github.com/anomalyco/rune", rev = "8fc71fbf21db41920409bf6fa20ffb41ddb2f99d", features = [
+  "markdown",
+  "mermaid",
+] }
 rune-theme-opencode = { git = "https://github.com/anomalyco/rune", rev = "8fc71fbf21db41920409bf6fa20ffb41ddb2f99d" }
 coderune-ui = { path = "crates/ui" }
 

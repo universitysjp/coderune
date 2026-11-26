@@ -362,7 +362,7 @@ impl Drop for CoderuneApp {
 mod tests {
     use super::*;
     use crate::agent_detection::Check;
-    use crate::app::scenes::{scene_home, scene_projects, seed_demo};
+    use crate::app::scenes::{scene_chat, scene_home, scene_projects, seed_demo};
     use crate::forms::edit;
     use rune::{Env, Runtime};
 
@@ -436,6 +436,30 @@ mod tests {
         assert!(!state.project_dialog);
         assert!(state.project_form.editing.is_some());
         assert!(state.workspace.as_ref().unwrap().projects.len() >= 2);
+    }
+
+    #[test]
+    fn chat_prompts_align_right_and_replies_render_markdown() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        scene_chat(&mut state);
+        let mut app = Runtime::new(
+            state,
+            view,
+            (1280.0, 860.0),
+            Env {
+                system_dark: false,
+                scale: 1.0,
+            },
+        );
+        app.frame(0.0);
+
+        let [prompt_x, ..] = app.presented("chat-message-0").unwrap().0;
+        let [reply_x, ..] = app.presented("chat-message-1").unwrap().0;
+        assert!(prompt_x > reply_x, "the developer prompt should sit right");
+        assert!(app.find("chat-message-1-markdown").is_some());
     }
 
     #[test]

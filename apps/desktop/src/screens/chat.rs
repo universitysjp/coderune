@@ -1,9 +1,10 @@
 //! A project chat's conversation and composer.
 
+use coderune_domain::{AppError, ErrorCode};
 use coderune_ui::components as ui;
 use coderune_ui::theme::{self, BODY, BODY_SM, LABEL, LABEL_SM};
 use rune::{col, row, text, El, ScrollSpec, Tx};
-use rune_kit::{Combobox, ComboboxOption, Kit, Placement, Progress, Select, TextArea};
+use rune_kit::{Combobox, ComboboxOption, Kit, Markdown, Placement, Progress, Select, TextArea};
 
 use crate::agent_detection::Check;
 use crate::app::actions::chats::{CatalogStatus, ChatMenu, ChatTurn};
@@ -12,6 +13,9 @@ use crate::chats::{Author, Chat};
 use crate::widgets::{error_alert, ghost, primary_enabled};
 
 use super::coding_agents::compact_logo;
+
+const BUBBLE_MAX: f32 = 720.0;
+const BUBBLE_PAD: f32 = 12.0;
 
 pub(crate) fn chat(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
     let Some(chat) = s.active_chat() else {
@@ -60,8 +64,14 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
     if chat.messages.is_empty() {
         messages = messages.child(empty_chat(s, k, chat));
     }
-    for message in &chat.messages {
-        messages = messages.child(message_row(message.author, &message.text, k));
+    for (index, message) in chat.messages.iter().enumerate() {
+        messages = messages.child(message_row(
+            message.author,
+            &message.text,
+            k,
+            &format!("chat-message-{index}"),
+            false,
+        ));
     }
     if let (Some(turn), Some(agent)) = (turn, chat.agent) {
         messages = messages.child(message_row(
@@ -76,6 +86,8 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
                 &turn.reply
             },
             k,
+            "chat-message-live",
+            !turn.reply.is_empty(),
         ));
     }
     if let Some(feedback) = s.chat_feedback.get(&chat.id) {
@@ -94,24 +106,63 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
         .child(col().w_full().max_w(theme::CONTAINER).child(messages))
 }
 
-fn message_row(author: Author, value: &str, k: &Kit) -> El {
-    let (name, agent) = match author {
-        Author::Developer => ("You", None),
-        Author::Coderune => ("Coderune", None),
-        Author::Agent(agent) => (agent.label(), Some(agent)),
+fn message_row(author: Author, value: &str, k: &Kit, key: &str, streaming: bool) -> El {
+    let (name, agent, mine) = match author {
+        Author::Developer => ("You", None, true),
+        Author::Coderune => ("Coderune", None, false),
+        Author::Agent(agent) => (agent.label(), Some(agent), false),
     };
-    col()
-        .w_full()
-        .gap(6.0)
-        .items_start()
-        .child(
-            row()
-                .items_center()
-                .gap(7.0)
-                .children(agent.map(|agent| compact_logo(agent, k.dark)))
-                .child(text(name).font(LABEL).color(theme::ink())),
+    let body = if value.trim().is_empty() {
+        text("…").font(BODY).color(theme::muted())
+    } else {
+        Markdown::new(value)
+            .selectable(true)
+            .streaming(streaming)
+            .scroll_wide(true)
+            .on_link_tx(|s: &mut CoderuneApp, url, tx| {
+                if let Err(error) = tx.open_url(url) {
+                    s.error = Some(AppError::new(
+                        ErrorCode::Validation,
+                        format!("Could not open the link: {error}"),
+                    ));
+                }
+            })
+            .build(k)
+            .key(format!("{key}-markdown"))
+            .max_w(BUBBLE_MAX - BUBBLE_PAD * 2.0)
+    };
+    let bubble = col()
+        .key(key)
+        .max_w(BUBBLE_MAX)
+        .min_w(0.0)
+        .padding(BUBBLE_PAD)
+        .radius(k.radius.lg)
+        .fill(if mine {
+            theme::accent_soft()
+        } else {
+            theme::panel()
+        })
+        .border(
+            1.0,
+            if mine {
+                theme::line()
+            } else {
+                theme::row_line()
+            },
         )
-        .child(text(value).font(BODY).color(theme::ink()).wrap_anywhere())
+        .child(body);
+    let meta = row()
+        .items_center()
+        .gap(7.0)
+        .children(agent.map(|agent| compact_logo(agent, k.dark)))
+        .child(text(name).font(LABEL_SM).color(theme::muted()));
+    let mut message = col().w_full().gap(6.0);
+    message = if mine {
+        message.items_end()
+    } else {
+        message.items_start()
+    };
+    message.child(meta).child(bubble)
 }
 
 fn empty_chat(s: &CoderuneApp, k: &Kit, chat: &Chat) -> El {
