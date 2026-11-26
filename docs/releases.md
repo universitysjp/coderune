@@ -19,18 +19,16 @@ Windows installers are unsigned, so system policies may restrict installation.
 
 ## Tags and published releases
 
-Use a merge commit to land the initial release setup so its version tags
-remain in the history of `main`. The baseline is `v0.2.0`.
-
-A push to `main` assigns sequential tags to new first-parent commits. An
-explicit workspace version bump reserves its exact tag, so earlier commits in
-the same push receive tags only where numbers are available. Automatic tags
-identify commits. An explicit version bump starts the desktop build. Tag and
+The workspace version in `Cargo.toml` is the release version, and it only
+changes by hand. CI never increments it. A push to `main` tags a commit only
+when that commit raises the workspace version above the latest merged tag. The
+commit receives the exact `v<version>` tag and starts the desktop build.
+Commits that keep the same version are neither tagged nor built. Tag and
 release jobs run serially, and the planner catches up if multiple pushes are
 queued.
 
 To publish a new release, choose a version above the latest tag and set the
-workspace version in `Cargo.toml`, for example `0.3.1`. Run
+workspace version in `Cargo.toml`, for example `0.3.31`. Run
 `cargo metadata --format-version 1 > /dev/null` after setting up Rune to
 refresh `Cargo.lock`. Commit both changes. A labeled PR can test the packages
 first. Once the bump reaches `main`, CI tags the release commit, builds and
@@ -38,8 +36,8 @@ tests it on all three systems, and publishes the packages and SHA-256 checksums
 on [GitHub Releases](https://github.com/universitysjp/coderune/releases).
 
 The latest unpublished release can be retried by rerunning the failed jobs or
-on the next push to `main`. When more than one explicit version lands in a
-single push, CI publishes the newest.
+on the next push to `main`. When more than one manual bump lands in a single
+push, CI publishes the newest.
 
 ## Update an installed copy
 

@@ -33,12 +33,13 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: ${{ steps.bun.outputs.version }}
-      - name: Test tag planning
+      - name: Test the release plan
         run: bun test scripts/release/plan.test.ts
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Only a commit that raises the workspace version by hand is tagged.
           echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           plan=$(bun scripts/release/plan.ts)
           tags=$(jq -c .tags <<< "$plan")

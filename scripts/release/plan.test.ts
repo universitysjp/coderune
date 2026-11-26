@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { plan } from "./plan";
 
 let root = "";
+let baseline = "";
 
 const git = (...args: string[]): string => {
   const result = Bun.spawnSync({
@@ -35,7 +36,7 @@ beforeEach(() => {
   git("init", "-q", "-b", "main");
   git("config", "user.email", "test@example.com");
   git("config", "user.name", "Release Test");
-  commit("0.2.0");
+  baseline = commit("0.2.0");
   git("tag", "v0.2.0");
 });
 
@@ -43,64 +44,53 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-test("patch push tags each commit without a build", () => {
-  const first = commit("0.2.0");
-  const second = commit("0.2.0");
-  expect(plan(root)).toEqual({
-    tags: { "v0.2.1": first, "v0.2.2": second },
-    release: null,
-  });
-});
-
-test("manual bump builds the milestone even if patches follow", () => {
-  const milestone = commit("0.3.0");
-  const patch = commit("0.3.0");
-  const release = { version: "0.3.0", commit: milestone };
-  expect(plan(root)).toEqual({
-    tags: { "v0.3.0": milestone, "v0.3.1": patch },
-    release,
-  });
-
-  git("tag", "v0.3.0", milestone);
-  git("tag", "v0.3.1", patch);
-  expect(plan(root)).toEqual({ tags: {}, release });
-});
-
-test("explicit patch bump reserves its tag and retries its build", () => {
-  git("tag", "v0.3.0", commit("0.3.0"));
-  commit("0.3.0");
-  const releaseCommit = commit("0.3.1");
-  const later = commit("0.3.1");
-  const release = { version: "0.3.1", commit: releaseCommit };
-
-  expect(plan(root)).toEqual({
-    tags: { "v0.3.1": releaseCommit, "v0.3.2": later },
-    release,
-  });
-
-  git("tag", "v0.3.1", releaseCommit);
-  git("tag", "v0.3.2", later);
-  expect(plan(root)).toEqual({ tags: {}, release });
-});
-
-test("explicit patch bump cannot reuse an automatic tag", () => {
-  git("tag", "v0.3.0", commit("0.3.0"));
-  const automaticTag = commit("0.3.0");
-  git("tag", "v0.3.1", automaticTag);
-  commit("0.3.1");
-
-  expect(() => plan(root)).toThrow("v0.3.1 already belongs to another commit");
-  expect(git("rev-parse", "v0.3.1")).toBe(automaticTag);
-});
-
-test("merge preserves existing tags and tags the merge", () => {
-  git("switch", "-qc", "setup");
+test("commits without a manual bump are not tagged", () => {
   commit("0.2.0");
-  git("tag", "v0.2.1");
-  git("switch", "-q", "main");
-  git("merge", "-q", "--no-ff", "--no-edit", "setup");
+  commit("0.2.0");
   expect(plan(root)).toEqual({
-    tags: { "v0.2.2": git("rev-parse", "HEAD") },
-    release: null,
+    tags: {},
+    release: { version: "0.2.0", commit: baseline },
   });
+});
+
+test("a manual bump tags only its own commit and starts the release", () => {
+  commit("0.2.0");
+  const releaseCommit = commit("0.3.0");
+  commit("0.3.0");
+  expect(plan(root)).toEqual({
+    tags: { "v0.3.0": releaseCommit },
+    release: { version: "0.3.0", commit: releaseCommit },
+  });
+});
+
+test("the newest manual bump is the release when several land together", () => {
+  const first = commit("0.3.0");
+  const second = commit("0.3.1");
+  expect(plan(root)).toEqual({
+    tags: { "v0.3.0": first, "v0.3.1": second },
+    release: { version: "0.3.1", commit: second },
+  });
+});
+
+test("an existing tag retries its unpublished release", () => {
+  const releaseCommit = commit("0.3.0");
+  git("tag", "v0.3.0", releaseCommit);
+  commit("0.3.0");
+  expect(plan(root)).toEqual({
+    tags: {},
+    release: { version: "0.3.0", commit: releaseCommit },
+  });
+});
+
+test("a manual bump cannot reuse a tag from another commit", () => {
+  const tagged = commit("0.2.0");
+  git("tag", "v0.3.0", tagged);
+  commit("0.3.0");
+  expect(() => plan(root)).toThrow("v0.3.0 already belongs to another commit");
+});
+
+test("a workspace version decrease is rejected", () => {
+  commit("0.3.0");
+  commit("0.2.9");
+  expect(() => plan(root)).toThrow("the workspace version decreased");
 });
