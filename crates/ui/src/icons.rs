@@ -56,6 +56,12 @@ pub static MESSAGE: Icon = Icon {
     body: r#"<path d="M4 5.5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>"#,
 };
 
+pub static ARCHIVE: Icon = Icon {
+    name: "coderune-archive",
+    view: 24.0,
+    body: r#"<rect x="3" y="4.5" width="18" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5M9 12.5h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>"#,
+};
+
 pub static PLUS: Icon = Icon {
     name: "coderune-plus",
     view: 24.0,

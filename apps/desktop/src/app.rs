@@ -92,6 +92,7 @@ impl View {
 pub(crate) enum SettingsSection {
     General,
     Storage,
+    Archived,
     Agents,
     Shortcuts,
 }
@@ -101,6 +102,7 @@ impl SettingsSection {
         match self {
             Self::General => "General",
             Self::Storage => "Storage",
+            Self::Archived => "Archived",
             Self::Agents => "Agents",
             Self::Shortcuts => "Shortcuts",
         }
@@ -208,6 +210,8 @@ pub struct CoderuneApp {
     pub(crate) confirm_delete_project: Option<String>,
     pub(crate) confirm_delete_capture: Option<String>,
     pub(crate) confirm_delete_all: bool,
+    /// The archived chat awaiting a permanent delete.
+    pub(crate) confirm_delete_chat: Option<String>,
     pub(crate) settings: Option<SettingsSection>,
     /// The font list open in Settings, by row.
     pub(crate) font_menu: Option<&'static str>,
@@ -224,6 +228,8 @@ pub struct CoderuneApp {
     pub(crate) chat_catalog: ChatCatalog,
     pub(crate) chat_menu: Option<ChatMenu>,
     pub(crate) chat_model_menu: rune_kit::ComboboxState,
+    /// The sidebar chat whose details card is showing.
+    pub(crate) hovered_chat: Option<String>,
     /// The family lists last handed to the text system.
     applied_fonts: Option<(String, String)>,
     pub error: Option<AppError>,
@@ -310,6 +316,7 @@ impl CoderuneApp {
             confirm_delete_project: None,
             confirm_delete_capture: None,
             confirm_delete_all: false,
+            confirm_delete_chat: None,
             settings: None,
             font_menu: None,
             settings_feedback: None,
@@ -324,6 +331,7 @@ impl CoderuneApp {
             chat_catalog: ChatCatalog::default(),
             chat_menu: None,
             chat_model_menu: rune_kit::ComboboxState::default(),
+            hovered_chat: None,
             applied_fonts: None,
             error: chat_error,
             notice: None,
@@ -460,6 +468,53 @@ mod tests {
         let [reply_x, ..] = app.presented("chat-message-1").unwrap().0;
         assert!(prompt_x > reply_x, "the developer prompt should sit right");
         assert!(app.find("chat-message-1-markdown").is_some());
+    }
+
+    #[test]
+    fn hovering_a_chat_shows_its_details_card() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        scene_chat(&mut state);
+        let chat = state.active_chat().unwrap().id.clone();
+        let mut app = Runtime::new(
+            state,
+            view,
+            (1280.0, 860.0),
+            Env {
+                system_dark: false,
+                scale: 1.0,
+            },
+        );
+        app.frame(0.0);
+        let [x, y, w, h] = app.presented(&format!("chat-{chat}")).unwrap().0;
+        app.pointer_move(x + w / 2.0, y + h / 2.0);
+        app.frame(1.0 / 60.0);
+
+        assert!(app.find(&format!("chat-card-{chat}-card")).is_some());
+        assert!(app.find(&format!("archive-chat-{chat}")).is_some());
+    }
+
+    #[test]
+    fn archiving_keeps_the_transcript_and_restoring_brings_it_back() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        scene_chat(&mut state);
+        let chat = state.active_chat().unwrap().id.clone();
+
+        state.archive_chat(&chat);
+
+        assert!(state.chats.active.is_none());
+        assert_eq!(state.chats.archived().next().unwrap().messages.len(), 2);
+        state.unarchive_chat(&chat);
+        assert!(state.chats.archived().next().is_none());
+        assert_eq!(state.chats.chat(&chat).unwrap().messages.len(), 2);
+
+        state.delete_chat(&chat);
+        assert!(state.chats.chat(&chat).is_none());
     }
 
     #[test]

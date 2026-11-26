@@ -8,7 +8,7 @@ use rune_kit::shell::{
     PaneState, Sidebar, SidebarRow, SidebarSection, TabItem, TabOrientation, TabOverflow, TabStrip,
     WindowTitlebar,
 };
-use rune_kit::{ControlSize, IconButton, IconButtonVariant, Kit};
+use rune_kit::{ControlSize, HoverCard, IconButton, IconButtonVariant, Kit, Placement};
 
 use crate::app::{CoderuneApp, SettingsSection, View};
 use crate::screens;
@@ -177,7 +177,7 @@ pub(crate) fn workspace(
                 .key("workspace-sidebar")
                 .w(pane.shown_width())
                 .h_full()
-                .child(sidebar(s, k)),
+                .child(sidebar(s, k, overlays)),
         );
     }
     // Keep the same hit target at the window's edge after the pane closes.
@@ -303,7 +303,7 @@ fn titlebar(
     titlebar.build(k)
 }
 
-fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
+fn sidebar(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
     let mut nav = Sidebar::new()
         .label("Workspace navigation")
         .inset(8.0)
@@ -329,7 +329,7 @@ fn sidebar(s: &CoderuneApp, k: &Kit) -> El {
         projects = projects.row(project_row(s, project, k));
         if s.project_expanded(&project.id) {
             for chat in s.chats.chats_for(&project.id) {
-                projects = projects.row(chat_row(s, chat, k));
+                projects = projects.row(chat_row(s, chat, k, overlays));
             }
             let project_id = project.id.clone();
             projects = projects.row(
@@ -407,26 +407,104 @@ fn project_row(s: &CoderuneApp, project: &coderune_domain::Project, k: &Kit) -> 
         .key(format!("project-{id}"))
 }
 
-fn chat_row(s: &CoderuneApp, chat: &crate::chats::Chat, k: &Kit) -> El {
+fn chat_row(s: &CoderuneApp, chat: &crate::chats::Chat, k: &Kit, overlays: &mut Vec<El>) -> El {
     let id = chat.id.clone();
     let select = id.clone();
-    let close = id.clone();
+    let archive = id.clone();
+    let hover = id.clone();
     let entry = SidebarRow::new(&chat.title);
     let entry = if let Some(agent) = chat.agent {
         entry.avatar(screens::coding_agents::compact_logo(agent, k.dark))
     } else {
         entry.icon(&icons::MESSAGE)
     };
-    entry
+    let entry = entry
         .depth(1)
         .selected(s.chats.active.as_deref() == Some(id.as_str()))
+        .trailing(
+            IconButton::new(&icons::ARCHIVE)
+                .variant(IconButtonVariant::GhostMuted)
+                .control_size(ControlSize::Small)
+                .label("Archive chat")
+                .on_press(move |s: &mut CoderuneApp| s.archive_chat(&archive))
+                .build(k)
+                .key(format!("archive-chat-{id}"))
+                .focusable(false)
+                .group_opacity(0.0, 1.0),
+        )
         .on_select(move |s: &mut CoderuneApp, tx: &mut rune::Tx| {
             s.open_chat(&select);
             tx.instant();
         })
-        .on_close(move |s: &mut CoderuneApp, _: &mut rune::Tx| s.close_chat(&close))
         .build(k)
-        .key(format!("chat-{id}"))
+        .key(format!("chat-{id}"));
+    let trigger = row()
+        .key(format!("chat-hover-{id}"))
+        .w_full()
+        .on_hover_change(move |s: &mut CoderuneApp, inside, tx: &mut rune::Tx| {
+            if inside {
+                s.hovered_chat = Some(hover.clone());
+            } else if s.hovered_chat.as_deref() == Some(hover.as_str()) {
+                s.hovered_chat = None;
+            }
+            tx.instant();
+        })
+        .child(entry);
+    HoverCard::new(format!("chat-card-{id}"))
+        .trigger(trigger)
+        .open(s.hovered_chat.as_deref() == Some(id.as_str()))
+        .placement(Placement::RightStart)
+        .child(chat_details(s, chat))
+        .build(k, overlays)
+}
+
+fn chat_details(s: &CoderuneApp, chat: &crate::chats::Chat) -> El {
+    let project = s
+        .chat_project(chat)
+        .map_or("No project", |project| project.name.as_str());
+    let agent = chat.agent.map_or("No agent", |agent| agent.label());
+    let mut details = col()
+        .key("chat-details")
+        .w(248.0)
+        .gap(8.0)
+        .child(
+            text(&chat.title)
+                .font(theme::HEADING_XS)
+                .color(theme::ink())
+                .wrap(),
+        )
+        .child(chat_detail(
+            "Updated",
+            &crate::chats::when(&chat.updated_at),
+        ))
+        .child(chat_detail("Agent", agent))
+        .child(chat_detail("Project", project));
+    if !chat.messages.is_empty() {
+        details = details.child(chat_detail("Messages", &chat.messages.len().to_string()));
+    }
+    details
+}
+
+fn chat_detail(label: &str, value: &str) -> El {
+    row()
+        .w_full()
+        .gap(10.0)
+        .items_center()
+        .child(
+            text(label)
+                .font(LABEL_SM)
+                .color(theme::faint())
+                .w(62.0)
+                .shrink(),
+        )
+        .child(
+            text(value)
+                .font(LABEL_SM)
+                .color(theme::muted())
+                .grow(1.0)
+                .min_w(0.0)
+                .truncate(),
+        )
 }
 
 fn progress_bar(done: u8, total: u8) -> El {

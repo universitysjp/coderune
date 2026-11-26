@@ -15,6 +15,7 @@ coderune-app.workspace = true
 coderune-avatars.workspace = true
 coderune-domain.workspace = true
 coderune-ui.workspace = true
+chrono.workspace = true
 directories.workspace = true
 fontdb = "0.24.0"
 hex = "0.4"

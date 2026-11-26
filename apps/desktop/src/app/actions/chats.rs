@@ -125,6 +125,50 @@ impl CoderuneApp {
         self.save_chats();
     }
 
+    /// Puts a chat away, cancels its turn, and closes its tab.
+    pub(crate) fn archive_chat(&mut self, id: &str) {
+        let active = self.chats.active.as_deref() == Some(id);
+        if active {
+            self.stash_chat_draft();
+        }
+        self.hovered_chat = None;
+        self.chat_turns.remove(id);
+        self.chat_feedback.remove(id);
+        self.chat_drafts.remove(id);
+        if self.chats.archive_chat(id) {
+            if active {
+                self.restore_chat_draft();
+            }
+            self.save_chats();
+            self.notice = Some("Chat archived.".to_string());
+        }
+    }
+
+    pub(crate) fn unarchive_chat(&mut self, id: &str) {
+        if self.chats.unarchive_chat(id) {
+            self.save_chats();
+            self.notice = Some("Chat restored.".to_string());
+        }
+    }
+
+    pub(crate) fn delete_chat(&mut self, id: &str) {
+        let active = self.chats.active.as_deref() == Some(id);
+        if active {
+            self.stash_chat_draft();
+        }
+        self.hovered_chat = None;
+        self.chat_turns.remove(id);
+        self.chat_feedback.remove(id);
+        self.chat_drafts.remove(id);
+        if self.chats.delete_chat(id) {
+            if active {
+                self.restore_chat_draft();
+            }
+            self.save_chats();
+            self.notice = Some("Chat deleted.".to_string());
+        }
+    }
+
     pub(in crate::app) fn remove_project_chats(&mut self, project_id: &str) {
         let active = self
             .active_chat()

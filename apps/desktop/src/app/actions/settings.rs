@@ -14,6 +14,7 @@ impl CoderuneApp {
         self.settings_feedback = None;
         self.font_menu = None;
         self.confirm_delete_all = false;
+        self.confirm_delete_chat = None;
         if section == SettingsSection::Agents
             && matches!(self.agent_detection.check, Check::NotChecked)
         {
@@ -26,6 +27,7 @@ impl CoderuneApp {
         self.settings_feedback = None;
         self.font_menu = None;
         self.confirm_delete_all = false;
+        self.confirm_delete_chat = None;
     }
 
     pub(crate) fn dark_mode(&self) -> bool {

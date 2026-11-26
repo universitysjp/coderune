@@ -8,6 +8,23 @@ use coderune_agents::{chat::ChatOptions, CliAgentId};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+/// A saved timestamp as a short age, for chat rows and details.
+pub(crate) fn when(iso: &str) -> String {
+    let Ok(then) = chrono::DateTime::parse_from_rfc3339(iso) else {
+        return String::new();
+    };
+    let seconds = chrono::Utc::now()
+        .signed_duration_since(then.with_timezone(&chrono::Utc))
+        .num_seconds()
+        .max(0);
+    match seconds {
+        0..=59 => "Just now".to_string(),
+        60..=3599 => format!("{}m ago", seconds / 60),
+        3600..=86_399 => format!("{}h ago", seconds / 3600),
+        _ => format!("{}d ago", seconds / 86_400),
+    }
+}
+
 /// Who wrote a message. Coderune writes the notes the app itself adds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Author {
@@ -39,6 +56,8 @@ pub(crate) struct Chat {
     pub created_at: String,
     pub updated_at: String,
     #[serde(default)]
+    pub archived_at: Option<String>,
+    #[serde(default)]
     pub messages: Vec<Message>,
 }
 
@@ -54,6 +73,7 @@ impl Chat {
             provider_session: None,
             created_at: at.clone(),
             updated_at: at,
+            archived_at: None,
             messages: Vec::new(),
         }
     }
@@ -105,10 +125,14 @@ impl Chats {
             None => Self::default(),
         };
         chats.path = Some(path.to_path_buf());
-        // Drop tabs whose chat vanished, then the active one if it closed elsewhere.
-        chats
-            .open
-            .retain(|id| chats.chats.iter().any(|chat| &chat.id == id));
+        // Drop tabs whose chat vanished or was archived, then the active one if
+        // it closed elsewhere.
+        chats.open.retain(|id| {
+            chats
+                .chats
+                .iter()
+                .any(|chat| &chat.id == id && chat.archived_at.is_none())
+        });
         if chats
             .active
             .as_ref()
@@ -183,7 +207,52 @@ impl Chats {
     pub(crate) fn chats_for<'a>(&'a self, project_id: &'a str) -> impl Iterator<Item = &'a Chat> {
         self.chats
             .iter()
-            .filter(move |chat| chat.project_id == project_id)
+            .filter(move |chat| chat.project_id == project_id && chat.archived_at.is_none())
+    }
+
+    /// Archived conversations, most recently put away first.
+    pub(crate) fn archived(&self) -> impl Iterator<Item = &Chat> {
+        let mut archived: Vec<&Chat> = self
+            .chats
+            .iter()
+            .filter(|chat| chat.archived_at.is_some())
+            .collect();
+        archived.sort_by(|a, b| b.archived_at.cmp(&a.archived_at));
+        archived.into_iter()
+    }
+
+    /// Puts a chat away and closes its tab. The transcript is kept.
+    pub(crate) fn archive_chat(&mut self, id: &str) -> bool {
+        if self.chat(id).is_none() {
+            return false;
+        }
+        self.close_chat(id);
+        if let Some(chat) = self.chat_mut(id) {
+            chat.archived_at = Some(coderune_domain::now_iso());
+        }
+        true
+    }
+
+    pub(crate) fn unarchive_chat(&mut self, id: &str) -> bool {
+        let Some(chat) = self.chat_mut(id) else {
+            return false;
+        };
+        chat.archived_at = None;
+        true
+    }
+
+    pub(crate) fn delete_chat(&mut self, id: &str) -> bool {
+        let Some(index) = self.chats.iter().position(|chat| chat.id == id) else {
+            return false;
+        };
+        self.chats.remove(index);
+        if let Some(open) = self.open.iter().position(|open| open == id) {
+            self.open.remove(open);
+        }
+        if self.active.as_deref() == Some(id) {
+            self.active = self.open.first().cloned();
+        }
+        true
     }
 
     /// Creates a chat in `project_id`, opens its tab, and makes it the active one.
@@ -332,6 +401,41 @@ mod tests {
         other.add_message(&chat, Author::Developer, "A late message");
         assert!(other.save().is_err());
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn archived_chats_keep_their_messages_and_leave_open_tabs() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("chats.json");
+        let mut chats = Chats::load(&path).unwrap();
+        let chat = chats.new_chat("project-id");
+        chats.add_message(&chat, Author::Developer, "Keep this");
+        assert!(chats.archive_chat(&chat));
+        assert!(!chats.open.contains(&chat));
+        assert!(chats.chat(&chat).unwrap().archived_at.is_some());
+        chats.save().unwrap();
+
+        let mut reopened = Chats::load(&path).unwrap();
+        assert!(reopened.open.is_empty());
+        assert_eq!(
+            reopened.archived().next().unwrap().messages[0].text,
+            "Keep this"
+        );
+        assert!(reopened.unarchive_chat(&chat));
+        reopened.save().unwrap();
+        assert!(Chats::load(&path).unwrap().archived().next().is_none());
+    }
+
+    #[test]
+    fn deleting_a_chat_removes_its_messages_and_tab() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("chats.json");
+        let mut chats = Chats::load(&path).unwrap();
+        let chat = chats.new_chat("project-id");
+        assert!(chats.delete_chat(&chat));
+        assert!(chats.chat(&chat).is_none());
+        assert!(chats.open.is_empty());
+        assert!(chats.active.is_none());
     }
 
     #[test]

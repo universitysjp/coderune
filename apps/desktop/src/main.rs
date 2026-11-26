@@ -74,6 +74,7 @@ fn main() {
             ("storage", app::scenes::scene_storage),
             ("settings-shortcuts", app::scenes::scene_shortcuts),
             ("settings-agents", app::scenes::scene_settings_agents),
+            ("settings-archived", app::scenes::scene_settings_archived),
             ("home-dark", app::scenes::scene_home_dark),
             ("chat", app::scenes::scene_chat),
             ("chat-dark", app::scenes::scene_chat_dark),

@@ -149,6 +149,14 @@ pub fn scene_chat_dark(s: &mut CoderuneApp) {
     s.preferences.dark_mode = true;
 }
 
+pub fn scene_settings_archived(s: &mut CoderuneApp) {
+    scene_chat(s);
+    if let Some(chat) = s.active_chat().map(|chat| chat.id.clone()) {
+        s.archive_chat(&chat);
+    }
+    s.select_settings(SettingsSection::Archived);
+}
+
 pub fn scene_settings_fonts(s: &mut CoderuneApp) {
     scene_settings(s);
     s.font_menu = Some("ui-font");

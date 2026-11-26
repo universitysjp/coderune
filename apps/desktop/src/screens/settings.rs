@@ -15,6 +15,11 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
         [
             (SettingsSection::General, "settings-general", &icons::GEAR),
             (SettingsSection::Storage, "settings-storage", &icons::FOLDER),
+            (
+                SettingsSection::Archived,
+                "settings-archived",
+                &icons::ARCHIVE,
+            ),
             (SettingsSection::Agents, "settings-agents", &icons::ROBOT),
             (
                 SettingsSection::Shortcuts,
@@ -39,6 +44,7 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
     let content = match section {
         SettingsSection::General => general(s, k, &mut menus),
         SettingsSection::Storage => storage(s, k),
+        SettingsSection::Archived => archived(s, k),
         SettingsSection::Agents => super::coding_agents::coding_agents(s, k),
         SettingsSection::Shortcuts => shortcuts(k),
     };
@@ -59,6 +65,7 @@ pub(crate) fn dialog(s: &CoderuneApp, section: SettingsSection, k: &Kit, overlay
     let panel_key = match section {
         SettingsSection::General => "general-panel",
         SettingsSection::Storage => "storage-panel",
+        SettingsSection::Archived => "archived-panel",
         SettingsSection::Agents => "agents-panel",
         SettingsSection::Shortcuts => "shortcuts-panel",
     };
@@ -347,6 +354,84 @@ fn storage(s: &CoderuneApp, k: &Kit) -> El {
         .gap(ui::SECTION_GAP)
         .child(data)
         .child(ui::section(k, "storage-danger", "Danger zone", danger_rows))
+}
+
+fn archived(s: &CoderuneApp, k: &Kit) -> El {
+    let rows: Vec<El> = s
+        .chats
+        .archived()
+        .map(|chat| {
+            let id = chat.id.clone();
+            let restore = id.clone();
+            let delete = id.clone();
+            let cancel = id.clone();
+            let confirm = id.clone();
+            let project = s
+                .chat_project(chat)
+                .map_or("No project", |project| project.name.as_str());
+            let agent = chat.agent.map_or("No agent", |agent| agent.label());
+            let detail = format!(
+                "{} · {} · {}",
+                agent,
+                project,
+                crate::chats::when(&chat.updated_at)
+            );
+            let mut actions = row().gap(8.0).items_center();
+            if s.confirm_delete_chat.as_deref() == Some(id.as_str()) {
+                actions = actions
+                    .child(
+                        secondary(
+                            "Cancel",
+                            move |s| {
+                                if s.confirm_delete_chat.as_deref() == Some(cancel.as_str()) {
+                                    s.confirm_delete_chat = None;
+                                }
+                            },
+                            k,
+                        )
+                        .key(format!("cancel-delete-chat-{id}")),
+                    )
+                    .child(
+                        destructive(
+                            "Delete permanently",
+                            move |s| {
+                                s.confirm_delete_chat = None;
+                                s.delete_chat(&delete);
+                            },
+                            k,
+                        )
+                        .key(format!("confirm-delete-chat-{id}")),
+                    );
+            } else {
+                actions = actions
+                    .child(
+                        secondary("Restore", move |s| s.unarchive_chat(&restore), k)
+                            .key(format!("restore-chat-{id}")),
+                    )
+                    .child(
+                        Button::new("Delete")
+                            .variant(ButtonVariant::Danger)
+                            .on_press(move |s: &mut CoderuneApp| {
+                                s.confirm_delete_chat = Some(confirm.clone());
+                            })
+                            .build_push(k)
+                            .key(format!("delete-chat-{id}")),
+                    );
+            }
+            ui::setting_row(&chat.title, Some(detail), actions)
+                .py(ui::ROW_PAD)
+                .key(format!("archived-chat-{id}"))
+        })
+        .collect();
+    if rows.is_empty() {
+        return col().w_full().child(ui::empty_state(
+            Some(&icons::ARCHIVE),
+            "No archived chats",
+            "Archive a chat from the sidebar to put it away without deleting its transcript.",
+            None,
+        ));
+    }
+    ui::section(k, "archived-chats", "Archived chats", rows)
 }
 
 fn shortcuts(k: &Kit) -> El {
