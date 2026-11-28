@@ -19,6 +19,18 @@ impl CoderuneApp {
         self.update_preferences(move |preferences| preferences.set_project_expanded(&id, expanded));
     }
 
+    /// Opens a project on Home without leaving the page.
+    pub(crate) fn select_home_project(&mut self, id: &str) {
+        let Some(workspace) = self.workspace.as_mut() else {
+            return;
+        };
+        if workspace.projects.iter().any(|project| project.id == id) {
+            workspace.select_project(Some(id.to_string()));
+            self.refresh_captures();
+            self.error = None;
+        }
+    }
+
     pub(crate) fn load_project_form(&mut self, id: &str) {
         let Some(project) = self
             .workspace

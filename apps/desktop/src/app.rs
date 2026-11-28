@@ -235,6 +235,19 @@ impl ProfileSection {
         }
     }
 
+    /// The stable id the profile rail and tests address a section by.
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::Skills => "skills",
+            Self::Education => "education",
+            Self::Employment => "employment",
+            Self::Projects => "projects",
+            Self::Certifications => "certifications",
+            Self::Links => "links",
+            Self::Preferences => "preferences",
+        }
+    }
+
     pub fn hint(self) -> &'static str {
         match self {
             Self::Skills => "One skill per line: topic | beginner, intermediate, or advanced.",
@@ -684,11 +697,10 @@ mod tests {
         assert!(workspace.find("brand").is_none());
 
         let position = |runtime: &Runtime<CoderuneApp>, key| runtime.presented(key).unwrap().0;
-        let [profile_x, profile_y, profile_w, profile_h] =
-            position(&workspace, "nav-profile-footer");
-        let [settings_x, settings_y, _, settings_h] = position(&workspace, "nav-data-footer");
-        assert!(settings_x >= profile_x + profile_w);
-        assert!((settings_y + settings_h / 2.0 - profile_y - profile_h / 2.0).abs() < 1.0);
+        let [_, _, profile_w, profile_h] = position(&workspace, "nav-profile-footer");
+        assert!(profile_w > 150.0);
+        assert!(profile_h > 0.0);
+        assert!(workspace.find("nav-data-footer").is_none());
 
         let [x, y, w, _] = position(&workspace, "sidebar-resize");
         workspace.pointer_down(x + w / 2.0, y + 20.0);
@@ -1008,7 +1020,8 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","t
             }
         };
         assert!(app.find("settings-shortcut").is_none());
-        click(&mut app, "nav-data-footer");
+        click(&mut app, "nav-home");
+        click(&mut app, "home-settings");
         assert!(app.find("settings-nav-preferences").is_some());
         assert!(app.find("check-updates").is_some());
         assert!(app.find("settings-back").is_some());
@@ -1053,9 +1066,10 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","t
 
         click(&mut app, "settings-back");
         assert!(app.find("settings-nav-preferences").is_none());
-        assert!(app.find("projects").is_some());
+        assert!(app.find("home-page").is_some());
 
-        click(&mut app, "nav-data-footer");
+        click(&mut app, "nav-home");
+        click(&mut app, "home-settings");
         click(&mut app, "delete-data");
         click(&mut app, "confirm-delete-data");
         assert!(app.find("settings-nav-preferences").is_none());

@@ -8,13 +8,8 @@ use crate::updates::Status;
 use crate::widgets::{destructive, primary, primary_tx, secondary};
 use coderune_ui::theme::{self, SETTINGS_MODE_NAME, SETTINGS_RAIL};
 use coderune_ui::{components as ui, components::PushButtonExt, icons};
-use rune::{col, el, icon, row, text, El, ScrollSpec};
+use rune::{col, el, icon, row, text, El};
 use rune_kit::{Button, ButtonVariant, Kit, Placement, Select, SelectAppearance, Switch};
-
-/// The rail's fixed column, and the page column's widest line.
-const RAIL_W: f32 = 240.0;
-const PAGE_MAX_W: f32 = 728.0;
-const CONTAINER_W: f32 = 1008.0;
 
 pub(crate) fn page(
     s: &CoderuneApp,
@@ -36,81 +31,29 @@ pub(crate) fn page(
         Some(Err(error)) => col()
             .w_full()
             .child(ui::alert(Some(error.code.as_str()), &error.message)),
-        None => col(),
+        None => col().w_full(),
     };
     body = body.child(content);
 
-    let header = col()
-        .key("settings-tab-header-band")
-        .w_full()
-        .pt(32.0)
-        .fill(theme::canvas())
-        .sticky_top(0.0)
-        .child(ui::settings_header(section.label(), section.description()));
-    let column = col()
-        .key("settings-content")
-        .grow(1.0)
-        .shrink()
-        .min_w(0.0)
-        .max_w(PAGE_MAX_W)
-        .pl(28.0)
-        .child(header)
+    let column = ui::pane_page("settings-content")
+        .child(ui::pane_heading(
+            "settings-tab-header-band",
+            section.label(),
+            section.description(),
+        ))
         .child(
-            col()
-                .key(format!("settings-{}-body", section.id()))
-                .role("group")
-                .label(section.label())
-                .w_full()
-                .gap(32.0)
-                .pt(24.0)
-                .pb(80.0)
-                .child(body),
-        );
-
-    let screen = col()
-        .key("settings-page")
-        .w_full()
-        .h_full()
-        .grow(1.0)
-        .shrink()
-        .min_h(0.0)
-        .scroll(ScrollSpec {
-            stick_bottom: false,
-        })
-        .scroll_edge_fade(16.0)
-        .child(
-            row().w_full().px(24.0).justify_center().child(
-                row()
-                    .w_full()
-                    .max_w(CONTAINER_W)
-                    .items_start()
-                    .child(rail(section))
-                    .child(column),
-            ),
+            ui::pane_body(&format!("settings-{}-body", section.id()), section.label()).child(body),
         );
     overlays.extend(menus);
-    screen
+    ui::two_pane("settings-page", rail(section), column)
 }
 
 fn rail(current: SettingsSection) -> El {
-    let mut items = col()
-        .key("settings-nav-group")
-        .role("tablist")
-        .focus_group()
-        .w_full()
-        .gap(4.0);
+    let mut items = ui::pane_nav("settings-nav-group");
     for section in SettingsSection::ALL {
         items = items.child(nav_item(section, current));
     }
-    col()
-        .key("settings-sidebar")
-        .w(RAIL_W)
-        .shrink()
-        .pt(32.0)
-        .pb(48.0)
-        .pr(24.0)
-        .gap(16.0)
-        .sticky_top(0.0)
+    ui::pane_rail("settings-sidebar")
         .child(back_button())
         .child(items)
 }
@@ -129,6 +72,7 @@ fn back_button() -> El {
         .focusable(true)
         .focus_ring(2.0, -2.0, theme::ink())
         .hover(theme::rail_hover())
+        .hover_motion(theme::HOVER_FADE, theme::HOVER_FADE)
         .on_press(CoderuneApp::close_settings)
         .child(
             icon(&icons::ARROW_LEFT, 16.0)
@@ -145,39 +89,13 @@ fn back_button() -> El {
 
 /// The rail row's ink brightens under the pointer, as the reference rail does.
 fn nav_item(section: SettingsSection, current: SettingsSection) -> El {
-    let on = section == current;
-    let ink = if on { theme::ink() } else { theme::muted() };
-    row()
-        .key(format!("settings-nav-{}", section.id()))
-        .role("tab")
-        .label(section.label())
-        .focusable(true)
-        .focus_selected(on)
-        .w_full()
-        .h(28.0)
-        .px(6.0)
-        .gap(8.0)
-        .center_y()
-        .radius(6.0)
-        .fill(if on {
-            theme::rail_selected()
-        } else {
-            rune::Color::TRANSPARENT
-        })
-        .hover(if on {
-            theme::rail_selected()
-        } else {
-            theme::rail_hover()
-        })
-        .on_press(move |s: &mut CoderuneApp| s.select_settings(section))
-        .child(icon(section.icon(), 16.0).color(ink).a11y_hidden())
-        .child(
-            text(section.label())
-                .font(SETTINGS_RAIL)
-                .color(ink)
-                .truncate()
-                .a11y_hidden(),
-        )
+    ui::pane_nav_item(
+        &format!("settings-nav-{}", section.id()),
+        section.label(),
+        section.icon(),
+        section == current,
+        move |s: &mut CoderuneApp| s.select_settings(section),
+    )
 }
 
 fn preferences(s: &CoderuneApp, k: &Kit) -> El {

@@ -106,13 +106,19 @@ impl CoderuneApp {
 
     pub(crate) fn open_profile_details(&mut self) {
         self.view = View::Profile;
-        self.profile_tab = ProfileTab::Details;
-        self.error = None;
-        self.notice = None;
+        self.select_profile_section(self.profile_section.or(Some(ProfileSection::Skills)));
     }
 
-    pub(crate) fn toggle_profile_section(&mut self, section: ProfileSection) {
-        self.profile_section = (self.profile_section != Some(section)).then_some(section);
+    /// Opens a profile section, or the baseline when `section` is `None`.
+    pub(crate) fn select_profile_section(&mut self, section: Option<ProfileSection>) {
+        self.profile_tab = if section.is_some() {
+            ProfileTab::Details
+        } else {
+            ProfileTab::Baseline
+        };
+        self.profile_section = section;
+        self.error = None;
+        self.notice = None;
     }
 
     pub(crate) fn confirm_profile(&mut self) {

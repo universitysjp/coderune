@@ -2,7 +2,7 @@
 
 use coderune_ui::components::{self as ui, WhenExt};
 use coderune_ui::icons;
-use coderune_ui::theme::{self, LABEL, LABEL_SM};
+use coderune_ui::theme::{self, BODY_SM, LABEL, LABEL_SM};
 use rune::{col, el, row, text, Color, Cursor, Cx, Drag, El, Phase, ScrollSpec};
 use rune_kit::shell::{
     PaneState, RowStatus, Sidebar, SidebarRow, SidebarSection, TabItem, TabOrientation,
@@ -133,7 +133,12 @@ pub(crate) fn workspace(
             screens::settings::page(s, section, k, overlays)
         } else if let Some(chat) = chat {
             chat_with_panel(s, chat, k, overlays)
+        } else if matches!(active, View::Home | View::Profile) {
+            // Home and Profile own their two-pane frame and scroll.
+            col().key(active.id()).w_full().h_full().child(page)
         } else {
+            // Every single-column page shares one container with the panes:
+            // 24 pt insets around a 1008 pt column.
             col()
                 .key(active.id())
                 .w_full()
@@ -145,10 +150,10 @@ pub(crate) fn workspace(
                 .child(
                     col()
                         .w_full()
-                        .px(theme::GUTTER)
+                        .px(theme::PANE_INSET)
                         .py(24.0)
                         .items_center()
-                        .child(col().w_full().max_w(theme::CONTAINER).child(page)),
+                        .child(col().w_full().max_w(theme::PANE_CONTAINER).child(page)),
                 )
         });
 
@@ -412,6 +417,7 @@ fn nav_button(
         .focusable(true)
         .focus_ring(2.0, -2.0, theme::ink())
         .hover(theme::hover())
+        .hover_motion(theme::HOVER_FADE, theme::HOVER_FADE)
         .when(pressed, |this| this.fill(theme::pressed()))
         .on_press(on_press)
         .child(
@@ -470,21 +476,9 @@ fn sidebar(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
     }
     nav = nav.section(projects);
 
-    let settings = IconButton::new(&icons::GEAR)
-        .variant(IconButtonVariant::Ghost)
-        .label("Settings")
-        .on_press(|s: &mut CoderuneApp| s.select_settings(SettingsSection::Preferences))
+    // Settings lives on Home now; the sidebar foot is the developer profile alone.
+    nav.footer(row().w_full().items_center().child(profile_item(s)))
         .build(k)
-        .key("nav-data-footer");
-    nav.footer(
-        row()
-            .w_full()
-            .items_center()
-            .gap(4.0)
-            .child(profile_item(s))
-            .child(settings),
-    )
-    .build(k)
 }
 
 fn project_row(s: &CoderuneApp, project: &coderune_domain::Project, k: &Kit) -> El {
@@ -590,13 +584,16 @@ fn chat_details(s: &CoderuneApp, chat: &crate::chats::Chat) -> El {
         .chat_project(chat)
         .map_or("No project", |project| project.name.as_str());
     let agent = chat.agent.map_or("No agent", |agent| agent.label());
+    // The card's own inset: HoverCard adds 4 pt around its body, so 12 here
+    // lands on the same 16 pt edge Settings cards use.
     let mut details = col()
         .key("chat-details")
         .w(248.0)
-        .gap(8.0)
+        .padding(12.0)
+        .gap(6.0)
         .child(
             text(&chat.title)
-                .font(theme::HEADING_XS)
+                .font(theme::SETTINGS_ROW_TITLE)
                 .color(theme::ink())
                 .wrap(),
         )
@@ -619,14 +616,14 @@ fn chat_detail(label: &str, value: &str) -> El {
         .items_center()
         .child(
             text(label)
-                .font(LABEL_SM)
+                .font(BODY_SM)
                 .color(theme::faint())
-                .w(62.0)
+                .w(64.0)
                 .shrink(),
         )
         .child(
             text(value)
-                .font(LABEL_SM)
+                .font(BODY_SM)
                 .color(theme::muted())
                 .grow(1.0)
                 .min_w(0.0)
@@ -691,6 +688,7 @@ fn profile_item(s: &CoderuneApp) -> El {
         .radius(6.0)
         .when(selected, |this| this.fill(theme::accent_soft()))
         .when(!selected, |this| this.hover(theme::code()))
+        .hover_motion(theme::HOVER_FADE, theme::HOVER_FADE)
         .on_press(|s: &mut CoderuneApp| s.navigate(View::Profile))
         .child(
             row()

@@ -1,45 +1,90 @@
-//! The profile screen: the required baseline and the optional details that
-//! onboarding intentionally leaves for later.
+//! The profile: a rail of sections beside the editor for the open one.
 
 use crate::app::{CoderuneApp, ProfileSection, ProfileTab};
 use crate::widgets::*;
 use coderune_ui::components as ui;
+use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, BODY_SM, HEADING_XS, LABEL_SM};
 use rune::{col, row, text, El};
-use rune_kit::{Accordion, AccordionItem, Kit, SegmentedControl};
+use rune_kit::Kit;
 
 pub(crate) fn profile(s: &CoderuneApp, k: &Kit) -> El {
-    let mut body = ui::page("profile-page").child(ui::page_header(
-        "Profile",
-        "One developer profile shared across every project. Required answers stay short; optional detail can be added over time.",
-        vec![],
-    ));
-
-    let selected = match s.profile_tab {
-        ProfileTab::Baseline => 0,
-        ProfileTab::Details => 1,
+    let section = (s.profile_tab == ProfileTab::Details)
+        .then_some(s.profile_section)
+        .flatten();
+    let (title, description) = match section {
+        Some(section) => (section.title(), section.hint()),
+        None => (
+            "Developer profile",
+            "One profile shared across every project. Required answers stay short; optional detail can be added over time.",
+        ),
     };
-    body = body.child(
-        SegmentedControl::new(&["Baseline", "Complete profile"], Some(selected))
-            .label("Profile view")
-            .width(Some(300.0))
-            .on_pick(|s: &mut CoderuneApp, index, _| {
-                s.profile_tab = if index == 0 {
-                    ProfileTab::Baseline
-                } else {
-                    ProfileTab::Details
-                };
+    let save = primary(save_label(s), |s| s.save_profile(), k).key("save-profile");
+    let mut body = ui::pane_body("profile-body", "Profile").children(status_alerts(s));
+    body = body.child(match section {
+        Some(section) => ui::settings_section(
+            k,
+            "profile-section",
+            Some(section.title()),
+            ui::settings_card(k, "profile-section-card", [section_body(s, section, k)]),
+        ),
+        None => baseline(s, k),
+    });
+    ui::two_pane(
+        "profile-page",
+        profile_rail(s),
+        ui::pane_page("profile-content")
+            .child(ui::pane_heading_row(
+                "profile-header",
+                title,
+                description,
+                vec![save],
+            ))
+            .child(body),
+    )
+}
+
+fn profile_rail(s: &CoderuneApp) -> El {
+    let mut items = ui::pane_nav("profile-nav");
+    items = items.child(ui::pane_nav_item(
+        "profile-nav-baseline",
+        "Baseline",
+        &icons::USER,
+        s.profile_tab == ProfileTab::Baseline,
+        |s: &mut CoderuneApp| {
+            s.profile_tab = ProfileTab::Baseline;
+            s.profile_section = None;
+            s.error = None;
+            s.notice = None;
+        },
+    ));
+    for section in ProfileSection::ALL {
+        let selected = s.profile_tab == ProfileTab::Details && s.profile_section == Some(section);
+        items = items.child(ui::pane_nav_item(
+            &format!("profile-nav-{}", section.id()),
+            section.title(),
+            section_icon(section),
+            selected,
+            move |s: &mut CoderuneApp| {
+                s.profile_tab = ProfileTab::Details;
+                s.profile_section = Some(section);
                 s.error = None;
                 s.notice = None;
-            })
-            .build(k),
-    );
+            },
+        ));
+    }
+    ui::pane_rail("profile-sidebar").child(items)
+}
 
-    body = body.children(status_alerts(s));
-
-    match s.profile_tab {
-        ProfileTab::Baseline => body.child(baseline(s, k)),
-        ProfileTab::Details => body.child(details(s, k)),
+fn section_icon(section: ProfileSection) -> &'static rune::Icon {
+    match section {
+        ProfileSection::Skills => &icons::LIGHTNING,
+        ProfileSection::Education => &icons::BOOK,
+        ProfileSection::Employment => &icons::CUBE,
+        ProfileSection::Projects => &icons::FOLDER,
+        ProfileSection::Certifications => &icons::CHECK_CIRCLE,
+        ProfileSection::Links => &icons::LINK,
+        ProfileSection::Preferences => &icons::SLIDERS,
     }
 }
 
@@ -111,7 +156,7 @@ fn baseline(s: &CoderuneApp, k: &Kit) -> El {
         ));
     }
 
-    let mut form_children = vec![
+    let form_children = vec![
         ui::field(
             "Display name",
             Some("A name or pseudonym."),
@@ -152,23 +197,13 @@ fn baseline(s: &CoderuneApp, k: &Kit) -> El {
                 k,
             ),
         ),
-        row()
-            .gap(8.0)
-            .items_center()
-            .child(option_chip(
-                "profile-new-to-coding".to_string(),
-                "I am new to coding",
-                s.profile_form.new_to_coding,
-                |s: &mut CoderuneApp| s.profile_form.new_to_coding = !s.profile_form.new_to_coding,
-            ))
-            .child(primary(save_label(s), |s| s.save_profile(), k)),
+        option_chip(
+            "profile-new-to-coding".to_string(),
+            "I am new to coding",
+            s.profile_form.new_to_coding,
+            |s: &mut CoderuneApp| s.profile_form.new_to_coding = !s.profile_form.new_to_coding,
+        ),
     ];
-    if s.profile_form.details_count() > 0 {
-        form_children.push(ui::tiny(&format!(
-            "{} optional section(s) hold content. Edit them under Complete profile.",
-            s.profile_form.details_count()
-        )));
-    }
     body.child(ui::section(
         k,
         "profile-required",
@@ -181,33 +216,6 @@ fn baseline(s: &CoderuneApp, k: &Kit) -> El {
                 "Self-reported skills are never presented as verified mastery.",
             ))
             .children(form_children)],
-    ))
-}
-
-fn details(s: &CoderuneApp, k: &Kit) -> El {
-    let mut accordion = Accordion::new();
-    for section in ProfileSection::ALL {
-        let open = s.profile_section == Some(section);
-        accordion = accordion.item(
-            AccordionItem::new(section.title())
-                .expanded(open)
-                .on_toggle(move |s: &mut CoderuneApp| s.toggle_profile_section(section))
-                .child(section_body(s, section, k)),
-        );
-    }
-    col().w_full().gap(ui::SECTION_GAP).child(ui::section_with(
-        k,
-        "profile-details",
-        "Complete your profile",
-        primary("Save profile", |s| s.save_profile(), k),
-        [col()
-            .w_full()
-            .gap(10.0)
-            .py(ui::ROW_PAD)
-            .child(ui::subtle(
-                "Optional. Each entry makes future project context more useful, but none is required to start.",
-            ))
-            .child(accordion.build(k))],
     ))
 }
 
@@ -285,7 +293,7 @@ fn section_body(s: &CoderuneApp, section: ProfileSection, k: &Kit) -> El {
             ),
         )),
     };
-    col().w_full().padding(16.0).gap(8.0).child(body).child(
+    col().w_full().gap(8.0).child(body).child(
         text(section.hint())
             .font(LABEL_SM)
             .color(theme::faint())
