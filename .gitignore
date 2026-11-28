@@ -38,11 +38,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .ui-review/
 .playwright-cli/
 
-# local checkouts of vendored and tooling repositories
-/.rune/
-/.rn/
-/.h/
-/.or/
+# local checkouts of vendored and tooling repositories (also a symlink)
+/.rune
+/.rn
+/.h
+/.or
 
 # rust build output
 /target/
