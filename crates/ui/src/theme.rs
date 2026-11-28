@@ -2,7 +2,7 @@
 
 use std::{cell::Cell, sync::OnceLock};
 
-use rune::{Color, Family, TextStyle};
+use rune::{Anim, Color, Curve, Easing, Family, TextStyle};
 use rune_kit::{kit::Type, Kit};
 
 thread_local! {
@@ -185,6 +185,20 @@ pub const CONTAINER: f32 = 1080.0;
 pub const PAGE_HEADER_MAX: f32 = 640.0;
 pub const FIELD_MAX_HEIGHT: f32 = 176.0;
 pub const ICON: f32 = 20.0;
+
+/// A two-pane page: a destinations rail beside the open page.
+pub const PANE_RAIL: f32 = 240.0;
+pub const PANE_MAX: f32 = 728.0;
+pub const PANE_CONTAINER: f32 = 1008.0;
+pub const PANE_INSET: f32 = 24.0;
+pub const PANE_GAP: f32 = 28.0;
+pub const PANE_ROW: f32 = 28.0;
+pub const PANE_RADIUS: f32 = 6.0;
+
+/// The 120 ms ease every navigation row uses for its hover wash.
+pub const HOVER_FADE: Anim = Anim::new(Curve::tween(0.12, Easing::EASE_IN_OUT));
+/// A selection wash that settles just after the pointer leaves.
+pub const RAIL_FADE: Anim = Anim::new(Curve::tween(0.16, Easing::EASE_OUT));
 
 /// A compact scale. Titles sit close to body size, as desktop shells do, and
 /// hierarchy comes from weight and colour more than from size.

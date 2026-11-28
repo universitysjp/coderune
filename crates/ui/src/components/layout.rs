@@ -1,11 +1,11 @@
 //! Page frame, raised cards, settings rows, and empty states.
 
-use rune::{col, icon, row, text, El, Icon};
+use rune::{col, icon, row, text, El, Icon, ScrollSpec};
 use rune_kit::Kit;
 
 use crate::theme::{
     self, BODY, BODY_SM, HEADING_LG, HEADING_SM, HEADING_XS, LABEL, LABEL_SM, SETTINGS_DESCRIPTION,
-    SETTINGS_ROW_DESCRIPTION, SETTINGS_ROW_TITLE, SETTINGS_SECTION, SETTINGS_TITLE,
+    SETTINGS_RAIL, SETTINGS_ROW_DESCRIPTION, SETTINGS_ROW_TITLE, SETTINGS_SECTION, SETTINGS_TITLE,
 };
 
 use super::controls::WhenExt;
@@ -178,6 +178,167 @@ pub fn settings_section(_k: &Kit, key: &str, title: Option<&str>, card: El) -> E
                 .key("title")
         }))
         .child(card)
+}
+
+/// A two-pane screen: a sticky rail of destinations beside the open page, both
+/// inside one scroll view at the Settings screen's width and insets.
+pub fn two_pane(key: &str, rail: El, content: El) -> El {
+    col()
+        .key(key.to_owned())
+        .w_full()
+        .h_full()
+        .grow(1.0)
+        .shrink()
+        .min_h(0.0)
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        })
+        .scroll_edge_fade(16.0)
+        .child(
+            row().w_full().px(theme::PANE_INSET).justify_center().child(
+                row()
+                    .w_full()
+                    .max_w(theme::PANE_CONTAINER)
+                    .items_start()
+                    .child(rail)
+                    .child(content),
+            ),
+        )
+}
+
+/// The fixed column a two-pane screen's destinations sit in.
+pub fn pane_rail(key: &str) -> El {
+    col()
+        .key(key.to_owned())
+        .w(theme::PANE_RAIL)
+        .shrink()
+        .pt(32.0)
+        .pb(48.0)
+        .pr(24.0)
+        .gap(16.0)
+        .sticky_top(0.0)
+}
+
+/// A rail's destinations, as one keyboard group.
+pub fn pane_nav(key: &str) -> El {
+    col()
+        .key(key.to_owned())
+        .role("tablist")
+        .focus_group()
+        .w_full()
+        .gap(4.0)
+}
+
+/// A 28 pt rail destination: glyph, label, a 6 pt radius, and the shared
+/// 120 ms hover wash.
+pub fn pane_nav_item<S: 'static>(
+    key: &str,
+    label: &str,
+    glyph: &'static Icon,
+    selected: bool,
+    on_press: impl Fn(&mut S) + 'static,
+) -> El {
+    pane_nav_item_with(key, label, glyph, selected, None, on_press)
+}
+
+/// [`pane_nav_item`] with a slot at its end, such as a count or a state dot.
+pub fn pane_nav_item_with<S: 'static>(
+    key: &str,
+    label: &str,
+    glyph: &'static Icon,
+    selected: bool,
+    trailing: Option<El>,
+    on_press: impl Fn(&mut S) + 'static,
+) -> El {
+    let ink = if selected {
+        theme::ink()
+    } else {
+        theme::muted()
+    };
+    let mut row = row()
+        .key(key.to_owned())
+        .role("tab")
+        .label(label)
+        .focusable(true)
+        .focus_selected(selected)
+        .w_full()
+        .h(theme::PANE_ROW)
+        .px(6.0)
+        .gap(8.0)
+        .center_y()
+        .radius(theme::PANE_RADIUS)
+        .fill(if selected {
+            theme::rail_selected()
+        } else {
+            rune::Color::TRANSPARENT
+        })
+        .hover(if selected {
+            theme::rail_selected()
+        } else {
+            theme::rail_hover()
+        })
+        .hover_motion(theme::HOVER_FADE, theme::HOVER_FADE)
+        .on_press(on_press)
+        .child(icon(glyph, 16.0).color(ink).a11y_hidden())
+        .child(
+            text(label)
+                .font(SETTINGS_RAIL)
+                .color(ink)
+                .grow(1.0)
+                .min_w(0.0)
+                .truncate()
+                .a11y_hidden(),
+        );
+    if let Some(trailing) = trailing {
+        row = row.child(trailing);
+    }
+    row
+}
+
+/// The open page beside a rail, capped at the readable line length.
+pub fn pane_page(key: &str) -> El {
+    col()
+        .key(key.to_owned())
+        .grow(1.0)
+        .shrink()
+        .min_w(0.0)
+        .max_w(theme::PANE_MAX)
+        .pl(theme::PANE_GAP)
+}
+
+/// A two-pane page's title band: sticky under the window chrome, with the
+/// Settings screen's 15/640 title and 13/440 description.
+pub fn pane_heading(key: &str, title: &str, description: &str) -> El {
+    pane_heading_row(key, title, description, Vec::new())
+}
+
+/// [`pane_heading`] with a trailing action row.
+pub fn pane_heading_row(key: &str, title: &str, description: &str, actions: Vec<El>) -> El {
+    let mut band = row()
+        .key(key.to_owned())
+        .w_full()
+        .items_start()
+        .gap(16.0)
+        .pt(32.0)
+        .fill(theme::canvas())
+        .sticky_top(0.0)
+        .child(settings_header(title, description).grow(1.0).min_w(0.0));
+    if !actions.is_empty() {
+        band = band.child(row().shrink().items_center().gap(8.0).children(actions));
+    }
+    band
+}
+
+/// The scrolling body under a pane heading.
+pub fn pane_body(key: &str, label: &str) -> El {
+    col()
+        .key(key.to_owned())
+        .role("group")
+        .label(label)
+        .w_full()
+        .gap(32.0)
+        .pt(24.0)
+        .pb(80.0)
 }
 
 /// A Settings page's header: its title and description, 16 points apart from the body.
