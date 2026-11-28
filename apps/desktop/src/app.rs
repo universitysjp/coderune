@@ -88,23 +88,96 @@ impl View {
     }
 }
 
+/// The chat's side panel: what the conversation is grounded in.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum ChatPanel {
+    #[default]
+    Context,
+    Documents,
+}
+
+impl ChatPanel {
+    pub(crate) const ALL: [Self; 2] = [Self::Context, Self::Documents];
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Context => "Context",
+            Self::Documents => "Documents",
+        }
+    }
+
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Context => "context",
+            Self::Documents => "documents",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SettingsSection {
-    General,
-    Storage,
-    Archived,
-    Agents,
+    Preferences,
+    Appearance,
+    Notifications,
+    Providers,
+    Projects,
     Shortcuts,
 }
 
 impl SettingsSection {
+    /// The rail's destinations, in order.
+    pub(crate) const ALL: [Self; 6] = [
+        Self::Preferences,
+        Self::Appearance,
+        Self::Notifications,
+        Self::Providers,
+        Self::Projects,
+        Self::Shortcuts,
+    ];
+
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Self::General => "General",
-            Self::Storage => "Storage",
-            Self::Archived => "Archived",
-            Self::Agents => "Agents",
+            Self::Preferences => "Preferences",
+            Self::Appearance => "Appearance",
+            Self::Notifications => "Notifications",
+            Self::Providers => "Providers",
+            Self::Projects => "Projects",
             Self::Shortcuts => "Shortcuts",
+        }
+    }
+
+    /// The line under the page's title.
+    pub(crate) fn description(self) -> &'static str {
+        match self {
+            Self::Preferences => "How Coderune behaves, and where it keeps your data.",
+            Self::Appearance => "The colour scheme and the faces for text and code.",
+            Self::Notifications => "What Coderune tells you while agents work.",
+            Self::Providers => "The coding agents this app can run, and how they connect.",
+            Self::Projects => "The folders Coderune keeps context and chats for.",
+            Self::Shortcuts => "Every destination and window command, with its keys.",
+        }
+    }
+
+    pub(crate) fn icon(self) -> &'static rune::Icon {
+        match self {
+            Self::Preferences => &icons::SLIDERS,
+            Self::Appearance => &icons::APPEARANCE,
+            Self::Notifications => &icons::NOTIFICATIONS,
+            Self::Providers => &icons::PROVIDERS,
+            Self::Projects => &icons::FOLDER,
+            Self::Shortcuts => &icons::KEYBOARD_OUTLINE,
+        }
+    }
+
+    /// The stable id Settings' rail, pages, and tests address it by.
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Preferences => "preferences",
+            Self::Appearance => "appearance",
+            Self::Notifications => "notifications",
+            Self::Providers => "providers",
+            Self::Projects => "projects",
+            Self::Shortcuts => "shortcuts",
         }
     }
 }
@@ -213,6 +286,10 @@ pub struct CoderuneApp {
     /// The archived chat awaiting a permanent delete.
     pub(crate) confirm_delete_chat: Option<String>,
     pub(crate) settings: Option<SettingsSection>,
+    /// The chat's side panel: closed, or showing one of its tabs.
+    pub(crate) chat_panel: Option<ChatPanel>,
+    pub(crate) chat_panel_pane: rune_kit::shell::PaneState,
+    pub(crate) chat_panel_grab: Option<rune_kit::shell::PaneState>,
     /// The font list open in Settings, by row.
     pub(crate) font_menu: Option<&'static str>,
     pub(crate) settings_feedback: Option<Result<String, AppError>>,
@@ -320,6 +397,9 @@ impl CoderuneApp {
             confirm_delete_all: false,
             confirm_delete_chat: None,
             settings: None,
+            chat_panel: None,
+            chat_panel_pane: rune_kit::shell::PaneState::new(320.0).range(240.0, 420.0),
+            chat_panel_grab: None,
             font_menu: None,
             settings_feedback: None,
             preferences,
@@ -906,10 +986,12 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","t
         let mut state = CoderuneApp::init();
         scene_projects(&mut state);
         let export_path = dir.path().join("export.json");
+        // Tall enough for the whole Preferences page, so the delete confirmation's
+        // controls stay hit-testable without scrolling.
         let mut app = Runtime::new(
             state,
             view,
-            (1280.0, 860.0),
+            (1280.0, 1200.0),
             Env {
                 system_dark: false,
                 scale: 1.0,
@@ -927,25 +1009,28 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","t
         };
         assert!(app.find("settings-shortcut").is_none());
         click(&mut app, "nav-data-footer");
-        assert!(app.find("settings-dialog").is_some());
+        assert!(app.find("settings-nav-preferences").is_some());
         assert!(app.find("check-updates").is_some());
-        assert!(app.find("projects").is_some());
+        assert!(app.find("settings-back").is_some());
+        assert!(app.find("projects").is_none());
         assert!(!app.state.dark_mode());
+        click(&mut app, "settings-nav-appearance");
+        assert!(app.find("dark-mode").is_some());
         click(&mut app, "dark-mode");
         assert!(app.state.dark_mode());
         assert!(CoderuneApp::init().dark_mode());
-        click(&mut app, "settings-shortcuts");
+        click(&mut app, "settings-nav-shortcuts");
         assert!(app.find("navigation-shortcuts").is_some());
         assert!(app.find("window-shortcuts").is_some());
         for (_, view) in VIEW_SHORTCUTS {
             assert!(app.find(view.label()).is_some());
         }
 
-        click(&mut app, "settings-storage");
+        click(&mut app, "settings-nav-preferences");
         for key in ["open-data-folder", "export-data", "delete-data"] {
             assert!(app.find(key).is_some(), "missing storage action {key}");
         }
-        assert!(app.find("check-updates").is_none());
+        assert!(app.find("check-updates").is_some());
 
         click(&mut app, "export-data");
         for _ in 0..8 {
@@ -966,15 +1051,14 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","t
         click(&mut app, "cancel-delete-data");
         assert!(app.find("cancel-delete-data").is_none());
 
-        click(&mut app, "close");
-        assert!(app.find("settings-dialog").is_none());
+        click(&mut app, "settings-back");
+        assert!(app.find("settings-nav-preferences").is_none());
         assert!(app.find("projects").is_some());
 
         click(&mut app, "nav-data-footer");
-        click(&mut app, "settings-storage");
         click(&mut app, "delete-data");
         click(&mut app, "confirm-delete-data");
-        assert!(app.find("settings-dialog").is_none());
+        assert!(app.find("settings-nav-preferences").is_none());
         assert!(app.find("stage-chip-EarlyCareer").is_some());
     }
 
@@ -1005,7 +1089,7 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","t
         ];
         state.agent_detection.check = Check::Finished;
         state.document_form.agent = Some(AgentId::Codex);
-        state.select_settings(SettingsSection::Agents);
+        state.select_settings(SettingsSection::Providers);
         let mut app = Runtime::new(state, view, (960.0, 640.0), Env::new(false, 1.0));
         for _ in 0..24 {
             app.frame(1.0 / 60.0);
@@ -1027,5 +1111,64 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"saved-thread","t
         app.pointer_up(x + w / 2.0, y + h / 2.0);
         app.frame(1.0 / 60.0);
         assert_eq!(app.take_url_requests(), ["https://opencode.ai/docs/"]);
+    }
+
+    #[test]
+    fn settings_is_a_view_and_the_top_bar_carries_navigation() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("CODERUNE_DATA_DIR", dir.path());
+        let mut state = CoderuneApp::init();
+        seed_demo(&mut state);
+        state.select_settings(SettingsSection::Appearance);
+        let mut app = Runtime::new(
+            state,
+            view,
+            (1280.0, 860.0),
+            Env {
+                system_dark: false,
+                scale: 1.0,
+            },
+        );
+        app.frame(0.0);
+
+        let click = |app: &mut Runtime<CoderuneApp>, key| {
+            let [x, y, w, h] = app.presented(key).unwrap().0;
+            app.pointer_down(x + w / 2.0, y + h / 2.0);
+            app.pointer_up(x + w / 2.0, y + h / 2.0);
+            for _ in 0..24 {
+                app.frame(1.0 / 60.0);
+            }
+        };
+
+        // Settings is a page beside the sidebar, not a dialog over the workspace.
+        assert!(app.find("settings-nav-appearance").is_some());
+        assert!(app.find("settings-back").is_some());
+        assert!(app.find("dark-mode").is_some());
+        assert!(app.find("workspace-sidebar").is_some());
+
+        // Choosing the top bar layout in Preferences moves the destinations into the
+        // title bar and drops the sidebar while the page stays open.
+        click(&mut app, "settings-nav-preferences");
+        click(&mut app, "navigation-mode-top-bar");
+        assert_eq!(
+            app.state.navigation_mode(),
+            crate::preferences::NavigationMode::TopBar
+        );
+        assert!(app.find("top-nav-Home").is_some());
+        assert!(app.find("top-nav-Settings").is_some());
+        assert!(app.find("workspace-sidebar").is_none());
+
+        // Escape leaves it for the page behind.
+        let handled = on_key(
+            &mut app.state,
+            &rune::KeyEvent {
+                key: rune::Key::Escape,
+                mods: rune::Mods::default(),
+            },
+            &mut rune::Tx::default(),
+        );
+        assert!(handled);
+        assert!(app.state.settings.is_none());
     }
 }

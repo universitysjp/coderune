@@ -68,6 +68,22 @@ struct CatalogKey {
 }
 
 impl CoderuneApp {
+    /// Opens the chat's side panel on `tab`, or closes it when that tab is showing.
+    pub(crate) fn toggle_chat_panel(&mut self, tab: crate::app::ChatPanel) {
+        self.chat_panel = match self.chat_panel {
+            Some(open) if open == tab => None,
+            _ => Some(tab),
+        };
+    }
+
+    /// Shows the side panel on `tab`, opening it when it is closed.
+    pub(crate) fn select_chat_panel(&mut self, tab: crate::app::ChatPanel) {
+        self.chat_panel = Some(tab);
+    }
+
+    pub(crate) fn close_chat_panel(&mut self) {
+        self.chat_panel = None;
+    }
     pub(in crate::app) fn seed_chat_catalog(&mut self, models: Vec<Model>) {
         self.chat_catalog = ChatCatalog {
             key: self.active_chat().and_then(|chat| self.chat_target(chat)),

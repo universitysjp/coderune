@@ -17,7 +17,7 @@ const SIDEBAR_BREAKPOINT: f32 = 1080.0;
 const SIDEBAR_STEP: f32 = 8.0;
 /// Every top-level navigation tab shares this height and inset, so the four
 /// destinations read as one set.
-const NAV_ROW_HEIGHT: f32 = 32.0;
+const NAV_ROW_HEIGHT: f32 = 28.0;
 
 pub(crate) struct SidebarPane {
     wide: PaneState,
@@ -119,7 +119,9 @@ pub(crate) fn workspace(
     let content = ui::surface_frame(k, theme::canvas(), k.radius.lg)
         .key("workspace-panel")
         .role("group")
-        .label(if chat.is_some() {
+        .label(if let Some(section) = s.settings {
+            section.label()
+        } else if chat.is_some() {
             "Chat"
         } else {
             active.label()
@@ -127,12 +129,10 @@ pub(crate) fn workspace(
         .grow(1.0)
         .min_w(0.0)
         .h_full()
-        .child(if let Some(chat) = chat {
-            col()
-                .key(format!("t-chat-{}", chat.id))
-                .w_full()
-                .h_full()
-                .child(screens::chat(s, k, overlays))
+        .child(if let Some(section) = s.settings {
+            screens::settings::page(s, section, k, overlays)
+        } else if let Some(chat) = chat {
+            chat_with_panel(s, chat, k, overlays)
         } else {
             col()
                 .key(active.id())
@@ -164,6 +164,7 @@ pub(crate) fn workspace(
     let narrow = cx
         .layout_with(WORKSPACE_KEY, |rect| rect[2] < SIDEBAR_BREAKPOINT)
         .unwrap_or(false);
+    let top_bar = s.navigation_mode() == crate::preferences::NavigationMode::TopBar;
     let pane = if narrow {
         s.sidebar
             .narrow
@@ -171,7 +172,8 @@ pub(crate) fn workspace(
     } else {
         s.sidebar.wide
     };
-    if pane.is_open() {
+    // Top-bar navigation has no sidebar: the destinations move into the title bar.
+    if pane.is_open() && !top_bar {
         layout = layout.child(
             col()
                 .key("workspace-sidebar")
@@ -183,7 +185,7 @@ pub(crate) fn workspace(
     // Keep the same hit target at the window's edge after the pane closes.
     let grip = el()
         .key("sidebar-resize")
-        .w(10.0)
+        .w(if top_bar { 0.0 } else { 10.0 })
         .h_full()
         .hit()
         .cursor(Cursor::ResizeColumn)
@@ -230,7 +232,7 @@ pub(crate) fn workspace(
         .h_full()
         .fill(theme::surface())
         .instant_changes()
-        .child(titlebar(s, cx, k, narrow, pane.is_open()))
+        .child(titlebar(s, cx, k, narrow, pane.is_open(), top_bar))
         .child(layout.child(grip).child(content))
         .child(width_class)
 }
@@ -241,6 +243,7 @@ fn titlebar(
     k: &Kit,
     narrow: bool,
     sidebar_open: bool,
+    top_bar: bool,
 ) -> El {
     let mut tab_kit = k.clone();
     tab_kit.c.layer_03 = Color::TRANSPARENT;
@@ -282,7 +285,9 @@ fn titlebar(
         .height(theme::TOPBAR)
         .fill(theme::surface())
         .tabs(strip);
-    if narrow || !sidebar_open {
+    if top_bar {
+        titlebar = titlebar.leading(top_bar_nav(s));
+    } else if narrow || !sidebar_open {
         titlebar = titlebar.leading(
             IconButton::new(&icons::PANEL_LEFT)
                 .variant(IconButtonVariant::Ghost)
@@ -301,6 +306,123 @@ fn titlebar(
         );
     }
     titlebar.build(k)
+}
+
+/// A chat beside its side panel: context and documents, resizable at the seam.
+fn chat_with_panel(
+    s: &CoderuneApp,
+    chat: &crate::chats::Chat,
+    k: &Kit,
+    overlays: &mut Vec<El>,
+) -> El {
+    let mut layout = row()
+        .key(format!("t-chat-{}", chat.id))
+        .w_full()
+        .h_full()
+        .child(
+            col()
+                .grow(1.0)
+                .min_w(0.0)
+                .h_full()
+                .child(screens::chat(s, k, overlays)),
+        );
+    if let Some(tab) = s.chat_panel {
+        let pane = s.chat_panel_pane;
+        let grip = el()
+            .key("chat-panel-resize")
+            .w(8.0)
+            .h_full()
+            .hit()
+            .cursor(Cursor::ResizeColumn)
+            .role("separator")
+            .label("Resize chat panel")
+            .range_value(
+                f64::from(pane.width()),
+                f64::from(pane.min_width()),
+                f64::from(pane.max_width()),
+            )
+            .on_drag(|s: &mut CoderuneApp, drag, tx| {
+                match drag.phase {
+                    Phase::Down => s.chat_panel_grab = Some(s.chat_panel_pane),
+                    Phase::Move => {
+                        if let Some(start) = s.chat_panel_grab {
+                            s.chat_panel_pane.drag_to(start.width() - drag.dx);
+                        }
+                    }
+                    Phase::Up => s.chat_panel_grab = None,
+                }
+                tx.instant();
+            });
+        layout = layout.child(grip).child(
+            col()
+                .w(pane.width())
+                .h_full()
+                .shrink()
+                .child(screens::chat_panel(s, chat, k, tab)),
+        );
+    }
+    layout
+}
+
+/// The top-bar layout's destinations, where the sidebar's rows would be.
+fn top_bar_nav(s: &CoderuneApp) -> El {
+    let mut nav = row()
+        .key("top-bar-nav")
+        .gap(2.0)
+        .mr(6.0)
+        .center_y()
+        .role("navigation")
+        .label("Workspace navigation");
+    for view in [View::Home, View::Documents, View::Subagents, View::Capture] {
+        let pressed = s.view == view && s.active_chat().is_none() && s.settings.is_none();
+        nav = nav.child(nav_button(view.label(), view.icon(), pressed, move |s| {
+            s.navigate(view)
+        }));
+    }
+    let pressed = s.settings.is_some();
+    nav.child(nav_button(
+        "Settings",
+        &icons::GEAR,
+        pressed,
+        |s: &mut CoderuneApp| {
+            if s.settings.is_some() {
+                s.close_settings();
+            } else {
+                s.select_settings(SettingsSection::Preferences);
+            }
+        },
+    ))
+}
+
+/// A 36 × 28 titlebar destination: its glyph alone, washed under the pointer and
+/// filled while it is the open page.
+fn nav_button(
+    label: &str,
+    glyph: &'static rune::Icon,
+    pressed: bool,
+    on_press: impl Fn(&mut CoderuneApp) + 'static,
+) -> El {
+    row()
+        .key(format!("top-nav-{label}"))
+        .role("button")
+        .label(label)
+        .size(36.0, 28.0)
+        .radius(6.0)
+        .center()
+        .focusable(true)
+        .focus_ring(2.0, -2.0, theme::ink())
+        .hover(theme::hover())
+        .when(pressed, |this| this.fill(theme::pressed()))
+        .on_press(on_press)
+        .child(
+            rune::icon(glyph, 16.0)
+                .color(if pressed {
+                    theme::ink()
+                } else {
+                    theme::muted()
+                })
+                .a11y_hidden(),
+        )
 }
 
 fn sidebar(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
@@ -351,7 +473,7 @@ fn sidebar(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
     let settings = IconButton::new(&icons::GEAR)
         .variant(IconButtonVariant::Ghost)
         .label("Settings")
-        .on_press(|s: &mut CoderuneApp| s.select_settings(SettingsSection::General))
+        .on_press(|s: &mut CoderuneApp| s.select_settings(SettingsSection::Preferences))
         .build(k)
         .key("nav-data-footer");
     nav.footer(

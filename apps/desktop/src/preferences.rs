@@ -7,10 +7,94 @@ use std::path::{Path, PathBuf};
 use coderune_agents::CliAgentId;
 use serde::{Deserialize, Serialize};
 
+/// Where the workspace's top-level navigation lives. Settings › Preferences draws
+/// one card for each, and the shell switches around the page while you pick.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum NavigationMode {
+    #[default]
+    Sidebar,
+    TopBar,
+}
+
+impl NavigationMode {
+    pub(crate) const ALL: [Self; 2] = [Self::Sidebar, Self::TopBar];
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Sidebar => "Sidebar",
+            Self::TopBar => "Top bar",
+        }
+    }
+
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Sidebar => "sidebar",
+            Self::TopBar => "top-bar",
+        }
+    }
+
+    pub(crate) fn detail(self) -> &'static str {
+        match self {
+            Self::Sidebar => "Destinations and chats down the left side.",
+            Self::TopBar => "Destinations across the window's title bar.",
+        }
+    }
+}
+
+/// The desktop notifications an agent turn may raise. The switches persist now;
+/// delivery is wired where each event is handled.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(default)]
+pub(crate) struct Notifications {
+    pub(crate) approvals: bool,
+    pub(crate) finished: bool,
+    pub(crate) errors: bool,
+}
+
+impl Default for Notifications {
+    fn default() -> Self {
+        Self {
+            approvals: true,
+            finished: true,
+            errors: true,
+        }
+    }
+}
+
+/// One of the notification switch rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Notify {
+    Approvals,
+    Finished,
+    Errors,
+}
+
+impl Notifications {
+    pub(crate) fn get(self, kind: Notify) -> bool {
+        match kind {
+            Notify::Approvals => self.approvals,
+            Notify::Finished => self.finished,
+            Notify::Errors => self.errors,
+        }
+    }
+
+    pub(crate) fn set(&mut self, kind: Notify, on: bool) {
+        match kind {
+            Notify::Approvals => self.approvals = on,
+            Notify::Finished => self.finished = on,
+            Notify::Errors => self.errors = on,
+        }
+    }
+}
+
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
 pub(crate) struct Preferences {
     pub(crate) dark_mode: bool,
+    pub(crate) notifications: Notifications,
+    /// Where top-level navigation lives: the sidebar or the title bar.
+    pub(crate) navigation: NavigationMode,
     /// The family behind ordinary text, and the one behind code and paths.
     pub(crate) ui_font: Option<String>,
     pub(crate) mono_font: Option<String>,

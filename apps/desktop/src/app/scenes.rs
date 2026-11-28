@@ -82,12 +82,12 @@ pub fn scene_capture_preview(s: &mut CoderuneApp) {
 }
 pub fn scene_settings(s: &mut CoderuneApp) {
     seed_demo(s);
-    s.select_settings(SettingsSection::General);
+    s.select_settings(SettingsSection::Preferences);
 }
 
 pub fn scene_storage(s: &mut CoderuneApp) {
     seed_demo(s);
-    s.select_settings(SettingsSection::Storage);
+    s.select_settings(SettingsSection::Preferences);
 }
 
 pub fn scene_shortcuts(s: &mut CoderuneApp) {
@@ -95,11 +95,38 @@ pub fn scene_shortcuts(s: &mut CoderuneApp) {
     s.select_settings(SettingsSection::Shortcuts);
 }
 
+pub fn scene_appearance(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.select_settings(SettingsSection::Appearance);
+}
+
+pub fn scene_notifications(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.select_settings(SettingsSection::Notifications);
+}
+
+pub fn scene_settings_projects(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.select_settings(SettingsSection::Projects);
+}
+
+/// The top-bar layout, reached from Preferences › Window layout.
+pub fn scene_top_bar(s: &mut CoderuneApp) {
+    seed_demo(s);
+    s.set_navigation_mode(crate::preferences::NavigationMode::TopBar);
+    s.view = View::Home;
+}
+
+pub fn scene_top_bar_settings(s: &mut CoderuneApp) {
+    scene_top_bar(s);
+    s.select_settings(SettingsSection::Preferences);
+}
+
 pub fn scene_settings_agents(s: &mut CoderuneApp) {
     seed_demo(s);
     s.agent_detection.results = coderune_agents::detect_cli_agents();
     s.agent_detection.check = Check::Finished;
-    s.select_settings(SettingsSection::Agents);
+    s.select_settings(SettingsSection::Providers);
 }
 
 pub fn scene_chat(s: &mut CoderuneApp) {
@@ -144,6 +171,31 @@ pub fn scene_chat(s: &mut CoderuneApp) {
     }
 }
 
+/// A chat with its side panel open on the project's context.
+pub fn scene_chat_panel(s: &mut CoderuneApp) {
+    scene_chat(s);
+    s.select_chat_panel(crate::app::ChatPanel::Context);
+}
+
+pub fn scene_chat_panel_documents(s: &mut CoderuneApp) {
+    scene_chat(s);
+    let project = s.active_chat().map(|chat| chat.project_id.clone());
+    if let (Some(workspace), Some(project)) = (s.workspace.as_mut(), project) {
+        workspace.documents.push(coderune_domain::ImportedDocument {
+            id: "fixture-srs".into(),
+            kind: coderune_domain::DocumentKind::Srs,
+            project_id: Some(project),
+            name: "Product requirements".into(),
+            source_path: None,
+            sha256: String::new(),
+            text: "The app keeps project context local.".into(),
+            text_bytes: 38,
+            created_at: "2026-01-01T00:00:00Z".into(),
+        });
+    }
+    s.select_chat_panel(crate::app::ChatPanel::Documents);
+}
+
 pub fn scene_chat_dark(s: &mut CoderuneApp) {
     scene_chat(s);
     s.preferences.dark_mode = true;
@@ -154,7 +206,7 @@ pub fn scene_settings_archived(s: &mut CoderuneApp) {
     if let Some(chat) = s.active_chat().map(|chat| chat.id.clone()) {
         s.archive_chat(&chat);
     }
-    s.select_settings(SettingsSection::Archived);
+    s.select_settings(SettingsSection::Projects);
 }
 
 pub fn scene_settings_fonts(s: &mut CoderuneApp) {

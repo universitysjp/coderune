@@ -2,22 +2,26 @@
 
 use coderune_domain::{AppError, ErrorCode};
 use coderune_ui::components as ui;
+use coderune_ui::icons;
 use coderune_ui::theme::{self, BODY, BODY_SM, LABEL, LABEL_SM};
 use rune::{col, row, text, El, ScrollSpec, Tx};
 use rune_kit::{
-    Combobox, ComboboxOption, Kit, Markdown, Placement, Progress, Select, Spinner, TextArea,
+    Combobox, ComboboxOption, ControlSize, IconButton, IconButtonVariant, Kit, Markdown, Placement,
+    Progress, Select, Spinner, TextArea,
 };
 
 use crate::agent_detection::Check;
 use crate::app::actions::chats::{CatalogStatus, ChatMenu, ChatTurn};
-use crate::app::{CoderuneApp, SettingsSection};
+use crate::app::{ChatPanel, CoderuneApp, SettingsSection};
 use crate::chats::{Author, Chat};
 use crate::widgets::{error_alert, ghost, primary_enabled, small_secondary_tx};
 
 use super::coding_agents::compact_logo;
 
-const BUBBLE_MAX: f32 = 720.0;
+const BUBBLE_MAX: f32 = 570.0;
 const BUBBLE_PAD: f32 = 12.0;
+/// The transcript's column: a reply's own line, narrower than a workspace page.
+const TRANSCRIPT_MAX: f32 = 760.0;
 
 pub(crate) fn chat(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
     let Some(chat) = s.active_chat() else {
@@ -47,6 +51,19 @@ pub(crate) fn chat(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
                 .truncate()
         }))
         .child(
+            IconButton::new(&icons::PANEL_RIGHT)
+                .variant(IconButtonVariant::GhostMuted)
+                .control_size(ControlSize::Small)
+                .label(if s.chat_panel.is_some() {
+                    "Hide chat panel"
+                } else {
+                    "Show chat panel"
+                })
+                .on_press(|s: &mut CoderuneApp| s.toggle_chat_panel(ChatPanel::Context))
+                .build(k)
+                .key("toggle-chat-panel"),
+        )
+        .child(
             ghost("Project settings", CoderuneApp::show_chat_project, k)
                 .key("chat-project-settings"),
         );
@@ -62,7 +79,7 @@ pub(crate) fn chat(s: &CoderuneApp, k: &Kit, overlays: &mut Vec<El>) -> El {
 }
 
 fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) -> El {
-    let mut messages = col().w_full().gap(20.0);
+    let mut messages = col().w_full().gap(28.0);
     if chat.messages.is_empty() {
         messages = messages.child(empty_chat(s, k, chat));
     }
@@ -83,7 +100,6 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
         messages = messages.child(message_row(
             message.author,
             &message.text,
-            k,
             &format!("chat-message-{index}"),
             false,
         ));
@@ -94,7 +110,6 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
                 messages = messages.child(message_row(
                     Author::Agent(agent),
                     &turn.reply,
-                    k,
                     "chat-message-live",
                     true,
                 ));
@@ -113,60 +128,45 @@ fn transcript(s: &CoderuneApp, k: &Kit, chat: &Chat, turn: Option<&ChatTurn>) ->
         .scroll(ScrollSpec { stick_bottom: true })
         .scroll_anchor()
         .scroll_edge_fade(12.0)
-        .px(20.0)
+        .px(32.0)
         .py(20.0)
         .items_center()
-        .child(col().w_full().max_w(theme::CONTAINER).child(messages))
+        .child(col().w_full().max_w(TRANSCRIPT_MAX).child(messages))
 }
 
-fn message_row(author: Author, value: &str, k: &Kit, key: &str, streaming: bool) -> El {
-    let (name, agent, mine) = match author {
-        Author::Developer => ("You", None, true),
-        Author::Coderune => ("Coderune", None, false),
-        Author::Agent(agent) => (agent.label(), Some(agent), false),
-    };
+fn message_row(author: Author, value: &str, key: &str, streaming: bool) -> El {
+    let mine = matches!(author, Author::Developer);
     let body = if value.trim().is_empty() {
         text("…").font(BODY).color(theme::muted())
+    } else if mine {
+        markdown(value, key, streaming, Some(BUBBLE_MAX))
     } else {
-        markdown(value, key, streaming)
+        markdown(value, key, streaming, None)
     };
-    let bubble = col()
-        .key(key)
-        .max_w(BUBBLE_MAX)
-        .min_w(0.0)
-        .padding(BUBBLE_PAD)
-        .radius(k.radius.lg)
-        .fill(if mine {
-            theme::accent_soft()
-        } else {
-            theme::panel()
-        })
-        .border(
-            1.0,
-            if mine {
-                theme::line()
-            } else {
-                theme::row_line()
-            },
-        )
-        .child(body);
-    let meta = row()
-        .items_center()
-        .gap(7.0)
-        .children(agent.map(|agent| compact_logo(agent, k.dark)))
-        .child(text(name).font(LABEL_SM).color(theme::muted()));
-    let mut message = col().w_full().gap(6.0);
-    message = if mine {
-        message.items_end()
-    } else {
-        message.items_start()
-    };
-    message.child(meta).child(bubble)
+    if mine {
+        // A prompt is a bubble at the column's end, 82% wide at most, as in the
+        // reference desktop: the run of prompts reads as one voice.
+        let bubble = col()
+            .key(key)
+            .max_w(BUBBLE_MAX)
+            .min_w(0.0)
+            .px(12.0)
+            .py(8.0)
+            .radius(10.0)
+            .fill(theme::code())
+            .child(body);
+        return row()
+            .w_full()
+            .justify_end()
+            .child(row().w_frac(0.82).justify_end().child(bubble));
+    }
+    // A reply is the page's own text: no bubble, no avatar, the full column.
+    col().w_full().key(key).child(body)
 }
 
-fn markdown(value: &str, key: &str, streaming: bool) -> El {
+fn markdown(value: &str, key: &str, streaming: bool, limit: Option<f32>) -> El {
     let code_key = key.to_owned();
-    Markdown::new(value)
+    let md = Markdown::new(value)
         .selectable(true)
         .streaming(streaming)
         .scroll_wide(true)
@@ -186,9 +186,9 @@ fn markdown(value: &str, key: &str, streaming: bool) -> El {
             col()
                 .key(format!("{code_key}-code-{}", frame.index))
                 .w_full()
-                .child(card)
+                .gap(4.0)
                 .child(
-                    row().pin(None, Some(4.0), Some(4.0), None).child(
+                    row().w_full().justify_end().child(
                         small_secondary_tx(
                             "Copy code",
                             move |_: &mut CoderuneApp, tx: &mut Tx| tx.copy(source.clone()),
@@ -197,10 +197,14 @@ fn markdown(value: &str, key: &str, streaming: bool) -> El {
                         .key(format!("{code_key}-copy-{}", frame.index)),
                     ),
                 )
+                .child(card)
         })
         .build(theme::kit())
-        .key(format!("{key}-markdown"))
-        .max_w(BUBBLE_MAX - BUBBLE_PAD * 2.0)
+        .key(format!("{key}-markdown"));
+    match limit {
+        Some(limit) => md.max_w(limit - BUBBLE_PAD * 2.0),
+        None => md.w_full(),
+    }
 }
 
 fn working_line(turn: &ChatTurn, k: &Kit) -> El {
@@ -321,12 +325,12 @@ fn composer(
         if missing {
             controls = controls.child(ghost(
                 "Agents settings",
-                |s| s.select_settings(SettingsSection::Agents),
+                |s| s.select_settings(SettingsSection::Providers),
                 k,
             ));
         }
     }
-    let mut body = col().w_full().max_w(theme::CONTAINER).gap(6.0);
+    let mut body = col().w_full().max_w(TRANSCRIPT_MAX).gap(8.0);
     if let Some(summary) = turn.and_then(|turn| turn.approval.as_deref()) {
         body = body.child(
             col()
@@ -366,13 +370,25 @@ fn composer(
                 ),
         );
     }
+    let card = col()
+        .key("composer")
+        .w_full()
+        .gap(6.0)
+        .px(12.0)
+        .pt(12.0)
+        .pb(8.0)
+        .radius(10.0)
+        .continuous_corners()
+        .fill(theme::panel())
+        .border(1.0, theme::line())
+        .child(input)
+        .child(controls);
     col()
         .w_full()
-        .px(16.0)
+        .px(32.0)
         .py(12.0)
         .items_center()
-        .border_sides([1.0, 0.0, 0.0, 0.0], theme::row_line())
-        .child(body.child(input).child(controls))
+        .child(body.child(card))
 }
 
 fn model_controls(

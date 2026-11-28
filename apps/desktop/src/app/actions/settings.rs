@@ -5,7 +5,7 @@ use coderune_domain::AppError;
 
 use crate::agent_detection::Check;
 use crate::app::{CoderuneApp, SettingsSection};
-use crate::preferences::Preferences;
+use crate::preferences::{NavigationMode, Notify, Preferences};
 
 impl CoderuneApp {
     pub(crate) fn select_settings(&mut self, section: SettingsSection) {
@@ -15,10 +15,28 @@ impl CoderuneApp {
         self.font_menu = None;
         self.confirm_delete_all = false;
         self.confirm_delete_chat = None;
-        if section == SettingsSection::Agents
+        if section == SettingsSection::Providers
             && matches!(self.agent_detection.check, Check::NotChecked)
         {
             self.agent_detection.refresh();
+        }
+    }
+
+    pub(crate) fn navigation_mode(&self) -> NavigationMode {
+        self.preferences.navigation
+    }
+
+    pub(crate) fn notification_enabled(&self, kind: Notify) -> bool {
+        self.preferences.notifications.get(kind)
+    }
+
+    pub(crate) fn set_notification(&mut self, kind: Notify, on: bool) {
+        self.update_preferences(|preferences| preferences.notifications.set(kind, on));
+    }
+
+    pub(crate) fn set_navigation_mode(&mut self, mode: NavigationMode) {
+        if self.navigation_mode() != mode {
+            self.update_preferences(|preferences| preferences.navigation = mode);
         }
     }
 

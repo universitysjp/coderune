@@ -53,9 +53,6 @@ fn themed_view(s: &CoderuneApp, cx: &mut Cx<CoderuneApp>) -> El {
         shell::workspace(s, k, cx, &mut overlays)
     };
     let base = col().w_full().h_full().fill(theme::bg()).child(body);
-    if let Some(section) = s.settings {
-        screens::settings::dialog(s, section, k, &mut overlays);
-    }
     if s.project_dialog {
         screens::projects::dialog(s, k, &mut overlays);
     }
@@ -98,12 +95,19 @@ pub fn on_key(s: &mut CoderuneApp, event: &KeyEvent, tx: &mut rune::Tx) -> bool 
         }
         Key::Command(',' | '7') if s.workspace.is_some() => {
             if s.settings.is_none() {
-                s.select_settings(SettingsSection::General);
+                s.select_settings(SettingsSection::Preferences);
                 tx.instant();
             }
             return true;
         }
-        _ if s.settings.is_some() => return false,
+        _ if s.settings.is_some() => {
+            if event.key == Key::Escape {
+                s.close_settings();
+                tx.instant();
+                return true;
+            }
+            return false;
+        }
         _ => {}
     }
     let terminal_shortcut = event.is_command('j')
