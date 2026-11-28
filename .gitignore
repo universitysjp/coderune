@@ -38,7 +38,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .ui-review/
 .playwright-cli/
 
-# rust build output
+# local checkouts of vendored and tooling repositories
 /.rune/
+/.rn/
+/.h/
+/.or/
+
+# rust build output
 /target/
 /.hex/
