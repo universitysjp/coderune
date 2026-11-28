@@ -138,6 +138,21 @@ pub fn accent_soft() -> Color {
     kit().c.layer_02
 }
 
+/// The fill of the open row in a navigation rail.
+pub fn rail_selected() -> Color {
+    kit().c.layer_03
+}
+
+/// The wash under a navigation rail row's pointer.
+pub fn rail_hover() -> Color {
+    kit().c.layer_01
+}
+
+/// A raised card's inner hairline, which also splits its rows.
+pub fn card_ring() -> Color {
+    kit().c.border_muted
+}
+
 pub fn danger() -> Color {
     kit().c.danger.fg
 }
@@ -183,6 +198,19 @@ pub const LABEL: TextStyle = TextStyle::new(13.0, 450.0).lh(16.0);
 pub const LABEL_SM: TextStyle = TextStyle::new(11.0, 450.0).lh(14.0);
 pub const CODE: TextStyle = TextStyle::new(12.0, 400.0).lh(18.0).mono();
 pub const CODE_SM: TextStyle = TextStyle::new(11.0, 400.0).lh(15.0).mono();
+
+/// A Settings page's title and its description line.
+pub const SETTINGS_TITLE: TextStyle = TextStyle::new(15.0, 640.0).lh(20.0);
+pub const SETTINGS_DESCRIPTION: TextStyle = TextStyle::new(13.0, 440.0).lh(24.0);
+/// A Settings rail destination's label.
+pub const SETTINGS_RAIL: TextStyle = TextStyle::new(13.0, 440.0).lh(16.0).tracking(-0.04);
+/// A Settings section's title, over its card.
+pub const SETTINGS_SECTION: TextStyle = TextStyle::new(13.0, 530.0).lh(16.0);
+/// A Settings row's title, and the description under it.
+pub const SETTINGS_ROW_TITLE: TextStyle = TextStyle::new(13.0, 530.0).lh(16.0);
+pub const SETTINGS_ROW_DESCRIPTION: TextStyle = TextStyle::new(13.0, 440.0).lh(20.0);
+/// The mode cards' names in Preferences.
+pub const SETTINGS_MODE_NAME: TextStyle = TextStyle::new(12.0, 530.0).lh(16.0);
 
 #[cfg(test)]
 mod tests {

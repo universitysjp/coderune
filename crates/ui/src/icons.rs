@@ -1,4 +1,12 @@
 //! Phosphor Regular icons, embedded as Rune icon bodies.
+//!
+//! The 16-point outline set that chrome and Settings share comes from the
+//! OpenCode theme crate and is re-exported here under distinct names.
+
+pub use rune_theme_opencode::icons::{
+    APPEARANCE, ARROW_LEFT, CHECK_SMALL, KEYBOARD as KEYBOARD_OUTLINE, NOTIFICATIONS, PROVIDERS,
+    SLIDERS, XMARK_SMALL,
+};
 
 use rune::Icon;
 

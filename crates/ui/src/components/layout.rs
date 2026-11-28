@@ -3,7 +3,10 @@
 use rune::{col, icon, row, text, El, Icon};
 use rune_kit::Kit;
 
-use crate::theme::{self, BODY, BODY_SM, HEADING_LG, HEADING_SM, HEADING_XS, LABEL, LABEL_SM};
+use crate::theme::{
+    self, BODY, BODY_SM, HEADING_LG, HEADING_SM, HEADING_XS, LABEL, LABEL_SM, SETTINGS_DESCRIPTION,
+    SETTINGS_ROW_DESCRIPTION, SETTINGS_ROW_TITLE, SETTINGS_SECTION, SETTINGS_TITLE,
+};
 
 use super::controls::WhenExt;
 use super::text::subtle;
@@ -23,6 +26,8 @@ pub fn surface_frame(k: &Kit, fill: rune::Color, radius: f32) -> El {
 pub const ROW_PAD: f32 = 14.0;
 pub const ROW_H: f32 = 44.0;
 pub const ROW_H_DESCRIBED: f32 = 56.0;
+/// A Settings card's inset, and the vertical padding of each of its rows.
+pub const SETTINGS_ROW_PAD: f32 = 20.0;
 pub const SECTION_GAP: f32 = 20.0;
 pub const SECTION_LABEL_GAP: f32 = 6.0;
 
@@ -92,11 +97,6 @@ pub fn rows_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
     surface
 }
 
-/// Related rows in one raised card with inset dividers.
-pub fn settings_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
-    rows_card(k, key, rows)
-}
-
 /// A title, an optional one-line description, and the control on the right.
 pub fn setting_row(title: &str, detail: Option<String>, action: El) -> El {
     let described = detail.is_some();
@@ -115,6 +115,85 @@ pub fn setting_row(title: &str, detail: Option<String>, action: El) -> El {
         .gap(16.0)
         .child(copy)
         .child(action)
+}
+
+/// A Settings card: a raised panel whose rows are split by hairline rules and inset
+/// `SETTINGS_ROW_PAD` from its sides.
+pub fn settings_card(k: &Kit, key: &str, rows: impl IntoIterator<Item = El>) -> El {
+    let rows: Vec<El> = rows.into_iter().collect();
+    let count = rows.len();
+    let children = rows.into_iter().enumerate().flat_map(|(index, row)| {
+        let divider = (index + 1 < count).then(|| rune::rule(0.5, k.c.border_base));
+        divider.into_iter().chain(std::iter::once(row))
+    });
+    col()
+        .key(key)
+        .w_full()
+        .px(SETTINGS_ROW_PAD)
+        .radius(k.radius.md)
+        .continuous_corners()
+        .fill(theme::raised())
+        .border(1.0, theme::card_ring())
+        .clip_rounded(k.radius.md)
+        .children(children)
+}
+
+/// A Settings row: its title and description beside a control kept at the row's end.
+pub fn settings_row(title: &str, description: Option<String>, control: El) -> El {
+    let mut copy = col().grow(1.0).shrink().min_w(0.0).gap(8.0).child(
+        text(title)
+            .key("title")
+            .font(SETTINGS_ROW_TITLE)
+            .color(theme::ink())
+            .wrap(),
+    );
+    if let Some(description) = description {
+        copy = copy.child(
+            text(description)
+                .key("about")
+                .font(SETTINGS_ROW_DESCRIPTION)
+                .color(theme::muted())
+                .wrap(),
+        );
+    }
+    row()
+        .w_full()
+        .gap(16.0)
+        .py(SETTINGS_ROW_PAD)
+        .center_y()
+        .child(copy)
+        .child(row().key("control").shrink().justify_end().child(control))
+}
+
+/// A Settings section: an optional title over its card, 16 points apart.
+pub fn settings_section(_k: &Kit, key: &str, title: Option<&str>, card: El) -> El {
+    col()
+        .key(key)
+        .w_full()
+        .gap(16.0)
+        .children(title.map(|title| {
+            text(title)
+                .font(SETTINGS_SECTION)
+                .color(theme::ink())
+                .key("title")
+        }))
+        .child(card)
+}
+
+/// A Settings page's header: its title and description, 16 points apart from the body.
+pub fn settings_header(title: &str, description: &str) -> El {
+    col()
+        .key("settings-tab-header")
+        .w_full()
+        .gap(4.0)
+        .child(text(title).font(SETTINGS_TITLE).color(theme::ink()))
+        .children((!description.is_empty()).then(|| {
+            text(description)
+                .font(SETTINGS_DESCRIPTION)
+                .color(theme::muted())
+                .w_full()
+                .wrap()
+        }))
 }
 
 pub fn page_header(title: &str, description: &str, actions: Vec<El>) -> El {
